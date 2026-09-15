@@ -1,0 +1,3349 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Planora - Calendar</title>
+
+    <!-- TABLER ICONS -->
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+
+        /* =====================================================
+           ICON FIX
+        ===================================================== */
+
+        .ti {
+            font-family: "tabler-icons" !important;
+            font-style: normal;
+            font-weight: normal;
+            font-variant: normal;
+            line-height: 1;
+            display: inline-block;
+            speak: none;
+        }
+
+
+        /* =====================================================
+           CALENDAR
+        ===================================================== */
+
+        .cal-cell {
+            position: relative;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+
+        .cal-cell:hover {
+            background: var(--purple-100);
+            border-radius: 12px;
+        }
+
+        .cal-cell.selected {
+            background: var(--purple-100);
+            border-radius: 12px;
+        }
+
+        .cal-cell.today {
+            font-weight: 700;
+        }
+
+
+        /* =====================================================
+           TASK DOTS
+        ===================================================== */
+
+        .task-dots {
+            position: absolute;
+            bottom: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .task-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: var(--purple-400);
+        }
+
+        .task-dot.pink {
+            background: var(--pink-400);
+        }
+
+        .task-dot.blue {
+            background: var(--blue-400);
+        }
+
+        .task-dot-more {
+            font-size: 8px;
+            line-height: 1;
+            font-weight: 700;
+            color: var(--purple-600);
+        }
+
+
+        /* =====================================================
+           JOURNAL ICON ON CALENDAR DATE
+        ===================================================== */
+
+        .journal-calendar-icon {
+            position: absolute;
+
+            top: 5px;
+            right: 6px;
+
+            width: 17px;
+            height: 17px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 5px;
+
+            background: #f1eaff;
+            color: #7657d9;
+
+            font-size: 11px;
+
+            z-index: 3;
+
+            cursor: pointer;
+
+            transition: 0.2s ease;
+        }
+
+        .journal-calendar-icon i {
+            font-size: 11px !important;
+            color: #7657d9 !important;
+        }
+
+        .journal-calendar-icon:hover {
+            background: #e5d9ff;
+            transform: scale(1.08);
+        }
+
+
+        /* =====================================================
+           MONTH NAVIGATION
+        ===================================================== */
+
+        .cal-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .cal-nav button {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border: none;
+            border-radius: 50%;
+
+            background: #9565c9;
+            cursor: pointer;
+
+            transition: 0.2s ease;
+
+            box-shadow: 0 4px 10px rgba(100, 50, 140, 0.2);
+        }
+
+        .cal-nav button:hover {
+            background: #7d3fb3;
+            transform: scale(1.07);
+        }
+
+        .cal-nav button:active {
+            transform: scale(0.95);
+        }
+
+        .arrow {
+            width: 9px;
+            height: 9px;
+
+            border-top: 2.5px solid white;
+            border-right: 2.5px solid white;
+
+            display: block;
+        }
+
+        .arrow-left {
+            transform: rotate(-135deg);
+            margin-left: 4px;
+        }
+
+        .arrow-right {
+            transform: rotate(45deg);
+            margin-right: 4px;
+        }
+
+        .cal-nav h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: #3f3150;
+        }
+
+
+        /* =====================================================
+           NO TASKS
+        ===================================================== */
+
+        .no-tasks {
+            text-align: center;
+            color: var(--gray-400);
+            padding: 20px 0;
+            font-size: 13px;
+        }
+
+
+        /* =====================================================
+           TASK CARDS
+        ===================================================== */
+
+        .calendar-task-item {
+            background: #fff;
+            border-radius: 14px;
+
+            padding: 13px 15px;
+
+            border-left: 4px solid var(--purple-400);
+
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            margin-bottom: 8px;
+
+            border-top: 0.5px solid var(--purple-100);
+            border-right: 0.5px solid var(--purple-100);
+            border-bottom: 0.5px solid var(--purple-100);
+
+            transition: opacity 0.2s ease;
+        }
+
+        .calendar-task-item.pink {
+            border-left-color: var(--pink-400);
+        }
+
+        .calendar-task-item.blue {
+            border-left-color: var(--blue-400);
+        }
+
+        .calendar-task-info {
+            min-width: 0;
+        }
+
+        .calendar-task-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        .calendar-task-time {
+            font-size: 12px;
+            color: var(--gray-400);
+            margin: 2px 0 0;
+        }
+
+
+        /* =====================================================
+           TASK ACTIONS
+        ===================================================== */
+
+        .task-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .task-edit-btn,
+        .task-check-btn {
+            width: 32px;
+            height: 32px;
+
+            min-width: 32px;
+            min-height: 32px;
+
+            padding: 0;
+
+            border-radius: 8px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            cursor: pointer;
+
+            transition: 0.15s ease;
+        }
+
+
+        /* EDIT */
+
+        .task-edit-btn {
+            border: 1px solid var(--purple-100);
+            background: var(--purple-50);
+        }
+
+        .task-edit-btn i {
+            font-size: 17px;
+            color: #7657d9 !important;
+        }
+
+        .task-edit-btn:hover {
+            background: var(--purple-100);
+            border-color: var(--purple-400);
+        }
+
+
+        /* CHECK */
+
+        .task-check-btn {
+            border: 1.5px solid #9b83df;
+            background: #fff;
+        }
+
+        .task-check-btn i {
+            font-size: 18px;
+            color: transparent !important;
+        }
+
+        .task-check-btn:hover {
+            background: var(--purple-50);
+        }
+
+        .task-check-btn:hover i {
+            color: #7657d9 !important;
+        }
+
+        .calendar-task-item.completed {
+            opacity: 0.7;
+            background: var(--purple-50);
+        }
+
+        .calendar-task-item.completed .calendar-task-title {
+            text-decoration: line-through;
+            color: var(--gray-600);
+        }
+
+        .calendar-task-item.completed .calendar-task-time {
+            text-decoration: line-through;
+        }
+
+        .calendar-task-item.completed .task-check-btn {
+            background: #eee8ff;
+        }
+
+        .calendar-task-item.completed .task-check-btn i {
+            color: #7657d9 !important;
+        }
+
+
+        /* =====================================================
+           JOURNAL SECTION
+        ===================================================== */
+
+        .calendar-journal-card {
+            background: #fff;
+
+            border: 1px solid var(--purple-100);
+            border-radius: 14px;
+
+            padding: 14px 15px;
+
+            margin-top: 14px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 12px;
+
+            box-shadow: 0 4px 12px rgba(70, 40, 100, 0.05);
+        }
+
+        .calendar-journal-left {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+
+            min-width: 0;
+        }
+
+        .calendar-journal-icon {
+            width: 38px;
+            height: 38px;
+
+            min-width: 38px;
+
+            border-radius: 11px;
+
+            background: #f1eaff;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .calendar-journal-icon i {
+            font-size: 19px !important;
+            color: #7657d9 !important;
+        }
+
+        .calendar-journal-title {
+            margin: 0;
+
+            font-size: 14px;
+            font-weight: 600;
+
+            color: #40384d;
+        }
+
+        .calendar-journal-subtitle {
+            margin: 3px 0 0;
+
+            font-size: 12px;
+            color: var(--gray-400);
+
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+
+            max-width: 220px;
+        }
+
+        .calendar-journal-btn {
+            border: none;
+
+            background: var(--purple-50);
+
+            color: #7657d9;
+
+            padding: 8px 12px;
+
+            border-radius: 9px;
+
+            font-size: 12px;
+            font-weight: 600;
+
+            cursor: pointer;
+
+            flex-shrink: 0;
+        }
+
+        .calendar-journal-btn:hover {
+            background: var(--purple-100);
+        }
+
+
+        /* =====================================================
+           FLOATING PLUS
+        ===================================================== */
+
+        .fab {
+            position: fixed !important;
+
+            right: 28px !important;
+            bottom: 28px !important;
+
+            width: 58px !important;
+            height: 58px !important;
+
+            min-width: 58px;
+            min-height: 58px;
+
+            border: none !important;
+            border-radius: 50% !important;
+
+            background: #9565c9 !important;
+
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+
+            cursor: pointer;
+
+            z-index: 10000;
+
+            box-shadow:
+                0 8px 25px rgba(100, 50, 140, 0.3);
+
+            transition: 0.2s ease;
+        }
+
+        .fab i {
+            font-size: 28px !important;
+            color: white !important;
+        }
+
+        .fab:hover {
+            background: #7d3fb3 !important;
+            transform: scale(1.06);
+        }
+
+
+        /* =====================================================
+           TASK MODAL
+        ===================================================== */
+
+        #task-modal {
+            position: fixed;
+
+            inset: 0;
+
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+
+            background: rgba(0, 0, 0, 0.45);
+
+            display: none;
+
+            align-items: center;
+            justify-content: center;
+
+            padding: 20px;
+
+            z-index: 999999;
+
+            overflow: auto;
+        }
+
+        #task-modal.open {
+            display: flex;
+        }
+
+        .task-modal-box {
+            position: relative;
+
+            width: 100%;
+            max-width: 430px;
+
+            padding: 22px;
+
+            background: #fff;
+
+            border-radius: 20px;
+
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.25);
+
+            display: flex;
+            flex-direction: column;
+
+            gap: 12px;
+        }
+
+        .task-modal-header {
+            width: 100%;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            margin-bottom: 5px;
+        }
+
+        .task-modal-header h3 {
+            margin: 0;
+
+            font-size: 19px;
+            font-weight: 500;
+
+            color: var(--purple-900);
+        }
+
+        .task-modal-close {
+            width: 34px;
+            height: 34px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border: none;
+            border-radius: 9px;
+
+            background: var(--purple-50);
+
+            cursor: pointer;
+        }
+
+        .task-modal-close i {
+            font-size: 18px !important;
+            color: #6d637a !important;
+        }
+
+        .task-modal-box label {
+            font-size: 12px;
+            color: var(--purple-800);
+            font-weight: 500;
+        }
+
+        .task-modal-box input {
+            width: 100%;
+
+            padding: 12px;
+
+            border-radius: 12px;
+
+            border: 1px solid var(--purple-100);
+
+            font-size: 14px;
+
+            outline: none;
+
+            box-sizing: border-box;
+        }
+
+        .task-modal-box input:focus {
+            border-color: var(--purple-400);
+
+            box-shadow:
+                0 0 0 3px var(--purple-50);
+        }
+
+
+        /* DATE */
+
+        .date-picker-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .hidden-date-input,
+        .hidden-time-input {
+            position: absolute !important;
+
+            width: 1px !important;
+            height: 1px !important;
+
+            opacity: 0 !important;
+
+            pointer-events: none !important;
+        }
+
+        .custom-date-button,
+        .custom-time-button {
+            width: 100%;
+            height: 48px;
+
+            display: flex;
+            align-items: center;
+
+            gap: 10px;
+
+            padding: 0 14px;
+
+            border: 1.5px solid #ded7f0;
+
+            border-radius: 12px;
+
+            background: #faf8ff;
+
+            color: #29233d;
+
+            font-family: inherit;
+
+            font-size: 14px;
+
+            font-weight: 500;
+
+            cursor: pointer;
+        }
+
+        .custom-date-button i:first-child,
+        .custom-time-button i:first-child {
+            color: #8b6fd8 !important;
+            font-size: 18px !important;
+        }
+
+        .custom-date-button i:last-child,
+        .custom-time-button i:last-child {
+            margin-left: auto;
+            color: #8b83a0 !important;
+        }
+
+        .custom-date-button:hover,
+        .custom-time-button:hover {
+            border-color: #9b83df;
+            background: #f7f3ff;
+        }
+
+
+        /* PICKER */
+
+        .custom-calendar {
+            position: absolute;
+
+            top: calc(100% + 6px);
+
+            left: 50%;
+
+            transform: translateX(-50%);
+
+            width: 260px;
+
+            padding: 12px;
+
+            background: #fff;
+
+            border: 1px solid #e5def3;
+
+            border-radius: 14px;
+
+            box-shadow:
+                0 15px 35px rgba(58, 43, 91, 0.2);
+
+            z-index: 9999999;
+
+            display: none;
+        }
+
+        .custom-calendar.show {
+            display: block;
+        }
+
+        .calendar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            margin-bottom: 6px;
+        }
+
+        .calendar-header button {
+            width: 28px;
+            height: 28px;
+
+            border: none;
+            background: transparent;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            cursor: pointer;
+        }
+
+        .calendar-header button i {
+            color: #7657d9 !important;
+        }
+
+        #calendar-month {
+            font-size: 13px;
+            font-weight: 600;
+            color: #29233d;
+        }
+
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+
+        .calendar-weekdays span {
+            text-align: center;
+            font-size: 9px;
+            font-weight: 600;
+            color: #999;
+        }
+
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            row-gap: 1px;
+        }
+
+        .calendar-days button {
+            width: 30px;
+            height: 30px;
+
+            margin: 0 auto;
+
+            border: none;
+            background: transparent;
+
+            border-radius: 50%;
+
+            font-size: 11px;
+
+            cursor: pointer;
+        }
+
+        .calendar-days button:hover {
+            background: #f0ebff;
+        }
+
+        .calendar-days button.today {
+            background: #eee8ff;
+            color: #7657d9;
+            font-weight: 600;
+        }
+
+        .calendar-days button.selected {
+            background: #7657d9;
+            color: white;
+            font-weight: 600;
+        }
+
+        .calendar-days button.other-month {
+            color: #c9c9c9;
+        }
+
+
+        /* TIME */
+
+        .time-row {
+            width: 100%;
+
+            display: grid;
+
+            grid-template-columns: 1fr 1fr;
+
+            gap: 12px;
+        }
+
+        .time-picker-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .time-picker-wrapper label {
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .custom-time-dropdown {
+            position: absolute;
+
+            bottom: calc(100% + 6px);
+
+            left: 50%;
+
+            transform: translateX(-50%);
+
+            width: 170px;
+
+            max-height: 180px;
+
+            overflow-y: auto;
+
+            background: #fff;
+
+            border: 1px solid #e3dcf2;
+
+            border-radius: 14px;
+
+            padding: 7px;
+
+            box-shadow:
+                0 12px 30px rgba(55, 40, 90, 0.15);
+
+            z-index: 9999999;
+
+            display: none;
+        }
+
+        .custom-time-dropdown.show {
+            display: block;
+        }
+
+        .custom-time-option {
+            width: 100%;
+
+            border: none;
+
+            border-radius: 9px;
+
+            background: transparent;
+
+            padding: 10px 12px;
+
+            text-align: left;
+
+            font-family: inherit;
+
+            font-size: 14px;
+
+            color: #40384d;
+
+            cursor: pointer;
+        }
+
+        .custom-time-option:hover {
+            background: #f2ecff;
+            color: #7659c7;
+        }
+
+
+        /* QUICK ADD */
+
+        .quick-add-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--purple-900);
+            margin: 4px 0 2px;
+        }
+
+        .quick-add-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .quick-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            background: var(--purple-50);
+
+            border-radius: 12px;
+
+            padding: 9px 12px;
+
+            font-size: 13px;
+
+            color: var(--purple-800);
+
+            border: none;
+
+            width: 100%;
+
+            cursor: pointer;
+        }
+
+        .quick-chip i {
+            font-size: 16px !important;
+            color: var(--purple-400) !important;
+        }
+
+        .quick-chip:hover {
+            background: var(--purple-100);
+        }
+
+
+        /* DELETE */
+
+        .btn-delete {
+            width: 100%;
+
+            padding: 12px;
+
+            border: 1px solid #f3c6c6;
+
+            background: #fdf1f1;
+
+            color: #c0392b;
+
+            border-radius: 12px;
+
+            font-size: 14px;
+
+            font-weight: 600;
+
+            cursor: pointer;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 8px;
+        }
+
+        .btn-delete i {
+            color: #c0392b !important;
+        }
+
+
+        @media (max-width: 500px) {
+
+            #task-modal {
+                padding: 12px;
+            }
+
+            .task-modal-box {
+                padding: 18px;
+            }
+
+            .fab {
+                right: 18px !important;
+                bottom: 75px !important;
+            }
+
+        }
+
+    </style>
+</head>
+
+
+<body>
+
+<div id="app">
+
+    <div class="screen active" id="calendar-screen">
+
+        <!-- SIDE NAV -->
+
+        <div class="side-rail">
+
+            <div class="logo-mark">
+                <i class="ti ti-calendar-star"></i>
+            </div>
+
+            <button class="nav-item"
+                onclick="location.href='home.html'">
+                <i class="ti ti-home"></i>
+                Home
+            </button>
+
+             <button class="nav-item"
+                onclick="location.href='planner.html'">
+                <i class="ti ti-list-check"></i>
+                Planner
+            </button>
+
+            <button class="nav-item"
+                onclick="location.href='journal.html'">
+                <i class="ti ti-notebook"></i>
+                Journal
+            </button>
+
+            <button class="nav-item active">
+                <i class="ti ti-calendar"></i>
+                Calendar
+            </button>
+
+            <button class="nav-item"
+                onclick="location.href='profile.html'">
+                <i class="ti ti-user"></i>
+                Profile
+            </button>
+
+        
+
+        </div>
+
+
+        <!-- MAIN -->
+
+        <div class="dash-main">
+
+            <div class="dash-header">
+
+                <div>
+
+                    <p class="date">
+                        Calendar
+                    </p>
+
+                    <h2 id="todayHeader"></h2>
+
+                </div>
+
+                <button
+                    class="nav-item"
+                    onclick="location.href='dashboard.html'"
+                    style="color:var(--purple-600);">
+
+                    <i class="ti ti-x"></i>
+
+                </button>
+
+            </div>
+
+
+            <!-- MONTH -->
+
+            <div class="cal-nav">
+
+                <button type="button" id="previousMonth">
+                    <span class="arrow arrow-left"></span>
+                </button>
+
+                <h3 id="calendarMonth"></h3>
+
+                <button type="button" id="nextMonth">
+                    <span class="arrow arrow-right"></span>
+                </button>
+
+            </div>
+
+
+            <!-- CALENDAR -->
+
+            <div class="cal-grid" id="calendarGrid">
+
+            </div>
+
+
+            <!-- SELECTED DATE -->
+
+            <p
+                class="section-label"
+                id="selectedDateLabel">
+                Select a day
+            </p>
+
+
+            <!-- TASKS -->
+
+            <div
+                class="task-list"
+                id="selectedTasks">
+            </div>
+
+
+            <!-- JOURNAL -->
+
+            <div id="selectedJournal"></div>
+
+        </div>
+
+
+        <!-- FLOATING PLUS -->
+
+        <button
+            class="fab"
+            onclick="openAddTaskModal()"
+            aria-label="Add task">
+
+            <i class="ti ti-plus"></i>
+
+        </button>
+
+
+        <!-- BOTTOM NAV -->
+
+        <div class="bottom-nav">
+
+            <button
+                class="nav-item"
+                onclick="location.href='dashboard.html'">
+
+                <i class="ti ti-home"></i>
+                Home
+
+            </button>
+
+            <button class="nav-item active">
+
+                <i class="ti ti-calendar"></i>
+                Calendar
+
+            </button>
+
+            <button
+                class="nav-item"
+                onclick="openAddTaskModal()">
+
+                <i class="ti ti-plus"></i>
+                Add
+
+            </button>
+
+            <button
+                class="nav-item"
+                onclick="location.href='streak.html'">
+
+                <i class="ti ti-flame"></i>
+                Streak
+
+            </button>
+
+            <button
+                class="nav-item"
+                onclick="location.href='profile.html'">
+
+                <i class="ti ti-user"></i>
+                Profile
+
+            </button>
+
+            <button
+                class="nav-item"
+                onclick="location.href='planner.html'">
+
+                <i class="ti ti-list-check"></i>
+                Planner
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     TASK MODAL
+===================================================== -->
+
+<div id="task-modal">
+
+    <div class="task-modal-box">
+
+        <div class="task-modal-header">
+
+            <h3 id="task-modal-title">
+                Add a task
+            </h3>
+
+            <button
+                type="button"
+                class="task-modal-close"
+                onclick="closeTaskModal()">
+
+                <i class="ti ti-x"></i>
+
+            </button>
+
+        </div>
+
+
+        <label>Task Name</label>
+
+        <input
+            id="edit-title"
+            type="text"
+            placeholder="e.g. Call the dentist at 3pm">
+
+
+        <!-- DATE -->
+
+        <div class="date-picker-wrapper">
+
+            <label>Date</label>
+
+            <input
+                id="edit-date"
+                type="date"
+                class="hidden-date-input">
+
+            <button
+                type="button"
+                class="custom-date-button"
+                id="date-picker-button">
+
+                <i class="ti ti-calendar"></i>
+
+                <span id="date-picker-display">
+                    Select date
+                </span>
+
+                <i class="ti ti-chevron-down"></i>
+
+            </button>
+
+
+            <div
+                class="custom-calendar"
+                id="custom-calendar">
+
+                <div class="calendar-header">
+
+                    <button
+                        type="button"
+                        id="calendar-prev">
+
+                        <i class="ti ti-chevron-left"></i>
+
+                    </button>
+
+                    <span id="calendar-month"></span>
+
+                    <button
+                        type="button"
+                        id="calendar-next">
+
+                        <i class="ti ti-chevron-right"></i>
+
+                    </button>
+
+                </div>
+
+                <div class="calendar-weekdays">
+
+                    <span>Mon</span>
+                    <span>Tue</span>
+                    <span>Wed</span>
+                    <span>Thu</span>
+                    <span>Fri</span>
+                    <span>Sat</span>
+                    <span>Sun</span>
+
+                </div>
+
+                <div
+                    class="calendar-days"
+                    id="calendar-days">
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- TIME -->
+
+        <div class="time-row">
+
+            <div class="time-picker-wrapper">
+
+                <label>Start Time</label>
+
+                <input
+                    id="edit-start"
+                    type="time"
+                    class="hidden-time-input">
+
+                <button
+                    type="button"
+                    class="custom-time-button"
+                    id="start-time-button">
+
+                    <i class="ti ti-clock"></i>
+
+                    <span id="start-time-display">
+                        Select time
+                    </span>
+
+                    <i class="ti ti-chevron-down"></i>
+
+                </button>
+
+                <div
+                    class="custom-time-dropdown"
+                    id="start-time-dropdown">
+                </div>
+
+            </div>
+
+
+            <div class="time-picker-wrapper">
+
+                <label>End Time</label>
+
+                <input
+                    id="edit-end"
+                    type="time"
+                    class="hidden-time-input">
+
+                <button
+                    type="button"
+                    class="custom-time-button"
+                    id="end-time-button">
+
+                    <i class="ti ti-clock"></i>
+
+                    <span id="end-time-display">
+                        Select time
+                    </span>
+
+                    <i class="ti ti-chevron-down"></i>
+
+                </button>
+
+                <div
+                    class="custom-time-dropdown"
+                    id="end-time-dropdown">
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- QUICK ADD -->
+
+        <p class="quick-add-title" id="quick-add-title">
+            Quick add
+        </p>
+
+        <div
+            class="quick-add-list"
+            id="quick-add-list">
+
+            <button
+                class="quick-chip"
+                onclick="quickAddTask('Morning coffee break')">
+
+                <i class="ti ti-coffee"></i>
+                <span>Morning coffee break</span>
+
+            </button>
+
+            <button
+                class="quick-chip"
+                onclick="quickAddTask('Check emails')">
+
+                <i class="ti ti-mail"></i>
+                <span>Check emails</span>
+
+            </button>
+
+            <button
+                class="quick-chip"
+                onclick="quickAddTask('Call a friend or family')">
+
+                <i class="ti ti-phone"></i>
+                <span>Call a friend or family</span>
+
+            </button>
+
+            <button
+                class="quick-chip"
+                onclick="quickAddTask('20 min walk')">
+
+                <i class="ti ti-walk"></i>
+                <span>20 min walk</span>
+
+            </button>
+
+        </div>
+
+
+        <button
+            type="button"
+            class="btn-primary"
+            id="task-modal-submit-btn"
+            onclick="saveTaskModal()">
+
+            Add Task
+
+        </button>
+
+
+        <button
+            type="button"
+            class="btn-delete"
+            id="task-modal-delete-btn"
+            onclick="deleteTaskFromModal()"
+            style="display:none;">
+
+            <i class="ti ti-trash"></i>
+            Delete Task
+
+        </button>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    /* =====================================================
+       STORAGE
+    ===================================================== */
+
+    const TASK_STORE_KEY = "planora_tasks";
+    const JOURNAL_STORE_KEY = "planora_journals";
+    const JOURNAL_SELECTED_DATE_KEY = "planora_journal_selected_date";
+
+
+    function loadTaskStore() {
+
+        try {
+
+            return JSON.parse(
+                localStorage.getItem(TASK_STORE_KEY)
+            ) || [];
+
+        } catch (e) {
+
+            return [];
+
+        }
+
+    }
+
+
+    function saveTaskStore(list) {
+
+        localStorage.setItem(
+            TASK_STORE_KEY,
+            JSON.stringify(list)
+        );
+
+    }
+
+
+    function loadJournalStore() {
+
+        try {
+
+            return JSON.parse(
+                localStorage.getItem(JOURNAL_STORE_KEY)
+            ) || [];
+
+        } catch (e) {
+
+            return [];
+
+        }
+
+    }
+
+
+    let journals = loadJournalStore();
+
+
+    /* =====================================================
+       DEFAULT TASKS
+    ===================================================== */
+
+    function seedDefaultTasksIfEmpty() {
+
+        const existing = loadTaskStore();
+
+        if (existing.length > 0)
+            return existing;
+
+
+        const today = formatDate(new Date());
+
+
+        const defaults = [
+
+            {
+                id: "seed-1",
+                title: "Team standup",
+                date: today,
+                start: "09:00",
+                end: "09:15",
+                completed: false
+            },
+
+            {
+                id: "seed-2",
+                title: "Gym session",
+                date: today,
+                start: "18:00",
+                end: "19:00",
+                completed: false
+            },
+
+            {
+                id: "seed-3",
+                title: "Read 20 pages",
+                date: today,
+                start: "21:00",
+                end: "21:30",
+                completed: false
+            }
+
+        ];
+
+
+        saveTaskStore(defaults);
+
+        return defaults;
+
+    }
+
+
+    /* =====================================================
+       VARIABLES
+    ===================================================== */
+
+    const COLOUR_CYCLE = [null, "pink", "blue"];
+
+    let tasks = [];
+
+    let currentCalendarDate = new Date();
+
+    let selectedDate = formatDate(new Date());
+
+    let modalMode = "add";
+
+    let editingTaskId = null;
+
+    let pickerDate = new Date();
+
+
+    /* =====================================================
+       DATE HELPERS
+    ===================================================== */
+
+    function formatDate(date) {
+
+        const year = date.getFullYear();
+
+        const month =
+            String(date.getMonth() + 1)
+                .padStart(2, "0");
+
+        const day =
+            String(date.getDate())
+                .padStart(2, "0");
+
+        return `${year}-${month}-${day}`;
+
+    }
+
+
+    function formatTime(time) {
+
+        if (!time)
+            return "";
+
+        let [hour, minute] = time.split(":");
+
+        hour = parseInt(hour);
+
+        const period =
+            hour >= 12 ? "PM" : "AM";
+
+        hour = hour % 12 || 12;
+
+        return `${hour}:${minute} ${period}`;
+
+    }
+
+
+    function formatDisplayDate(dateString) {
+
+        if (!dateString)
+            return "Select date";
+
+
+        const date =
+            new Date(
+                dateString + "T00:00:00"
+            );
+
+
+        return date.toLocaleDateString(
+            "en-US",
+            {
+                day: "numeric",
+                month: "short",
+                year: "numeric"
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       TODAY HEADER
+    ===================================================== */
+
+    function updateTodayHeader() {
+
+        document.getElementById(
+            "todayHeader"
+        ).textContent =
+            new Date().toLocaleDateString(
+                "en-US",
+                {
+                    weekday: "long",
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric"
+                }
+            );
+
+    }
+
+
+    /* =====================================================
+       JOURNAL HELPERS
+       ONLY REAL TEXT COUNTS
+    ===================================================== */
+
+    function getCleanJournalContent(journal) {
+
+        if (!journal || !journal.content)
+            return "";
+
+        return String(journal.content).trim();
+
+    }
+
+
+    function hasJournalForDate(date) {
+
+        journals = loadJournalStore();
+
+        return journals.some(journal => {
+
+            if (journal.date !== date)
+                return false;
+
+            return getCleanJournalContent(journal).length > 0;
+
+        });
+
+    }
+
+
+    function getJournalForDate(date) {
+
+        journals = loadJournalStore();
+
+        return journals.find(journal => {
+
+            if (journal.date !== date)
+                return false;
+
+            return getCleanJournalContent(journal).length > 0;
+
+        });
+
+    }
+
+
+    /* =====================================================
+       RENDER CALENDAR
+    ===================================================== */
+
+    function renderCalendar() {
+
+        journals = loadJournalStore();
+
+
+        const grid =
+            document.getElementById(
+                "calendarGrid"
+            );
+
+
+        grid.innerHTML = "";
+
+
+        const days =
+            ["S", "M", "T", "W", "T", "F", "S"];
+
+
+        days.forEach(day => {
+
+            const dow =
+                document.createElement("div");
+
+            dow.className = "cal-dow";
+
+            dow.textContent = day;
+
+            grid.appendChild(dow);
+
+        });
+
+
+        const year =
+            currentCalendarDate.getFullYear();
+
+        const month =
+            currentCalendarDate.getMonth();
+
+
+        document.getElementById(
+            "calendarMonth"
+        ).textContent =
+            currentCalendarDate.toLocaleDateString(
+                "en-US",
+                {
+                    month: "long",
+                    year: "numeric"
+                }
+            );
+
+
+        const firstDay =
+            new Date(
+                year,
+                month,
+                1
+            ).getDay();
+
+
+        const daysInMonth =
+            new Date(
+                year,
+                month + 1,
+                0
+            ).getDate();
+
+
+        const previousMonthDays =
+            new Date(
+                year,
+                month,
+                0
+            ).getDate();
+
+
+        const totalCells =
+            Math.ceil(
+                (firstDay + daysInMonth) / 7
+            ) * 7;
+
+
+        for (
+            let i = 0;
+            i < totalCells;
+            i++
+        ) {
+
+            let dayNumber;
+            let cellDate;
+            let otherMonth = false;
+
+
+            if (i < firstDay) {
+
+                dayNumber =
+                    previousMonthDays -
+                    firstDay +
+                    i +
+                    1;
+
+                cellDate =
+                    new Date(
+                        year,
+                        month - 1,
+                        dayNumber
+                    );
+
+                otherMonth = true;
+
+            } else if (
+                i >= firstDay + daysInMonth
+            ) {
+
+                dayNumber =
+                    i -
+                    firstDay -
+                    daysInMonth +
+                    1;
+
+                cellDate =
+                    new Date(
+                        year,
+                        month + 1,
+                        dayNumber
+                    );
+
+                otherMonth = true;
+
+            } else {
+
+                dayNumber =
+                    i -
+                    firstDay +
+                    1;
+
+                cellDate =
+                    new Date(
+                        year,
+                        month,
+                        dayNumber
+                    );
+
+            }
+
+
+            const cell =
+                document.createElement("div");
+
+            cell.className = "cal-cell";
+
+
+            if (otherMonth)
+                cell.classList.add("muted");
+
+
+            const dateString =
+                formatDate(cellDate);
+
+
+            cell.dataset.date = dateString;
+
+
+            cell.textContent = dayNumber;
+
+
+            const today =
+                formatDate(new Date());
+
+
+            if (dateString === today)
+                cell.classList.add("today");
+
+
+            if (dateString === selectedDate)
+                cell.classList.add("selected");
+
+
+            /* =============================================
+               JOURNAL ICON
+               ONLY SHOWN IF REAL TEXT EXISTS
+            ============================================= */
+
+            if (hasJournalForDate(dateString)) {
+
+                const journalIcon =
+                    document.createElement("div");
+
+                journalIcon.className =
+                    "journal-calendar-icon";
+
+                journalIcon.innerHTML =
+                    `<i class="ti ti-notebook"></i>`;
+
+                journalIcon.title =
+                    "View journal";
+
+
+                journalIcon.addEventListener(
+                    "click",
+                    function(event) {
+
+                        event.stopPropagation();
+
+                        openJournalForDate(
+                            dateString
+                        );
+
+                    }
+                );
+
+
+                cell.appendChild(
+                    journalIcon
+                );
+
+            }
+
+
+            /* =============================================
+               TASK DOTS
+            ============================================= */
+
+            const dayTasks =
+                tasks.filter(
+                    task =>
+                        task.date === dateString
+                );
+
+
+            if (dayTasks.length > 0) {
+
+                const dots =
+                    document.createElement("div");
+
+                dots.className = "task-dots";
+
+
+                dayTasks
+                    .slice(0, 3)
+                    .forEach((task, i) => {
+
+                        const dot =
+                            document.createElement("span");
+
+                        dot.className =
+                            "task-dot";
+
+
+                        const colourClass =
+                            COLOUR_CYCLE[
+                                i %
+                                COLOUR_CYCLE.length
+                            ];
+
+
+                        if (colourClass)
+                            dot.classList.add(
+                                colourClass
+                            );
+
+
+                        dots.appendChild(dot);
+
+                    });
+
+
+                if (dayTasks.length > 3) {
+
+                    const more =
+                        document.createElement("span");
+
+                    more.className =
+                        "task-dot-more";
+
+                    more.textContent =
+                        `+${dayTasks.length - 3}`;
+
+                    dots.appendChild(more);
+
+                }
+
+
+                cell.appendChild(dots);
+
+            }
+
+
+            cell.addEventListener(
+                "click",
+                function() {
+
+                    selectedDate =
+                        this.dataset.date;
+
+                    renderCalendar();
+
+                    renderSelectedTasks();
+
+                }
+            );
+
+
+            grid.appendChild(cell);
+
+        }
+
+    }
+
+
+    /* =====================================================
+       SELECTED DATE CONTENT
+    ===================================================== */
+
+    function renderSelectedTasks() {
+
+        const container =
+            document.getElementById(
+                "selectedTasks"
+            );
+
+
+        const journalContainer =
+            document.getElementById(
+                "selectedJournal"
+            );
+
+
+        container.innerHTML = "";
+        journalContainer.innerHTML = "";
+
+
+        const dateLabel =
+            document.getElementById(
+                "selectedDateLabel"
+            );
+
+
+        dateLabel.textContent =
+            new Date(
+                selectedDate + "T00:00:00"
+            ).toLocaleDateString(
+                "en-US",
+                {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric"
+                }
+            );
+
+
+        /* =============================================
+           TASKS
+        ============================================= */
+
+        const dayTasks =
+            tasks
+                .filter(
+                    task =>
+                        task.date === selectedDate
+                )
+                .sort(
+                    (a, b) =>
+                        (a.start || "99:99")
+                            .localeCompare(
+                                b.start || "99:99"
+                            )
+                );
+
+
+        if (dayTasks.length === 0) {
+
+            container.innerHTML = `
+                <div class="no-tasks">
+                    No tasks for this day.
+                </div>
+            `;
+
+        } else {
+
+            dayTasks.forEach(
+                (task, i) => {
+
+                    const item =
+                        document.createElement("div");
+
+                    item.className =
+                        "calendar-task-item";
+
+
+                    const colourClass =
+                        COLOUR_CYCLE[
+                            i %
+                            COLOUR_CYCLE.length
+                        ];
+
+
+                    if (colourClass)
+                        item.classList.add(
+                            colourClass
+                        );
+
+
+                    if (task.completed)
+                        item.classList.add(
+                            "completed"
+                        );
+
+
+                    item.innerHTML = `
+
+                        <div class="calendar-task-info">
+
+                            <p class="calendar-task-title">
+                                ${escapeHtml(task.title)}
+                            </p>
+
+                            <p class="calendar-task-time">
+
+                                ${
+                                    task.start
+                                        ? formatTime(task.start)
+                                        : ""
+                                }
+
+                                ${
+                                    task.start && task.end
+                                        ? " - "
+                                        : ""
+                                }
+
+                                ${
+                                    task.end
+                                        ? formatTime(task.end)
+                                        : ""
+                                }
+
+                                ${
+                                    !task.start && !task.end
+                                        ? "No time set"
+                                        : ""
+                                }
+
+                            </p>
+
+                        </div>
+
+                        <div class="task-actions">
+
+                            <button
+                                type="button"
+                                class="task-edit-btn"
+                                onclick="openEditTask('${task.id}')">
+
+                                <i class="ti ti-edit"></i>
+
+                            </button>
+
+                            <button
+                                type="button"
+                                class="task-check-btn"
+                                onclick="toggleTaskComplete('${task.id}')">
+
+                                <i class="ti ti-check"></i>
+
+                            </button>
+
+                        </div>
+
+                    `;
+
+
+                    container.appendChild(item);
+
+                }
+            );
+
+        }
+
+
+        /* =============================================
+           JOURNAL
+        ============================================= */
+
+        const journal =
+            getJournalForDate(
+                selectedDate
+            );
+
+
+        if (journal) {
+
+            const preview =
+                getCleanJournalContent(journal)
+                    .replace(/\s+/g, " ")
+                    .trim();
+
+
+            journalContainer.innerHTML = `
+
+                <div class="calendar-journal-card">
+
+                    <div class="calendar-journal-left">
+
+                        <div class="calendar-journal-icon">
+
+                            <i class="ti ti-notebook"></i>
+
+                        </div>
+
+                        <div>
+
+                            <p class="calendar-journal-title">
+                                Journal entry
+                            </p>
+
+                            <p class="calendar-journal-subtitle">
+                                ${escapeHtml(preview)}
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <button
+                        class="calendar-journal-btn"
+                        onclick="openJournalForDate('${selectedDate}')">
+
+                        View
+
+                    </button>
+
+                </div>
+
+            `;
+
+        }
+
+    }
+
+
+    /* =====================================================
+       OPEN JOURNAL FOR EXACT DATE
+    ===================================================== */
+
+    function openJournalForDate(date) {
+
+        localStorage.setItem(
+            JOURNAL_SELECTED_DATE_KEY,
+            date
+        );
+
+        location.href = "journal.html";
+
+    }
+
+
+    /* =====================================================
+       ESCAPE HTML
+    ===================================================== */
+
+    function escapeHtml(text) {
+
+        const div =
+            document.createElement("div");
+
+        div.textContent =
+            text || "";
+
+        return div.innerHTML;
+
+    }
+
+
+    /* =====================================================
+       TASK EDIT
+    ===================================================== */
+
+    function openEditTask(id) {
+
+        const task =
+            tasks.find(
+                item =>
+                    String(item.id) ===
+                    String(id)
+            );
+
+
+        if (!task)
+            return;
+
+
+        modalMode = "edit";
+
+        editingTaskId = id;
+
+
+        document.getElementById(
+            "task-modal-title"
+        ).textContent =
+            "Edit Task";
+
+
+        document.getElementById(
+            "task-modal-submit-btn"
+        ).textContent =
+            "Save Changes";
+
+
+        document.getElementById(
+            "task-modal-delete-btn"
+        ).style.display =
+            "flex";
+
+
+        toggleQuickAdd(false);
+
+
+        document.getElementById(
+            "edit-title"
+        ).value =
+            task.title;
+
+
+        document.getElementById(
+            "edit-date"
+        ).value =
+            task.date;
+
+
+        document.getElementById(
+            "edit-start"
+        ).value =
+            task.start || "";
+
+
+        document.getElementById(
+            "edit-end"
+        ).value =
+            task.end || "";
+
+
+        pickerDate =
+            new Date(
+                task.date +
+                "T00:00:00"
+            );
+
+
+        updateDateDisplay();
+        updateTimeDisplays();
+        renderPickerCalendar();
+
+
+        document.getElementById(
+            "task-modal"
+        ).classList.add("open");
+
+    }
+
+
+    /* =====================================================
+       ADD TASK
+    ===================================================== */
+
+    function openAddTaskModal() {
+
+        modalMode = "add";
+
+        editingTaskId = null;
+
+
+        document.getElementById(
+            "task-modal-title"
+        ).textContent =
+            "Add a task";
+
+
+        document.getElementById(
+            "task-modal-submit-btn"
+        ).textContent =
+            "Add Task";
+
+
+        document.getElementById(
+            "task-modal-delete-btn"
+        ).style.display =
+            "none";
+
+
+        toggleQuickAdd(true);
+
+
+        document.getElementById(
+            "edit-title"
+        ).value = "";
+
+
+        document.getElementById(
+            "edit-date"
+        ).value =
+            selectedDate;
+
+
+        document.getElementById(
+            "edit-start"
+        ).value =
+            "09:00";
+
+
+        document.getElementById(
+            "edit-end"
+        ).value =
+            "10:00";
+
+
+        pickerDate =
+            new Date(
+                selectedDate +
+                "T00:00:00"
+            );
+
+
+        updateDateDisplay();
+        updateTimeDisplays();
+        renderPickerCalendar();
+
+
+        document.getElementById(
+            "task-modal"
+        ).classList.add("open");
+
+
+        setTimeout(
+            () => {
+
+                document.getElementById(
+                    "edit-title"
+                ).focus();
+
+            },
+            100
+        );
+
+    }
+
+
+    function toggleQuickAdd(show) {
+
+        document.getElementById(
+            "quick-add-title"
+        ).style.display =
+            show ? "block" : "none";
+
+
+        document.getElementById(
+            "quick-add-list"
+        ).style.display =
+            show ? "flex" : "none";
+
+    }
+
+
+    /* =====================================================
+       CLOSE MODAL
+    ===================================================== */
+
+    function closeTaskModal() {
+
+        document.getElementById(
+            "task-modal"
+        ).classList.remove("open");
+
+        closeAllDropdowns();
+
+        editingTaskId = null;
+
+    }
+
+
+    /* =====================================================
+       SAVE TASK
+    ===================================================== */
+
+    function saveTaskModal() {
+
+        const title =
+            document.getElementById(
+                "edit-title"
+            ).value.trim();
+
+
+        const date =
+            document.getElementById(
+                "edit-date"
+            ).value;
+
+
+        const start =
+            document.getElementById(
+                "edit-start"
+            ).value;
+
+
+        const end =
+            document.getElementById(
+                "edit-end"
+            ).value;
+
+
+        if (!title) {
+
+            alert(
+                "Please enter a task name."
+            );
+
+            return;
+
+        }
+
+
+        if (!date) {
+
+            alert(
+                "Please select a date."
+            );
+
+            return;
+
+        }
+
+
+        if (!start || !end) {
+
+            alert(
+                "Please select a start and end time."
+            );
+
+            return;
+
+        }
+
+
+        if (modalMode === "edit") {
+
+            const task =
+                tasks.find(
+                    item =>
+                        String(item.id) ===
+                        String(editingTaskId)
+                );
+
+
+            if (task) {
+
+                task.title = title;
+                task.date = date;
+                task.start = start;
+                task.end = end;
+
+            }
+
+        } else {
+
+            tasks.push({
+
+                id:
+                    "t" +
+                    Date.now(),
+
+                title:
+                    title,
+
+                date:
+                    date,
+
+                start:
+                    start,
+
+                end:
+                    end,
+
+                completed:
+                    false
+
+            });
+
+        }
+
+
+        saveTaskStore(tasks);
+
+
+        selectedDate =
+            date;
+
+
+        currentCalendarDate =
+            new Date(
+                date +
+                "T00:00:00"
+            );
+
+
+        renderCalendar();
+        renderSelectedTasks();
+
+        closeTaskModal();
+
+    }
+
+
+    /* =====================================================
+       DELETE TASK
+    ===================================================== */
+
+    function deleteTaskFromModal() {
+
+        if (
+            modalMode !== "edit" ||
+            !editingTaskId
+        ) {
+
+            closeTaskModal();
+
+            return;
+
+        }
+
+
+        if (
+            !confirm(
+                "Delete this task? This can't be undone."
+            )
+        )
+            return;
+
+
+        tasks =
+            tasks.filter(
+                task =>
+                    String(task.id) !==
+                    String(editingTaskId)
+            );
+
+
+        saveTaskStore(tasks);
+
+
+        editingTaskId = null;
+
+
+        renderCalendar();
+        renderSelectedTasks();
+
+        closeTaskModal();
+
+    }
+
+
+    /* =====================================================
+       COMPLETE TASK
+    ===================================================== */
+
+    function toggleTaskComplete(id) {
+
+        const task =
+            tasks.find(
+                item =>
+                    String(item.id) ===
+                    String(id)
+            );
+
+
+        if (!task)
+            return;
+
+
+        task.completed =
+            !task.completed;
+
+
+        saveTaskStore(tasks);
+
+
+        renderCalendar();
+        renderSelectedTasks();
+
+    }
+
+
+    /* =====================================================
+       QUICK ADD
+    ===================================================== */
+
+    function quickAddTask(title) {
+
+        document.getElementById(
+            "edit-title"
+        ).value =
+            title;
+
+
+        document.getElementById(
+            "edit-title"
+        ).focus();
+
+    }
+
+
+    /* =====================================================
+       DATE PICKER
+    ===================================================== */
+
+    document.getElementById(
+        "date-picker-button"
+    ).addEventListener(
+        "click",
+        function(event) {
+
+            event.stopPropagation();
+
+            document.getElementById(
+                "custom-calendar"
+            ).classList.toggle("show");
+
+        }
+    );
+
+
+    document.getElementById(
+        "calendar-prev"
+    ).addEventListener(
+        "click",
+        function(event) {
+
+            event.stopPropagation();
+
+            pickerDate.setMonth(
+                pickerDate.getMonth() - 1
+            );
+
+            renderPickerCalendar();
+
+        }
+    );
+
+
+    document.getElementById(
+        "calendar-next"
+    ).addEventListener(
+        "click",
+        function(event) {
+
+            event.stopPropagation();
+
+            pickerDate.setMonth(
+                pickerDate.getMonth() + 1
+            );
+
+            renderPickerCalendar();
+
+        }
+    );
+
+
+    function updateDateDisplay() {
+
+        const value =
+            document.getElementById(
+                "edit-date"
+            ).value;
+
+
+        document.getElementById(
+            "date-picker-display"
+        ).textContent =
+            formatDisplayDate(value);
+
+    }
+
+
+    function renderPickerCalendar() {
+
+        const container =
+            document.getElementById(
+                "calendar-days"
+            );
+
+
+        container.innerHTML = "";
+
+
+        const year =
+            pickerDate.getFullYear();
+
+        const month =
+            pickerDate.getMonth();
+
+
+        document.getElementById(
+            "calendar-month"
+        ).textContent =
+            pickerDate.toLocaleDateString(
+                "en-US",
+                {
+                    month: "long",
+                    year: "numeric"
+                }
+            );
+
+
+        const firstDay =
+            new Date(
+                year,
+                month,
+                1
+            );
+
+
+        let startDay =
+            firstDay.getDay();
+
+
+        startDay =
+            startDay === 0
+                ? 6
+                : startDay - 1;
+
+
+        const daysInMonth =
+            new Date(
+                year,
+                month + 1,
+                0
+            ).getDate();
+
+
+        const daysInPreviousMonth =
+            new Date(
+                year,
+                month,
+                0
+            ).getDate();
+
+
+        const selected =
+            document.getElementById(
+                "edit-date"
+            ).value;
+
+
+        const today =
+            formatDate(new Date());
+
+
+        for (
+            let i = startDay - 1;
+            i >= 0;
+            i--
+        ) {
+
+            const day =
+                daysInPreviousMonth - i;
+
+
+            createPickerDay(
+                new Date(
+                    year,
+                    month - 1,
+                    day
+                ),
+                true,
+                selected,
+                today
+            );
+
+        }
+
+
+        for (
+            let day = 1;
+            day <= daysInMonth;
+            day++
+        ) {
+
+            createPickerDay(
+                new Date(
+                    year,
+                    month,
+                    day
+                ),
+                false,
+                selected,
+                today
+            );
+
+        }
+
+
+        const total =
+            container.children.length;
+
+
+        const remaining =
+            total % 7 === 0
+                ? 0
+                : 7 - total % 7;
+
+
+        for (
+            let day = 1;
+            day <= remaining;
+            day++
+        ) {
+
+            createPickerDay(
+                new Date(
+                    year,
+                    month + 1,
+                    day
+                ),
+                true,
+                selected,
+                today
+            );
+
+        }
+
+    }
+
+
+    function createPickerDay(
+        date,
+        otherMonth,
+        selected,
+        today
+    ) {
+
+        const button =
+            document.createElement("button");
+
+
+        const dateString =
+            formatDate(date);
+
+
+        button.type = "button";
+
+        button.textContent =
+            date.getDate();
+
+
+        if (otherMonth)
+            button.classList.add(
+                "other-month"
+            );
+
+
+        if (dateString === today)
+            button.classList.add(
+                "today"
+            );
+
+
+        if (dateString === selected)
+            button.classList.add(
+                "selected"
+            );
+
+
+        button.addEventListener(
+            "click",
+            function() {
+
+                document.getElementById(
+                    "edit-date"
+                ).value =
+                    dateString;
+
+
+                pickerDate =
+                    new Date(
+                        dateString +
+                        "T00:00:00"
+                    );
+
+
+                updateDateDisplay();
+                renderPickerCalendar();
+
+
+                document.getElementById(
+                    "custom-calendar"
+                ).classList.remove(
+                    "show"
+                );
+
+            }
+        );
+
+
+        document.getElementById(
+            "calendar-days"
+        ).appendChild(
+            button
+        );
+
+    }
+
+
+    /* =====================================================
+       TIME PICKER
+    ===================================================== */
+
+    function generateTimeOptions(
+        dropdownId,
+        inputId,
+        displayId
+    ) {
+
+        const dropdown =
+            document.getElementById(
+                dropdownId
+            );
+
+
+        dropdown.innerHTML = "";
+
+
+        for (
+            let hour = 0;
+            hour < 24;
+            hour++
+        ) {
+
+            for (
+                let minute = 0;
+                minute < 60;
+                minute += 30
+            ) {
+
+                const value =
+                    String(hour)
+                        .padStart(2, "0")
+                    + ":" +
+                    String(minute)
+                        .padStart(2, "0");
+
+
+                const button =
+                    document.createElement(
+                        "button"
+                    );
+
+
+                button.type =
+                    "button";
+
+                button.className =
+                    "custom-time-option";
+
+                button.textContent =
+                    formatTime(value);
+
+
+                button.addEventListener(
+                    "click",
+                    function() {
+
+                        document.getElementById(
+                            inputId
+                        ).value =
+                            value;
+
+
+                        document.getElementById(
+                            displayId
+                        ).textContent =
+                            formatTime(value);
+
+
+                        dropdown.classList.remove(
+                            "show"
+                        );
+
+                    }
+                );
+
+
+                dropdown.appendChild(
+                    button
+                );
+
+            }
+
+        }
+
+    }
+
+
+    function updateTimeDisplays() {
+
+        const start =
+            document.getElementById(
+                "edit-start"
+            ).value;
+
+
+        const end =
+            document.getElementById(
+                "edit-end"
+            ).value;
+
+
+        document.getElementById(
+            "start-time-display"
+        ).textContent =
+            start
+                ? formatTime(start)
+                : "Select time";
+
+
+        document.getElementById(
+            "end-time-display"
+        ).textContent =
+            end
+                ? formatTime(end)
+                : "Select time";
+
+    }
+
+
+    function closeAllDropdowns() {
+
+        document.querySelectorAll(
+            ".custom-time-dropdown"
+        ).forEach(
+            dropdown =>
+                dropdown.classList.remove(
+                    "show"
+                )
+        );
+
+
+        document.getElementById(
+            "custom-calendar"
+        ).classList.remove(
+            "show"
+        );
+
+    }
+
+
+    document.getElementById(
+        "start-time-button"
+    ).addEventListener(
+        "click",
+        function(event) {
+
+            event.stopPropagation();
+
+
+            const dropdown =
+                document.getElementById(
+                    "start-time-dropdown"
+                );
+
+
+            document.getElementById(
+                "end-time-dropdown"
+            ).classList.remove(
+                "show"
+            );
+
+
+            dropdown.classList.toggle(
+                "show"
+            );
+
+        }
+    );
+
+
+    document.getElementById(
+        "end-time-button"
+    ).addEventListener(
+        "click",
+        function(event) {
+
+            event.stopPropagation();
+
+
+            const dropdown =
+                document.getElementById(
+                    "end-time-dropdown"
+                );
+
+
+            document.getElementById(
+                "start-time-dropdown"
+            ).classList.remove(
+                "show"
+            );
+
+
+            dropdown.classList.toggle(
+                "show"
+            );
+
+        }
+    );
+
+
+    /* =====================================================
+       MONTH NAVIGATION
+    ===================================================== */
+
+    document.getElementById(
+        "previousMonth"
+    ).addEventListener(
+        "click",
+        function() {
+
+            currentCalendarDate.setMonth(
+                currentCalendarDate.getMonth() - 1
+            );
+
+            renderCalendar();
+
+        }
+    );
+
+
+    document.getElementById(
+        "nextMonth"
+    ).addEventListener(
+        "click",
+        function() {
+
+            currentCalendarDate.setMonth(
+                currentCalendarDate.getMonth() + 1
+            );
+
+            renderCalendar();
+
+        }
+    );
+
+
+    /* =====================================================
+       MODAL OUTSIDE CLICK
+    ===================================================== */
+
+    document.getElementById(
+        "task-modal"
+    ).addEventListener(
+        "click",
+        function(event) {
+
+            if (event.target === this)
+                closeTaskModal();
+
+        }
+    );
+
+
+    /* =====================================================
+       CLOSE DROPDOWNS
+    ===================================================== */
+
+    document.addEventListener(
+        "click",
+        function() {
+
+            document.querySelectorAll(
+                ".custom-time-dropdown"
+            ).forEach(
+                dropdown =>
+                    dropdown.classList.remove(
+                        "show"
+                    )
+            );
+
+        }
+    );
+
+
+    /* =====================================================
+       INITIALISE
+    ===================================================== */
+
+    tasks =
+        seedDefaultTasksIfEmpty();
+
+
+    journals =
+        loadJournalStore();
+
+
+    updateTodayHeader();
+
+
+    generateTimeOptions(
+        "start-time-dropdown",
+        "edit-start",
+        "start-time-display"
+    );
+
+
+    generateTimeOptions(
+        "end-time-dropdown",
+        "edit-end",
+        "end-time-display"
+    );
+
+
+    renderCalendar();
+
+    renderSelectedTasks();
+
+</script>
+
+</body>
+</html>

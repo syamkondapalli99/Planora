@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planora - Profile</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ PROFILE SCREEN ============ -->
+  <div class="screen active" id="profile-screen">
+    <div class="side-rail">
+  <div class="logo-mark">
+    <i class="ti ti-calendar-star"></i>
+  </div>
+
+ <button class="nav-item" onclick="location.href='dashboard.html'">
+  <i class="ti ti-home"></i>Home
+</button>
+  <button class="nav-item" onclick="location.href='journal.html'">
+    <i class="ti ti-notebook"></i>Journal
+  </button>
+
+  <button class="nav-item" onclick="location.href='calendar.html'">
+    <i class="ti ti-calendar"></i>Calendar
+  </button>
+
+  <button class="nav-item" onclick="location.href='streak.html'">
+    <i class="ti ti-flame"></i>Streak
+  </button>
+
+  <button class="nav-item active" onclick="location.href='profile.html'">
+    <i class="ti ti-user"></i>Profile
+  </button>
+
+  <button class="nav-item" onclick="location.href='planner.html'">
+    <i class="ti ti-list-check"></i>Planner
+  </button>
+</div>
+
+    <div class="dash-main">
+      <div class="dash-header">
+        <div>
+          <p class="date">Profile</p>
+          <h2>Your account</h2>
+        </div>
+        <button class="nav-item" onclick="location.href='index.html'" style="color:var(--purple-600);"><i class="ti ti-x"></i></button>
+      </div>
+
+      <div class="two-col">
+        <div>
+
+          <!-- Profile header card -->
+          <div class="card">
+            <div class="profile-header">
+              <div class="profile-avatar">AJ</div>
+              <div class="profile-info">
+                <h2>Alex Johnson</h2>
+                <p>alex.johnson@email.com</p>
+              </div>
+              <button class="profile-edit-btn"><i class="ti ti-pencil"></i></button>
+            </div>
+            <div class="profile-badges">
+              <div class="profile-badge amber"><i class="ti ti-flame"></i>12 day streak</div>
+              <div class="profile-badge"><i class="ti ti-calendar-event"></i>Member since Mar 2026</div>
+              <div class="profile-badge"><i class="ti ti-target-arrow"></i>Goal: Work and productivity</div>
+            </div>
+
+            <div class="stat-grid-3">
+              <div class="stat-mini"><div class="value">94</div><div class="label">Days planned</div></div>
+              <div class="stat-mini"><div class="value">312</div><div class="label">Tasks done</div></div>
+              <div class="stat-mini"><div class="value">78%</div><div class="label">Completion rate</div></div>
+            </div>
+          </div>
+
+          <!-- Weekly completion chart -->
+          <div class="card">
+            <div class="card-header"><span>This week's completion</span><i class="ti ti-chart-bar"></i></div>
+            <div class="bar-chart" id="weekly-bar-chart"></div>
+          </div>
+
+          <!-- Activity heatmap -->
+          <div class="card">
+            <div class="card-header"><span>Activity, last 13 weeks</span><i class="ti ti-flame"></i></div>
+            <div class="heat-grid" id="heat-grid"></div>
+          </div>
+
+        </div>
+
+        <div>
+
+          <!-- Task category breakdown -->
+          <div class="card">
+            <div class="card-header"><span>Where your time goes</span><i class="ti ti-chart-pie"></i></div>
+            <div id="category-bars"></div>
+          </div>
+
+          <!-- Behaviour insights -->
+          <div class="card">
+            <div class="card-header"><span>Insights</span><i class="ti ti-sparkles"></i></div>
+            <div class="ai-tip" style="margin-bottom:10px;">
+              <i class="ti ti-clock"></i>
+              <span>You complete 34% more tasks when planned before 9am.</span>
+            </div>
+            <div class="ai-tip" style="margin-bottom:0;">
+              <i class="ti ti-trending-up"></i>
+              <span>Your best day is Tuesday, averaging 5.2 completed tasks.</span>
+            </div>
+          </div>
+
+          <!-- Settings -->
+          <div class="card">
+            <div class="card-header"><span>Settings</span></div>
+            <div class="settings-list">
+              <div class="settings-row"><i class="ti ti-user-circle"></i><span>Edit personal info</span><i class="ti ti-chevron-right chev"></i></div>
+              <div class="settings-row"><i class="ti ti-bell"></i><span>Notifications</span><i class="ti ti-chevron-right chev"></i></div>
+              <div class="settings-row"><i class="ti ti-palette"></i><span>Appearance</span><i class="ti ti-chevron-right chev"></i></div>
+              <div class="settings-row"><i class="ti ti-lock"></i><span>Privacy and data</span><i class="ti ti-chevron-right chev"></i></div>
+              <div class="settings-row"><i class="ti ti-help-circle"></i><span>Help and support</span><i class="ti ti-chevron-right chev"></i></div>
+              <div class="settings-row danger"><i class="ti ti-logout"></i><span>Log out</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="location.href='index.html'"><i class="ti ti-home"></i>Home</button>
+      <button class="nav-item"><i class="ti ti-calendar"></i>Calendar</button>
+      <button class="nav-item"><i class="ti ti-plus"></i>Add</button>
+      <button class="nav-item"><i class="ti ti-flame"></i>Streak</button>
+      <button class="nav-item active"><i class="ti ti-user"></i>Profile</button>
+      <button class="nav-item" onclick="location.href='planner.html'"><i class="ti ti-list-check"></i>Planner</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>

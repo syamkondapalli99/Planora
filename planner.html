@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planora - Planner</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+<link rel="stylesheet" href="style.css">
+
+<style>
+
+    /* =========================================
+       PLANNER TABS
+    ========================================= */
+
+    .planner-tabs {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        margin-bottom: 18px;
+    }
+
+    .planner-tab {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 16px;
+        border-radius: 14px;
+        border: 0.5px solid var(--purple-100);
+        background: #fff;
+        color: var(--gray-600);
+        font-size: 13px;
+        font-weight: 500;
+        white-space: nowrap;
+        transition: 0.2s ease;
+    }
+
+    .planner-tab i {
+        font-size: 16px;
+    }
+
+    .planner-tab.active {
+        background: var(--purple-400);
+        color: #fff;
+        border-color: var(--purple-400);
+    }
+
+    .tab-panel {
+        display: none;
+        flex-direction: column;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .tab-panel.active {
+        display: flex;
+    }
+
+    /* =========================================
+       SHARED FORM ELEMENTS
+    ========================================= */
+
+    .field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+    }
+
+    .field-group label {
+        font-size: 12px;
+        color: var(--purple-800);
+        font-weight: 500;
+    }
+
+    .field-group input,
+    .field-group select,
+    .field-group textarea {
+        width: 100%;
+        padding: 11px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--purple-100);
+        font-size: 13.5px;
+        font-family: inherit;
+        background: var(--purple-50);
+        outline: none;
+        color: var(--gray-900);
+    }
+
+    .field-group input:focus,
+    .field-group select:focus,
+    .field-group textarea:focus {
+        border-color: var(--purple-400);
+        background: #fff;
+        box-shadow: 0 0 0 3px var(--purple-50);
+    }
+
+    .field-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .field-row-3 {
+        display: grid;
+        grid-template-columns: 1.6fr 1fr auto;
+        gap: 8px;
+        align-items: end;
+    }
+
+    .icon-btn-sm {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        border: none;
+        background: var(--gray-100, var(--purple-50));
+        color: var(--gray-600);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .icon-btn-sm:hover {
+        background: var(--purple-100);
+        color: var(--purple-800);
+    }
+
+    .icon-btn-sm.danger:hover {
+        background: #fbe4e4;
+        color: var(--pink-800);
+    }
+
+    /* =========================================
+       PRIORITY / TYPE BADGES
+    ========================================= */
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 9px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .badge.high { background: #fbe4e4; color: var(--pink-800); }
+    .badge.medium { background: var(--amber-100); color: var(--amber-800); }
+    .badge.low { background: var(--blue-100); color: var(--blue-800); }
+
+    .badge.study { background: var(--blue-100); color: var(--blue-800); }
+    .badge.practice { background: var(--amber-100); color: var(--amber-800); }
+    .badge.revision { background: var(--purple-100); color: var(--purple-800); }
+
+    /* =========================================
+       DAILY PLANNER
+    ========================================= */
+
+    .dp-task-item {
+        background: #fff;
+        border-radius: 14px;
+        padding: 13px 15px;
+        border-left: 4px solid var(--purple-400);
+        border-top: 0.5px solid var(--purple-100);
+        border-right: 0.5px solid var(--purple-100);
+        border-bottom: 0.5px solid var(--purple-100);
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .dp-task-item.high { border-left-color: var(--pink-400); }
+    .dp-task-item.medium { border-left-color: var(--amber-100); }
+    .dp-task-item.low { border-left-color: var(--blue-400); }
+
+    .dp-task-meta {
+        font-size: 12px;
+        color: var(--gray-400);
+        margin-top: 3px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .dp-task-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    .schedule-block {
+        display: flex;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 0.5px solid var(--purple-50);
+    }
+
+    .schedule-block:last-child {
+        border-bottom: none;
+    }
+
+    .schedule-time {
+        flex: 0 0 68px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--purple-600);
+        padding-top: 2px;
+    }
+
+    .schedule-info .t-title {
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .empty-state {
+        font-size: 13px;
+        color: var(--gray-400);
+        text-align: center;
+        padding: 18px 6px;
+    }
+
+    /* =========================================
+       TASK BREAKDOWN
+    ========================================= */
+
+    .tb-group-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .tb-group-header h3 {
+        font-size: 14.5px;
+        color: var(--gray-900);
+        font-weight: 600;
+    }
+
+    .subtask-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 4px;
+        border-bottom: 0.5px solid var(--purple-50);
+    }
+
+    .subtask-row:last-of-type {
+        border-bottom: none;
+    }
+
+    .subtask-check {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        border-radius: 7px;
+        border: 1.5px solid var(--purple-400);
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: transparent;
+    }
+
+    .subtask-check.done {
+        background: var(--purple-400);
+        color: #fff;
+    }
+
+    .subtask-text {
+        flex: 1;
+        font-size: 13.5px;
+        color: var(--gray-900);
+    }
+
+    .subtask-text.done {
+        text-decoration: line-through;
+        color: var(--gray-400);
+    }
+
+    .subtask-edit-input {
+        flex: 1;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid var(--purple-100);
+        font-size: 13.5px;
+        font-family: inherit;
+    }
+
+    .add-subtask-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .add-subtask-row input {
+        flex: 1;
+        padding: 9px 11px;
+        border-radius: 10px;
+        border: 1px solid var(--purple-100);
+        font-size: 13px;
+        font-family: inherit;
+    }
+
+    /* =========================================
+       GOAL TRACKER
+    ========================================= */
+
+    .goal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 4px;
+    }
+
+    .goal-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--gray-900);
+    }
+
+    .goal-date {
+        font-size: 11.5px;
+        color: var(--gray-400);
+        margin-top: 2px;
+    }
+
+    .goal-pct {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--purple-600);
+        flex-shrink: 0;
+    }
+
+    .goal-milestones {
+        margin-top: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .milestone-input-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .milestone-input-row input {
+        flex: 1;
+        padding: 9px 11px;
+        border-radius: 10px;
+        border: 1px solid var(--purple-100);
+        font-size: 13px;
+        font-family: inherit;
+    }
+
+    /* =========================================
+       STUDY PLANNER
+    ========================================= */
+
+    .topic-row {
+        display: grid;
+        grid-template-columns: 1.6fr 1fr auto;
+        gap: 8px;
+        margin-bottom: 8px;
+        align-items: center;
+    }
+
+    .topic-row input,
+    .topic-row select {
+        padding: 9px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--purple-100);
+        font-size: 13px;
+        font-family: inherit;
+    }
+
+    .study-day-group {
+        margin-bottom: 14px;
+    }
+
+    .study-day-label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--purple-800);
+        margin-bottom: 6px;
+    }
+
+    .study-session {
+        background: var(--purple-50);
+        border-radius: 12px;
+        padding: 10px 12px;
+        margin-bottom: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .study-session .s-title {
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--gray-900);
+    }
+
+    .study-session .s-time {
+        font-size: 11.5px;
+        color: var(--gray-400);
+        margin-top: 2px;
+    }
+
+    .loading-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: center;
+        padding: 16px;
+        font-size: 13px;
+        color: var(--gray-600);
+    }
+
+    .spin {
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .ai-source-note {
+        font-size: 11.5px;
+        color: var(--gray-400);
+        margin-top: 6px;
+        text-align: center;
+    }
+
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ PLANNER SCREEN ============ -->
+  <div class="screen active" id="dashboard-screen">
+
+
+        <!-- SIDE NAVIGATION -->
+
+        <div class="side-rail">
+
+            <div class="logo-mark">
+                <i class="ti ti-calendar-star"></i>
+            </div>
+
+
+            <button class="nav-item active"
+                onclick="location.href='dashboard.html'">
+
+                <i class="ti ti-home"></i>
+
+                Home
+
+            </button>
+
+            <button class="nav-item"
+                onclick="location.href='planner.html'">
+
+                <i class="ti ti-list-check"></i>
+
+                AI Planner
+
+            </button>
+
+
+            <button class="nav-item"
+                onclick="location.href='journal.html'">
+
+                <i class="ti ti-notebook"></i>
+
+                Journal
+
+            </button>
+
+
+            <button class="nav-item"
+                onclick="location.href='calendar.html'">
+
+                <i class="ti ti-calendar"></i>
+
+                Calendar
+
+            </button>
+
+
+            <button class="nav-item"
+                onclick="location.href='streak.html'">
+
+                <i class="ti ti-flame"></i>
+
+                Streak
+
+            </button>
+
+
+            <button class="nav-item"
+                onclick="location.href='profile.html'">
+
+                <i class="ti ti-user"></i>
+
+                Profile
+
+            </button>
+
+
+            
+
+        </div>
+
+
+
+
+    <div class="dash-main">
+
+      <div class="dash-header">
+        <div>
+          <p class="date">Planner tools</p>
+          <h2>Plan smarter</h2>
+        </div>
+        <button class="nav-item" onclick="location.href='home.html'" style="color:var(--purple-600);">
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
+
+      <!-- TAB SWITCHER -->
+      <div class="planner-tabs">
+        <button class="planner-tab active" data-tab="daily" onclick="switchPlannerTab('daily')">
+          <i class="ti ti-robot"></i>Smart Daily Planner
+        </button>
+        <button class="planner-tab" data-tab="breakdown" onclick="switchPlannerTab('breakdown')">
+          <i class="ti ti-git-fork"></i>Task Breakdown
+        </button>
+        <button class="planner-tab" data-tab="goals" onclick="switchPlannerTab('goals')">
+          <i class="ti ti-target-arrow"></i>Goal Tracker
+        </button>
+        <button class="planner-tab" data-tab="study" onclick="switchPlannerTab('study')">
+          <i class="ti ti-books"></i>Study Planner
+        </button>
+      </div>
+
+
+      <!-- =========================================
+           TAB 1: SMART DAILY PLANNER
+      ========================================= -->
+
+      <div class="tab-panel active" id="tab-daily">
+
+        <div class="two-col">
+          <div>
+
+            <div class="card">
+              <div class="card-header"><span>Add a task</span><i class="ti ti-plus"></i></div>
+
+              <div class="field-group">
+                <label>Title</label>
+                <input type="text" id="dp-title" placeholder="e.g. Finish client proposal">
+              </div>
+
+              <div class="field-row">
+                <div class="field-group">
+                  <label>Priority</label>
+                  <select id="dp-priority">
+                    <option value="high">High</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+                <div class="field-group">
+                  <label>Duration (minutes)</label>
+                  <input type="number" id="dp-duration" min="5" step="5" value="30">
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label>Due date</label>
+                <input type="date" id="dp-due">
+              </div>
+
+              <button class="btn-primary" onclick="addPlannerTask()" id="dp-add-btn">
+                <i class="ti ti-plus"></i> Add task
+              </button>
+            </div>
+
+            <div class="card">
+              <div class="card-header"><span>Available time window</span><i class="ti ti-clock"></i></div>
+              <div class="field-row">
+                <div class="field-group">
+                  <label>Start</label>
+                  <input type="time" id="dp-window-start" value="09:00">
+                </div>
+                <div class="field-group">
+                  <label>End</label>
+                  <input type="time" id="dp-window-end" value="21:00">
+                </div>
+              </div>
+              <button class="btn-primary" onclick="autoPlanTasks()" style="background:var(--blue-400);">
+                <i class="ti ti-sparkles"></i> Auto Plan
+              </button>
+            </div>
+
+          </div>
+
+          <div>
+
+            <div class="card">
+              <div class="card-header"><span>Your tasks</span><i class="ti ti-clipboard-list"></i></div>
+              <div id="dp-task-list">
+                <div class="empty-state">No tasks yet. Add one to get started.</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header"><span>Generated schedule</span><i class="ti ti-calendar-time"></i></div>
+              <div id="dp-schedule">
+                <div class="empty-state">Add tasks, then hit Auto Plan to build your day.</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- =========================================
+           TAB 2: TASK BREAKDOWN
+      ========================================= -->
+
+      <div class="tab-panel" id="tab-breakdown">
+
+        <div class="card">
+          <div class="card-header"><span>Break down a big task</span><i class="ti ti-git-fork"></i></div>
+          <div class="field-group">
+            <label>Describe the task</label>
+            <textarea id="tb-input" rows="3" placeholder="e.g. Write my history essay on the Cold War"></textarea>
+          </div>
+          <button class="btn-primary" onclick="generateBreakdown()">
+            <i class="ti ti-wand"></i> Generate subtasks
+          </button>
+        </div>
+
+        <div id="tb-list"></div>
+
+      </div>
+
+
+      <!-- =========================================
+           TAB 3: GOAL TRACKER
+      ========================================= -->
+
+      <div class="tab-panel" id="tab-goals">
+
+        <div class="card">
+          <div class="card-header"><span>New goal</span><i class="ti ti-target-arrow"></i></div>
+
+          <div class="field-group">
+            <label>Goal title</label>
+            <input type="text" id="gt-title" placeholder="e.g. Run a half marathon">
+          </div>
+
+          <div class="field-group">
+            <label>Target date</label>
+            <input type="date" id="gt-date">
+          </div>
+
+          <div class="field-group">
+            <label>Milestones</label>
+            <div id="gt-milestone-inputs">
+              <div class="milestone-input-row">
+                <input type="text" placeholder="Milestone 1">
+              </div>
+              <div class="milestone-input-row">
+                <input type="text" placeholder="Milestone 2">
+              </div>
+            </div>
+            <button class="btn-secondary" onclick="addMilestoneInputRow()" style="margin-top:4px;">
+              <i class="ti ti-plus"></i> Add milestone
+            </button>
+          </div>
+
+          <button class="btn-primary" onclick="createGoal()" style="margin-top:8px;">
+            <i class="ti ti-flag"></i> Create goal
+          </button>
+        </div>
+
+        <div id="gt-list"></div>
+
+      </div>
+
+
+      <!-- =========================================
+           TAB 4: STUDY PLANNER
+      ========================================= -->
+
+      <div class="tab-panel" id="tab-study">
+
+        <div class="card">
+          <div class="card-header"><span>Plan your studying</span><i class="ti ti-books"></i></div>
+
+          <div class="field-row">
+            <div class="field-group">
+              <label>Subject</label>
+              <input type="text" id="sp-subject" placeholder="e.g. Biology">
+            </div>
+            <div class="field-group">
+              <label>Exam date</label>
+              <input type="date" id="sp-exam-date">
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label>Available study hours per day</label>
+            <input type="number" id="sp-hours" min="0.5" step="0.5" value="2">
+          </div>
+
+          <div class="field-group">
+            <label>Topics</label>
+            <div id="sp-topic-rows">
+              <div class="topic-row">
+                <input type="text" placeholder="Topic name">
+                <select>
+                  <option value="easy">Easy</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+                <button class="icon-btn-sm danger" onclick="removeTopicRow(this)"><i class="ti ti-trash"></i></button>
+              </div>
+            </div>
+            <button class="btn-secondary" onclick="addTopicRow()" style="margin-top:4px;">
+              <i class="ti ti-plus"></i> Add topic
+            </button>
+          </div>
+
+          <button class="btn-primary" onclick="generateStudyPlan()" style="margin-top:8px; background:var(--blue-400);">
+            <i class="ti ti-sparkles"></i> Generate study plan
+          </button>
+        </div>
+
+        <div id="sp-output"></div>
+
+      </div>
+
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="location.href='home.html'"><i class="ti ti-home"></i>Home</button>
+      <button class="nav-item" onclick="location.href='calendar.html'"><i class="ti ti-calendar"></i>Calendar</button>
+      <button class="nav-item" onclick="location.href='streak.html'"><i class="ti ti-flame"></i>Streak</button>
+      <button class="nav-item" onclick="location.href='profile.html'"><i class="ti ti-user"></i>Profile</button>
+      <button class="nav-item active"><i class="ti ti-list-check"></i>Planner</button>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="planner.js"></script>
+
+</body>
+</html>

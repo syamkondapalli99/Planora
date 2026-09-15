@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planora - Your Daily AI Planner</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ LOGIN SCREEN ============ -->
+  <div class="screen active" id="login-screen">
+    <div class="logo-mark"><i class="ti ti-calendar-star"></i></div>
+    <h1>Planora</h1>
+    <p class="subtitle">Your daily AI planner</p>
+
+    <div class="login-form">
+      <input type="email" placeholder="name@email.com">
+      <input type="password" placeholder="Password">
+    </div>
+<button
+    class="btn-primary"
+    style="margin-top:6px;"
+    onclick="handleLogin()">
+    Log in
+</buttonx>
+
+    <div class="divider"><div class="line"></div><span>or continue with</span><div class="line"></div></div>
+
+    <div class="sso-row">
+      <button class="btn-secondary" onclick="goTo('onboarding-screen')"><i class="ti ti-brand-google" style="color:var(--blue-600);"></i>Google</button>
+      <button class="btn-secondary" onclick="goTo('onboarding-screen')"><i class="ti ti-brand-apple" style="color:var(--blue-800);"></i>Apple</button>
+
+      <button class="btn-primary"
+        style="width:100%; margin-top:16px;"
+        onclick="location.href='home.html'">
+    Go to Dashboard
+</button>
+    </div>
+
+    
+
+    
+
+    <p class="footer-link">Don't have an account? <span onclick="goTo('onboarding-screen')">Sign up</span></p>
+  </div>
+
+  <!-- ============ ONBOARDING SCREEN ============ -->
+  <div class="screen" id="onboarding-screen">
+    <div class="progress-bar" id="progress-bar"></div>
+
+    <!-- Step 1: Goal -->
+    <div class="onboard-step" data-step="1">
+      <div class="onboard-icon"><i class="ti ti-sparkles"></i></div>
+      <h2>What's your main goal?</h2>
+      <p class="subtitle">Planora tunes your daily plan around this.</p>
+      <div class="option-list">
+        <button class="option-card" onclick="selectOption(this)"><i class="ti ti-briefcase" style="color:var(--purple-800);"></i>Work and productivity<i class="ti ti-circle-check-filled check"></i></button>
+        <button class="option-card" onclick="selectOption(this)"><i class="ti ti-heart" style="color:var(--pink-800);"></i>Health and wellness<i class="ti ti-circle-check-filled check"></i></button>
+        <button class="option-card" onclick="selectOption(this)"><i class="ti ti-book" style="color:#0F6E56;"></i>Study and learning<i class="ti ti-circle-check-filled check"></i></button>
+        <button class="option-card" onclick="selectOption(this)"><i class="ti ti-balance" style="color:var(--blue-600);"></i>Better balance overall<i class="ti ti-circle-check-filled check"></i></button>
+      </div>
+    </div>
+
+    <!-- Step 2: Work hours -->
+    <div class="onboard-step" data-step="2" style="display:none;">
+      <div class="onboard-icon"><i class="ti ti-clock"></i></div>
+      <h2>When are you most productive?</h2>
+      <p class="subtitle">This helps Planora schedule focus time.</p>
+      <div class="chip-row">
+        <button class="chip" onclick="toggleChip(this)">Early morning</button>
+        <button class="chip" onclick="toggleChip(this)">Late morning</button>
+        <button class="chip" onclick="toggleChip(this)">Afternoon</button>
+        <button class="chip" onclick="toggleChip(this)">Evening</button>
+        <button class="chip" onclick="toggleChip(this)">Night owl</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Days -->
+    <div class="onboard-step" data-step="3" style="display:none;">
+      <div class="onboard-icon"><i class="ti ti-calendar-week"></i></div>
+      <h2>Which days do you plan around?</h2>
+      <p class="subtitle">Select your active days.</p>
+      <div class="chip-row">
+        <button class="chip selected" onclick="toggleChip(this)">Mon</button>
+        <button class="chip selected" onclick="toggleChip(this)">Tue</button>
+        <button class="chip selected" onclick="toggleChip(this)">Wed</button>
+        <button class="chip selected" onclick="toggleChip(this)">Thu</button>
+        <button class="chip selected" onclick="toggleChip(this)">Fri</button>
+        <button class="chip" onclick="toggleChip(this)">Sat</button>
+        <button class="chip" onclick="toggleChip(this)">Sun</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Reminders -->
+    <div class="onboard-step" data-step="4" style="display:none;">
+      <div class="onboard-icon"><i class="ti ti-bell"></i></div>
+      <h2>Stay on track with reminders?</h2>
+      <p class="subtitle">You can change this anytime in settings.</p>
+      <div class="option-list">
+        <button class="option-card selected" onclick="selectOption(this)"><i class="ti ti-bell-ringing" style="color:var(--purple-800);"></i>Yes, remind me daily<i class="ti ti-circle-check-filled check"></i></button>
+        <button class="option-card" onclick="selectOption(this)"><i class="ti ti-bell-off" style="color:var(--gray-600);"></i>No thanks<i class="ti ti-circle-check-filled check"></i></button>
+      </div>
+    </div>
+
+    <div class="onboard-nav">
+      <button class="btn-back" id="back-btn" onclick="prevStep()" style="display:none;"><i class="ti ti-arrow-left"></i></button>
+      <button class="btn-primary" id="next-btn" onclick="nextStep()">Continue</button>
+    </div>
+  </div>
+
+    <script src="script.js"></script>
+
+</body>
+</html>

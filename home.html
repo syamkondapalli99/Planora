@@ -1,0 +1,1954 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Planora - Home</title>
+
+    <!-- Tabler Icons -->
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="style.css">
+
+   
+
+    <style>
+
+        /* =========================================
+           AI DASHBOARD
+        ========================================= */
+
+        .ai-greeting-msg {
+            font-size: 13px;
+            color: var(--gray-600);
+            margin-top: 4px;
+        }
+
+        .ai-overview-card {
+            background: linear-gradient(
+                135deg,
+                var(--purple-50),
+                var(--blue-50)
+            );
+        }
+
+        .ai-overview-text {
+            font-size: 13.5px;
+            line-height: 1.6;
+            color: var(--gray-900);
+        }
+
+        .progress-text {
+            font-size: 13px;
+            color: var(--gray-600);
+            margin-top: 8px;
+        }
+
+        #ai-suggestion-card {
+            border-left: 4px solid var(--blue-400);
+        }
+
+        .momentum-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .momentum-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--gray-900);
+        }
+
+        .momentum-row .momentum-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .momentum-row .momentum-label i {
+            font-size: 16px;
+            color: var(--purple-400);
+        }
+
+        .momentum-streak {
+            font-weight: 600;
+            color: var(--purple-600);
+            font-size: 12.5px;
+        }
+
+
+        /* =========================================
+           TASK ACTION BUTTONS
+        ========================================= */
+
+        .task-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .task-edit-btn,
+        .task-check-btn {
+            width: 34px;
+            height: 34px;
+
+            border: none;
+            border-radius: 10px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            cursor: pointer;
+
+            background: var(--gray-100);
+            color: var(--gray-600);
+
+            transition: 0.2s ease;
+        }
+
+        .task-edit-btn:hover {
+            background: var(--purple-50);
+            color: var(--purple-600);
+        }
+
+        .task-check-btn:hover {
+            background: var(--blue-50);
+            color: var(--blue-600);
+        }
+
+        .task-edit-btn i,
+        .task-check-btn i {
+            font-size: 18px;
+            display: block;
+        }
+
+
+        /* =========================================
+           ADD / EDIT TASK MODAL
+        ========================================= */
+
+        .edit-modal {
+            position: fixed;
+            inset: 0;
+
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+
+            background: rgba(0, 0, 0, 0.45);
+
+            display: none;
+
+            align-items: center;
+            justify-content: center;
+
+            padding: 20px;
+
+            z-index: 999999;
+
+            overflow: auto;
+        }
+
+        .edit-modal.open {
+            display: flex;
+        }
+
+
+        /* =========================================
+           MODAL BOX
+        ========================================= */
+
+        .edit-box {
+            position: relative;
+
+            width: 100%;
+            max-width: 430px;
+
+            padding: 22px;
+
+            background: #ffffff;
+
+            border-radius: 20px;
+
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.25);
+
+            display: flex;
+            flex-direction: column;
+
+            gap: 12px;
+        }
+
+
+        /* =========================================
+           HEADER
+        ========================================= */
+
+        .edit-header {
+            width: 100%;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            margin-bottom: 5px;
+        }
+
+        .edit-header h3 {
+            margin: 0;
+
+            font-size: 19px;
+            font-weight: 500;
+
+            color: var(--purple-900);
+        }
+
+
+        /* =========================================
+           CLOSE BUTTON
+        ========================================= */
+
+        .edit-header button {
+            width: 34px;
+            height: 34px;
+
+            min-width: 34px;
+            min-height: 34px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border: none;
+            border-radius: 9px;
+
+            background: var(--purple-50);
+
+            color: var(--gray-600);
+
+            cursor: pointer;
+        }
+
+        .edit-header button i {
+            font-size: 18px !important;
+            color: #6d637a !important;
+
+            display: block !important;
+        }
+
+        .edit-header button:hover {
+            background: var(--purple-100);
+        }
+
+
+        /* =========================================
+           LABELS
+        ========================================= */
+
+        .edit-box label {
+            font-size: 12px;
+
+            color: var(--purple-800);
+
+            font-weight: 500;
+        }
+
+
+        /* =========================================
+           TASK NAME
+        ========================================= */
+
+        #edit-title {
+            width: 100%;
+
+            padding: 12px;
+
+            border-radius: 12px;
+
+            border: 1px solid var(--purple-100);
+
+            font-size: 14px;
+
+            outline: none;
+
+            box-sizing: border-box;
+        }
+
+        #edit-title:focus {
+            border-color: var(--purple-400);
+
+            box-shadow:
+                0 0 0 3px var(--purple-50);
+        }
+
+
+        /* =========================================
+           DATE PICKER
+        ========================================= */
+
+        .date-picker-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .hidden-date-input {
+            position: absolute !important;
+
+            width: 1px !important;
+            height: 1px !important;
+
+            opacity: 0 !important;
+
+            pointer-events: none !important;
+        }
+
+        .custom-date-button {
+            width: 100%;
+            height: 48px;
+
+            display: flex;
+            align-items: center;
+
+            gap: 10px;
+
+            padding: 0 14px;
+
+            border: 1.5px solid #ded7f0;
+
+            border-radius: 12px;
+
+            background: #faf8ff;
+
+            color: #29233d;
+
+            font-family: inherit;
+
+            font-size: 14px;
+
+            font-weight: 500;
+
+            cursor: pointer;
+
+            box-sizing: border-box;
+        }
+
+        .custom-date-button i {
+            display: inline-block;
+        }
+
+        .custom-date-button .ti-calendar {
+            color: #8b6fd8 !important;
+            font-size: 19px !important;
+        }
+
+        .custom-date-button .ti-chevron-down {
+            margin-left: auto;
+
+            color: #8b83a0 !important;
+        }
+
+        .custom-date-button:hover {
+            border-color: #9b83df;
+
+            background: #f7f3ff;
+        }
+
+
+        /* =========================================
+           CUSTOM CALENDAR
+        ========================================= */
+
+        .custom-calendar {
+            position: absolute;
+
+            top: calc(100% + 6px);
+
+            left: 50%;
+
+            transform: translateX(-50%);
+
+            width: 260px;
+
+            padding: 12px;
+
+            background: #ffffff;
+
+            border: 1px solid #e5def3;
+
+            border-radius: 14px;
+
+            box-shadow:
+                0 15px 35px rgba(58, 43, 91, 0.20);
+
+            z-index: 9999999;
+
+            display: none;
+        }
+
+        .custom-calendar.show {
+            display: block;
+        }
+
+
+        /* =========================================
+           CALENDAR HEADER
+        ========================================= */
+
+        .calendar-header {
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            height: 30px;
+
+            margin-bottom: 6px;
+        }
+
+        .calendar-header button {
+            width: 28px;
+            height: 28px;
+
+            padding: 0;
+
+            border: none;
+
+            background: transparent;
+
+            border-radius: 6px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            cursor: pointer;
+        }
+
+        .calendar-header button i {
+            font-size: 16px !important;
+
+            color: #7657d9 !important;
+        }
+
+        .calendar-header button:hover {
+            background: #f3efff;
+        }
+
+        #calendar-month {
+            font-size: 13px;
+
+            font-weight: 600;
+
+            color: #29233d;
+        }
+
+
+        /* =========================================
+           CALENDAR DAYS
+        ========================================= */
+
+        .calendar-weekdays {
+            display: grid;
+
+            grid-template-columns: repeat(7, 1fr);
+
+            margin-bottom: 3px;
+        }
+
+        .calendar-weekdays span {
+            text-align: center;
+
+            font-size: 9px;
+
+            font-weight: 600;
+
+            color: #999;
+        }
+
+        .calendar-days {
+            display: grid;
+
+            grid-template-columns: repeat(7, 1fr);
+
+            row-gap: 1px;
+        }
+
+        .calendar-days button {
+            width: 30px;
+            height: 30px;
+
+            margin: 0 auto;
+
+            padding: 0;
+
+            border: none;
+
+            background: transparent;
+
+            border-radius: 50%;
+
+            font-size: 11px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            cursor: pointer;
+        }
+
+        .calendar-days button:hover {
+            background: #f0ebff;
+        }
+
+        .calendar-days button.today {
+            background: #eee8ff;
+
+            color: #7657d9;
+
+            font-weight: 600;
+        }
+
+        .calendar-days button.selected {
+            background: #7657d9;
+
+            color: white;
+
+            font-weight: 600;
+        }
+
+        .calendar-days button.today.selected {
+            background: #7657d9;
+
+            color: white;
+        }
+
+        .calendar-days button.other-month {
+            color: #c9c9c9;
+        }
+
+
+        /* =========================================
+           TIME PICKERS
+        ========================================= */
+
+        .time-row {
+            width: 100%;
+
+            display: grid;
+
+            grid-template-columns: 1fr 1fr;
+
+            gap: 12px;
+        }
+
+        .time-picker-wrapper {
+            position: relative;
+
+            width: 100%;
+
+            min-width: 0;
+        }
+
+        .time-picker-wrapper label {
+            display: block;
+
+            margin-bottom: 8px;
+
+            font-size: 13px;
+
+            font-weight: 600;
+
+            color: #555e6e;
+        }
+
+        .hidden-time-input {
+            position: absolute !important;
+
+            width: 1px !important;
+            height: 1px !important;
+
+            opacity: 0 !important;
+
+            pointer-events: none !important;
+        }
+
+        .custom-time-button {
+            width: 100%;
+            height: 48px;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 9px;
+
+            padding: 0 12px;
+
+            border: 1.5px solid #ded7f0;
+
+            border-radius: 12px;
+
+            background: #faf8ff;
+
+            color: #29233d;
+
+            font-family: inherit;
+
+            font-size: 14px;
+
+            font-weight: 500;
+
+            cursor: pointer;
+
+            box-sizing: border-box;
+        }
+
+        .custom-time-button i:first-child {
+            color: #8b6fd8 !important;
+
+            font-size: 18px !important;
+        }
+
+        .custom-time-button i:last-child {
+            margin-left: auto;
+
+            color: #8b6fd8 !important;
+
+            font-size: 16px !important;
+        }
+
+        .custom-time-button:hover {
+            border-color: #9b83df;
+
+            background: #f6f1ff;
+        }
+
+
+        /* =========================================
+           TIME DROPDOWN
+        ========================================= */
+
+        .custom-time-dropdown {
+            position: absolute;
+
+            bottom: calc(100% + 6px);
+
+            left: 50%;
+
+            transform: translateX(-50%);
+
+            width: 170px;
+
+            max-height: 180px;
+
+            overflow-y: auto;
+
+            background: #ffffff;
+
+            border: 1px solid #e3dcf2;
+
+            border-radius: 14px;
+
+            padding: 7px;
+
+            box-shadow:
+                0 12px 30px rgba(55, 40, 90, 0.15);
+
+            z-index: 9999999;
+
+            display: none;
+        }
+
+        .custom-time-dropdown.show {
+            display: block;
+        }
+
+        .custom-time-option {
+            width: 100%;
+
+            border: none;
+
+            border-radius: 9px;
+
+            background: transparent;
+
+            padding: 10px 12px;
+
+            text-align: left;
+
+            font-family: inherit;
+
+            font-size: 14px;
+
+            font-weight: 500;
+
+            color: #40384d;
+
+            cursor: pointer;
+        }
+
+        .custom-time-option:hover {
+            background: #f2ecff;
+
+            color: #7659c7;
+        }
+
+
+        /* =========================================
+           QUICK ADD
+           SAME AS CALENDAR
+        ========================================= */
+
+        .quick-add-title {
+            margin: 4px 0 0;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            color: #555e6e;
+        }
+
+        .quick-add-list {
+            display: flex;
+
+            flex-wrap: wrap;
+
+            gap: 8px;
+
+            width: 100%;
+        }
+
+        .quick-chip {
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            padding: 8px 11px;
+
+            border: 1px solid #e4def1;
+
+            border-radius: 10px;
+
+            background: #faf8ff;
+
+            color: #554b66;
+
+            font-family: inherit;
+
+            font-size: 11px;
+
+            font-weight: 500;
+
+            cursor: pointer;
+
+            transition: 0.2s ease;
+        }
+
+        .quick-chip i {
+            font-size: 15px;
+
+            color: #8b6fd8;
+        }
+
+        .quick-chip:hover {
+            background: #f1ebff;
+
+            border-color: #cfc2ed;
+
+            color: #7657d9;
+        }
+
+
+        /* =========================================
+           SAVE / ADD BUTTON
+        ========================================= */
+
+        #task-modal-submit-btn {
+            width: 100%;
+
+            margin-top: 2px;
+        }
+
+
+        /* =========================================
+           DELETE BUTTON
+        ========================================= */
+
+        .btn-delete {
+            width: 100%;
+
+            padding: 12px;
+
+            border: 1px solid #f3c6c6;
+
+            background: #fdf1f1;
+
+            color: #c0392b;
+
+            border-radius: 12px;
+
+            font-size: 14px;
+
+            font-weight: 600;
+
+            font-family: inherit;
+
+            cursor: pointer;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 8px;
+
+            transition: 0.2s ease;
+        }
+
+        .btn-delete i {
+            font-size: 17px !important;
+
+            color: #c0392b !important;
+        }
+
+        .btn-delete:hover {
+            background: #fbdede;
+
+            border-color: #e8a3a3;
+        }
+
+
+        /* =========================================
+           AI ASSISTANT PANEL
+           (reuses .task-input-panel / .task-textarea
+            already defined in style.css)
+        ========================================= */
+
+        .ai-chat-log {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 10px;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .ai-bubble {
+            padding: 10px 12px;
+            border-radius: 14px;
+            font-size: 13px;
+            line-height: 1.5;
+            max-width: 90%;
+        }
+
+        .ai-bubble.user {
+            align-self: flex-end;
+            background: var(--purple-400);
+            color: #fff;
+            border-radius: 14px 14px 4px 14px;
+        }
+
+        .ai-bubble.assistant {
+            align-self: flex-start;
+            background: var(--purple-50);
+            color: var(--gray-900);
+            border-radius: 14px 14px 14px 4px;
+        }
+
+        .ai-bubble.assistant.error {
+            background: #fdf1f1;
+            color: #c0392b;
+        }
+
+        .ai-send-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .ai-send-row .task-textarea {
+            min-height: 56px;
+        }
+
+        .ai-send-row button {
+            flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 12px;
+            background: var(--purple-400);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .ai-send-row button:hover {
+            background: var(--purple-600);
+        }
+
+        .ai-send-row button:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        .ai-send-row button i {
+            font-size: 18px;
+        }
+
+        .ai-plan-review {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 0.5px solid var(--purple-100);
+        }
+
+        .ai-plan-task {
+            background: #fff;
+            border: 0.5px solid var(--purple-100);
+            border-left: 4px solid var(--purple-400);
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+        }
+
+        .ai-plan-task .title {
+            font-size: 13.5px;
+            font-weight: 500;
+        }
+
+        .ai-plan-task .meta {
+            font-size: 11.5px;
+            color: var(--gray-600);
+            margin-top: 2px;
+        }
+
+        .ai-plan-task.editing input {
+            width: 100%;
+            margin-bottom: 6px;
+            padding: 8px 10px;
+            font-size: 12.5px;
+            border-radius: 8px;
+            border: 1px solid var(--purple-100);
+        }
+
+        .ai-plan-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .ai-plan-actions button {
+            flex: 1;
+        }
+
+
+        /* =========================================
+           MOBILE
+        ========================================= */
+
+        @media (max-width: 600px) {
+
+            .edit-modal {
+                align-items: flex-end;
+
+                padding: 0;
+            }
+
+            .edit-box {
+                max-width: none;
+
+                border-radius: 20px 20px 0 0;
+
+                padding: 22px;
+
+                max-height: 90vh;
+
+                overflow-y: auto;
+            }
+
+            .time-row {
+                grid-template-columns: 1fr;
+            }
+
+            .quick-add-list {
+                gap: 6px;
+            }
+
+            .quick-chip {
+                font-size: 10px;
+
+                padding: 7px 9px;
+            }
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div id="app">
+
+
+    <!-- =========================================
+         DASHBOARD
+    ========================================= -->
+
+    <div class="screen active" id="dashboard-screen">
+
+
+        <!-- SIDE NAVIGATION -->
+
+        <div class="side-rail">
+
+            <div class="logo-mark">
+                <i class="ti ti-calendar-star"></i>
+            </div>
+
+
+            <button class="nav-item active"
+                onclick="location.href='dashboard.html'">
+
+                <i class="ti ti-home"></i>
+
+                Home
+
+            </button>
+
+            <button class="nav-item"
+                onclick="location.href='planner.html'">
+
+                <i class="ti ti-list-check"></i>
+
+                AI Planner
+
+            </button>
+
+
+            <button class="nav-item"
+                onclick="location.href='journal.html'">
+
+                <i class="ti ti-notebook"></i>
+
+                Journal
+
+            </button>
+
+
+            <button class="nav-item"
+                onclick="location.href='calendar.html'">
+
+                <i class="ti ti-calendar"></i>
+
+                Calendar
+
+            </button>
+
+
+            <button class="nav-item"
+                onclick="location.href='streak.html'">
+
+                <i class="ti ti-flame"></i>
+
+                Streak
+
+            </button>
+
+
+            <button class="nav-item"
+                onclick="location.href='profile.html'">
+
+                <i class="ti ti-user"></i>
+
+                Profile
+
+            </button>
+
+
+            
+
+        </div>
+
+
+
+        <!-- MAIN -->
+
+        <div class="dash-main">
+
+
+            <!-- HEADER -->
+
+            <div class="dash-header">
+
+                <div>
+
+                    <p class="date"
+                        id="current-date"></p>
+
+                    <h2 id="greeting-heading">
+                        Hi Alex
+                    </h2>
+
+                    <p class="ai-greeting-msg"
+                        id="ai-greeting-msg">
+                    </p>
+
+                </div>
+
+
+                <div class="streak-badge"
+                    onclick="location.href='streak.html'"
+                    style="cursor:pointer;">
+
+                    <i class="ti ti-flame"></i>
+
+                    <span>12</span>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- TWO COLUMNS -->
+
+            <div class="two-col">
+
+
+                <!-- LEFT -->
+
+                <div>
+
+
+                    <!-- AI OVERVIEW -->
+
+                    <div class="card ai-overview-card">
+
+                        <div class="card-header">
+
+                            <span>
+                                ✨ Your Day at a Glance
+                            </span>
+
+                        </div>
+
+
+                        <p class="ai-overview-text"
+                            id="ai-overview-text">
+                        </p>
+
+
+                        <button class="btn-secondary"
+                            style="margin-top:10px;"
+                            onclick="optimizeMyDay()">
+
+                            <i class="ti ti-sparkles"></i>
+
+                            Optimize My Day
+
+                        </button>
+
+                    </div>
+
+
+
+                    <!-- SCHEDULE -->
+
+                    <div class="card">
+
+                        <div class="card-header">
+
+                            <span id="schedule-title">
+                                Today's Schedule
+                            </span>
+
+                            <i class="ti ti-calendar"
+                                onclick="location.href='calendar.html'"
+                                style="cursor:pointer;">
+                            </i>
+
+                        </div>
+
+
+
+                        <!-- WEEK -->
+
+                        <div class="week-calendar">
+
+                            <button type="button"
+                                class="week-arrow"
+                                onclick="changeWeek(-1)">
+
+                                <i class="ti ti-chevron-left"></i>
+
+                            </button>
+
+
+                            <div class="week-strip"
+                                id="week-strip">
+                            </div>
+
+
+                            <button type="button"
+                                class="week-arrow"
+                                onclick="changeWeek(1)">
+
+                                <i class="ti ti-chevron-right"></i>
+
+                            </button>
+
+                        </div>
+
+
+
+                        <!-- AI TIP -->
+
+                        <div class="ai-tip">
+
+                            <i class="ti ti-sparkles"></i>
+
+                            <span>
+                                AI suggests: block 2–4pm for deep work today.
+                            </span>
+
+                        </div>
+
+
+
+                        <!-- TASKS -->
+
+                        <p class="section-label">
+                            Today's Schedule
+                        </p>
+
+
+                        <div class="task-list"
+                            id="task-list">
+
+                            <!-- Rendered from shared task store -->
+
+                        </div>
+
+
+
+                        <!-- COMPLETED -->
+
+                        <div class="completed-section"
+                            id="completed-section"
+                            style="display:none;">
+
+                            <p class="section-label completed-label">
+
+                                <i class="ti ti-check"></i>
+
+                                Completed
+
+                            </p>
+
+
+                            <div class="task-list"
+                                id="completed-list">
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- PROGRESS -->
+
+                    <div class="card">
+
+                        <div class="card-header">
+
+                            <span>
+                                📊 Today's Progress
+                            </span>
+
+                        </div>
+
+
+                        <div class="cat-track">
+
+                            <div class="cat-fill"
+                                id="progress-fill"
+                                style="width:0%; background:var(--purple-400);">
+                            </div>
+
+                        </div>
+
+
+                        <p class="progress-text"
+                            id="progress-text">
+                        </p>
+
+                    </div>
+
+
+
+                    <!-- AI SUGGESTION -->
+
+                    <div class="card"
+                        id="ai-suggestion-card"
+                        style="display:none;">
+
+                        <div class="card-header">
+
+                            <span>
+                                🤖 Planora suggests
+                            </span>
+
+                        </div>
+
+
+                        <p id="ai-suggestion-text"></p>
+
+
+                        <div style="display:flex; gap:10px; margin-top:12px;">
+
+                            <button class="btn-primary"
+                                style="flex:1;"
+                                onclick="planSuggestion()">
+
+                                Plan it for me
+
+                            </button>
+
+
+                            <button class="btn-secondary"
+                                style="flex:1;"
+                                onclick="dismissSuggestion()">
+
+                                Dismiss
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- MOMENTUM -->
+
+                    <div class="card">
+
+                        <div class="card-header">
+
+                            <span>
+                                🔥 Your Momentum
+                            </span>
+
+                        </div>
+
+
+                        <div class="momentum-list"
+                            id="momentum-list">
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- RIGHT: AI ASSISTANT -->
+
+                <div class="task-input-panel">
+
+                    <div class="card-header">
+                        <span>💬 Ask Planora</span>
+                        <i class="ti ti-sparkles"></i>
+                    </div>
+
+                    <div class="ai-chat-log" id="ai-chat-log">
+                        <div class="ai-bubble assistant">
+                            Tell me what's on your plate and I'll turn it into a schedule — e.g. "3 client calls, gym 3x, finish the report by Friday."
+                        </div>
+                    </div>
+
+                    <div class="ai-send-row">
+                        <textarea
+                            class="task-textarea"
+                            id="ai-chat-input"
+                            placeholder="Help me organize my week..."></textarea>
+
+                        <button type="button" id="ai-send-btn" aria-label="Send">
+                            <i class="ti ti-send"></i>
+                        </button>
+                    </div>
+
+                    <div class="ai-plan-review" id="ai-plan-review" style="display:none;">
+
+                        <p class="section-label">Review your plan</p>
+
+                        <div id="ai-plan-tasks"></div>
+
+                        <div class="ai-plan-actions">
+                            <button type="button" class="btn-secondary" id="ai-plan-edit-btn">Edit</button>
+                            <button type="button" class="btn-primary" id="ai-plan-ok-btn">OK, add to calendar</button>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- FLOATING ADD -->
+
+            <button class="fab"
+                onclick="openAddTaskModal()"
+                aria-label="Add task">
+
+                <i class="ti ti-plus"></i>
+
+            </button>
+
+
+
+            <!-- BOTTOM NAV -->
+
+            <div class="bottom-nav">
+
+                <button class="nav-item active">
+
+                    <i class="ti ti-home"></i>
+
+                    Home
+
+                </button>
+
+
+                <button class="nav-item"
+                    onclick="location.href='calendar.html'">
+
+                    <i class="ti ti-calendar"></i>
+
+                    Calendar
+
+                </button>
+
+
+                <button class="nav-item"
+                    onclick="openAddTaskModal()">
+
+                    <i class="ti ti-plus"></i>
+
+                    Add
+
+                </button>
+
+
+                <button class="nav-item"
+                    onclick="location.href='streak.html'">
+
+                    <i class="ti ti-flame"></i>
+
+                    Streak
+
+                </button>
+
+
+                <button class="nav-item"
+                    onclick="location.href='profile.html'">
+
+                    <i class="ti ti-user"></i>
+
+                    Profile
+
+                </button>
+
+
+                <button class="nav-item"
+                    onclick="location.href='planner.html'">
+
+                    <i class="ti ti-list-check"></i>
+
+                    Planner
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         ADD / EDIT TASK MODAL
+    ========================================= -->
+
+    <div id="edit-modal"
+        class="edit-modal">
+
+
+        <div class="edit-box">
+
+
+            <!-- HEADER -->
+
+            <div class="edit-header">
+
+                <h3 id="task-modal-title">
+                    Add a task
+                </h3>
+
+
+                <button type="button"
+                    onclick="closeEditModal()"
+                    aria-label="Close">
+
+                    <i class="ti ti-x"></i>
+
+                </button>
+
+            </div>
+
+
+
+            <!-- TASK NAME -->
+
+            <label>
+                Task Name
+            </label>
+
+
+            <input id="edit-title"
+                type="text"
+                placeholder="What do you need to do?">
+
+
+
+            <!-- DATE -->
+
+            <div class="date-picker-wrapper">
+
+                <label>
+                    Date
+                </label>
+
+
+                <input id="edit-date"
+                    type="date"
+                    class="hidden-date-input"
+                    tabindex="-1"
+                    aria-hidden="true">
+
+
+                <button type="button"
+                    class="custom-date-button"
+                    id="date-picker-button">
+
+                    <i class="ti ti-calendar"></i>
+
+
+                    <span id="date-picker-display">
+                        Select date
+                    </span>
+
+
+                    <i class="ti ti-chevron-down"></i>
+
+                </button>
+
+
+
+                <!-- CUSTOM CALENDAR -->
+
+                <div class="custom-calendar"
+                    id="custom-calendar">
+
+
+                    <div class="calendar-header">
+
+                        <button type="button"
+                            id="calendar-prev">
+
+                            <i class="ti ti-chevron-left"></i>
+
+                        </button>
+
+
+                        <span id="calendar-month"></span>
+
+
+                        <button type="button"
+                            id="calendar-next">
+
+                            <i class="ti ti-chevron-right"></i>
+
+                        </button>
+
+                    </div>
+
+
+
+                    <div class="calendar-weekdays">
+
+                        <span>Mon</span>
+
+                        <span>Tue</span>
+
+                        <span>Wed</span>
+
+                        <span>Thu</span>
+
+                        <span>Fri</span>
+
+                        <span>Sat</span>
+
+                        <span>Sun</span>
+
+                    </div>
+
+
+                    <div class="calendar-days"
+                        id="calendar-days">
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- TIME -->
+
+            <div class="time-row">
+
+
+                <!-- START TIME -->
+
+                <div class="time-picker-wrapper">
+
+                    <label>
+                        Start Time
+                    </label>
+
+
+                    <input id="edit-start"
+                        type="time"
+                        class="hidden-time-input">
+
+
+                    <button type="button"
+                        class="custom-time-button"
+                        id="start-time-button">
+
+                        <i class="ti ti-clock"></i>
+
+
+                        <span id="start-time-display">
+                            Select time
+                        </span>
+
+
+                        <i class="ti ti-chevron-down"></i>
+
+                    </button>
+
+
+                    <div class="custom-time-dropdown"
+                        id="start-time-dropdown">
+                    </div>
+
+                </div>
+
+
+
+                <!-- END TIME -->
+
+                <div class="time-picker-wrapper">
+
+                    <label>
+                        End Time
+                    </label>
+
+
+                    <input id="edit-end"
+                        type="time"
+                        class="hidden-time-input">
+
+
+                    <button type="button"
+                        class="custom-time-button"
+                        id="end-time-button">
+
+                        <i class="ti ti-clock"></i>
+
+
+                        <span id="end-time-display">
+                            Select time
+                        </span>
+
+
+                        <i class="ti ti-chevron-down"></i>
+
+                    </button>
+
+
+                    <div class="custom-time-dropdown"
+                        id="end-time-dropdown">
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- =========================================
+                 QUICK ADD
+            ========================================= -->
+
+            <p class="quick-add-title"
+                id="quick-add-title">
+
+                Quick add
+
+            </p>
+
+
+            <div class="quick-add-list"
+                id="quick-add-list">
+
+
+                <button type="button"
+                    class="quick-chip"
+                    onclick="quickAddDashboardTask('Morning coffee break')">
+
+                    <i class="ti ti-coffee"></i>
+
+                    <span>
+                        Morning coffee break
+                    </span>
+
+                </button>
+
+
+                <button type="button"
+                    class="quick-chip"
+                    onclick="quickAddDashboardTask('Check emails')">
+
+                    <i class="ti ti-mail"></i>
+
+                    <span>
+                        Check emails
+                    </span>
+
+                </button>
+
+
+                <button type="button"
+                    class="quick-chip"
+                    onclick="quickAddDashboardTask('Call a friend or family')">
+
+                    <i class="ti ti-phone"></i>
+
+                    <span>
+                        Call a friend or family
+                    </span>
+
+                </button>
+
+
+                <button type="button"
+                    class="quick-chip"
+                    onclick="quickAddDashboardTask('20 min walk')">
+
+                    <i class="ti ti-walk"></i>
+
+                    <span>
+                        20 min walk
+                    </span>
+
+                </button>
+
+            </div>
+
+
+
+            <!-- SUBMIT -->
+
+            <button type="button"
+                class="btn-primary"
+                id="task-modal-submit-btn"
+                onclick="saveEditModal()">
+
+                Add Task
+
+            </button>
+
+
+
+            <!-- DELETE - ONLY SHOWN WHEN EDITING -->
+
+            <button type="button"
+                class="btn-delete"
+                id="task-modal-delete-btn"
+                onclick="deleteEditModalTask()"
+                style="display:none;">
+
+                <i class="ti ti-trash"></i>
+
+                Delete Task
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================================
+     DASHBOARD JAVASCRIPT
+========================================= -->
+
+<script src="script.js"></script>
+<script src="ai-assistant.js"></script>
+
+
+<script>
+
+    /*
+     * Quick Add
+     *
+     * Uses the existing Dashboard modal instead of creating
+     * another task system. This keeps your current
+     * saveEditModal() functionality intact.
+     */
+
+    function quickAddDashboardTask(taskName) {
+
+        const titleInput =
+            document.getElementById("edit-title");
+
+        if (!titleInput) return;
+
+        titleInput.value = taskName;
+
+        titleInput.focus();
+
+    }
+
+
+    /*
+     * When adding a task, show Quick Add.
+     * When editing a task, hide Quick Add.
+     *
+     * This wraps your existing openAddTaskModal function
+     * without replacing its functionality.
+     */
+
+    const originalOpenAddTaskModal =
+        window.openAddTaskModal;
+
+    if (typeof originalOpenAddTaskModal === "function") {
+
+        window.openAddTaskModal = function () {
+
+            originalOpenAddTaskModal();
+
+            const title =
+                document.getElementById("quick-add-title");
+
+            const list =
+                document.getElementById("quick-add-list");
+
+            if (title) {
+                title.style.display = "block";
+            }
+
+            if (list) {
+                list.style.display = "flex";
+            }
+
+            const modalTitle =
+                document.getElementById("task-modal-title");
+
+            const submitButton =
+                document.getElementById("task-modal-submit-btn");
+
+            const deleteButton =
+                document.getElementById("task-modal-delete-btn");
+
+            if (modalTitle) {
+                modalTitle.textContent = "Add a task";
+            }
+
+            if (submitButton) {
+                submitButton.textContent = "Add Task";
+            }
+
+            if (deleteButton) {
+                deleteButton.style.display = "none";
+            }
+
+        };
+
+    }
+
+
+    /*
+     * Hide Quick Add when editing.
+     */
+
+    const originalOpenEditModal =
+        window.openEditModal;
+
+    if (typeof originalOpenEditModal === "function") {
+
+        window.openEditModal = function () {
+
+            originalOpenEditModal.apply(this, arguments);
+
+            const title =
+                document.getElementById("quick-add-title");
+
+            const list =
+                document.getElementById("quick-add-list");
+
+            if (title) {
+                title.style.display = "none";
+            }
+
+            if (list) {
+                list.style.display = "none";
+            }
+
+        };
+
+    }
+
+</script>
+
+</body>
+
+</html>

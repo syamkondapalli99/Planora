@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planora - Streak</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+    <!-- ============ STREAK SCREEN ============ -->
+    <div class="screen active" id="streak-screen">
+
+        <div class="side-rail">
+  <div class="logo-mark">
+    <i class="ti ti-calendar-star"></i>
+  </div>
+
+  <button class="nav-item" onclick="location.href='dashboard.html'">
+  <i class="ti ti-home"></i>Home
+</button>
+
+  <button class="nav-item" onclick="location.href='journal.html'">
+    <i class="ti ti-notebook"></i>Journal
+  </button>
+
+  <button class="nav-item" onclick="location.href='calendar.html'">
+    <i class="ti ti-calendar"></i>Calendar
+  </button>
+
+  <button class="nav-item active" onclick="location.href='streak.html'">
+    <i class="ti ti-flame"></i>Streak
+  </button>
+
+  <button class="nav-item" onclick="location.href='profile.html'">
+    <i class="ti ti-user"></i>Profile
+  </button>
+
+  <button class="nav-item" onclick="location.href='planner.html'">
+    <i class="ti ti-list-check"></i>Planner
+  </button>
+</div>
+
+        <div class="dash-header" style="width:100%;">
+            <h2>Your streak</h2>
+            <button class="nav-item" onclick="location.href='index.html'" style="color:var(--purple-600);">
+                <i class="ti ti-x"></i>
+            </button>
+        </div>
+
+        <div class="streak-hero">
+            <i class="ti ti-flame"></i>
+        </div>
+
+        <div class="streak-count">12 days</div>
+
+        <p class="subtitle">
+            Keep planning daily to grow your streak
+        </p>
+
+        <div class="week-dots">
+            <div class="dot"><i class="ti ti-check"></i></div>
+            <div class="dot"><i class="ti ti-check"></i></div>
+            <div class="dot"><i class="ti ti-check"></i></div>
+            <div class="dot"><i class="ti ti-check"></i></div>
+            <div class="dot"><i class="ti ti-check"></i></div>
+            <div class="dot"><i class="ti ti-check"></i></div>
+            <div class="dot empty">7</div>
+        </div>
+
+        <div class="streak-stats">
+            <div class="stat-card">
+                <p class="label">Longest streak</p>
+                <p class="value">27 days</p>
+            </div>
+
+            <div class="stat-card">
+                <p class="label">Total planned days</p>
+                <p class="value">94 days</p>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+
+            <button class="nav-item" onclick="location.href='index.html'">
+                <i class="ti ti-home"></i>Home
+            </button>
+
+            <button class="nav-item" onclick="location.href='calendar.html'">
+                <i class="ti ti-calendar"></i>Calendar
+            </button>
+
+            <button class="nav-item">
+                <i class="ti ti-plus"></i>Add
+            </button>
+
+            <button class="nav-item active">
+                <i class="ti ti-flame"></i>Streak
+            </button>
+
+            <button class="nav-item" onclick="location.href='profile.html'">
+                <i class="ti ti-user"></i>Profile
+            </button>
+
+            <button class="nav-item" onclick="location.href='planner.html'">
+                <i class="ti ti-list-check"></i>Planner
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>

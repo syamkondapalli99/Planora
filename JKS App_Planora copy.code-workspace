@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../JKS App_Planora"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "JKS App_Planora copy"
+	}
+}
