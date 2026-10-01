@@ -336,17 +336,34 @@
         });
     }
 
+    // Planora's own Google button stays on screen (same look as the Apple one);
+    // Google's real button is laid invisibly on top of it, stretched to the same
+    // size, so a click opens Google's pop-up.
     function renderGoogleButton() {
         if (!gsiReady) return;
         const host = $("gsi-btn");
-        const width = Math.round($("oauth-buttons").getBoundingClientRect().width) || 360;
+        const ours = $("google-btn").getBoundingClientRect();
+        const width = Math.max(220, Math.min(400, Math.round(ours.width) || 360));
         host.innerHTML = "";
+        host.style.transform = "";
         google.accounts.id.renderButton(host, {
             type: "standard", theme: "outline", size: "large", text: "continue_with",
-            shape: "rectangular", logo_alignment: "center", width: Math.max(220, Math.min(400, width))
+            shape: "rectangular", logo_alignment: "center", width
         });
         host.hidden = false;
-        $("google-btn").hidden = true;
+        $("google-wrap").classList.add("has-gsi");
+        $("google-btn").tabIndex = -1;          // keyboard focus goes to Google's button instead
+        fitGoogleButton();
+        setTimeout(fitGoogleButton, 400);       // Google sizes its frame a moment later
+    }
+
+    function fitGoogleButton() {
+        const host = $("gsi-btn"), inner = host.firstElementChild;
+        if (!inner) return;
+        host.style.transform = "";              // measure Google's real size, then stretch it
+        const ours = $("google-btn").getBoundingClientRect(), theirs = inner.getBoundingClientRect();
+        if (!ours.width || !theirs.width || !theirs.height) return;
+        host.style.transform = `scale(${ours.width / theirs.width}, ${ours.height / theirs.height})`;
     }
 
     // While Google's button is loading (usually under a second), the stand-in button
@@ -394,7 +411,8 @@
         } catch (error) {
             gsiReady = false;
             $("gsi-btn").hidden = true;
-            $("google-btn").hidden = false;
+            $("google-wrap").classList.remove("has-gsi");
+            $("google-btn").tabIndex = 0;
         }
     }
 
@@ -479,7 +497,7 @@
         $("forgot-form").addEventListener("submit", e => { e.preventDefault(); forgot(); });
         $("forgot-link").addEventListener("click", () => showMode("forgot"));
         $("resend-btn").addEventListener("click", resend);
-        $("google-btn").addEventListener("click", () => oauth("google"));
+        $("google-btn").addEventListener("click", () => { if (!gsiReady) oauth("google"); });
         $("apple-btn").addEventListener("click", () => oauth("apple"));
         $("skip-btn").addEventListener("click", skip);
         document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => showMode(b.dataset.mode)));

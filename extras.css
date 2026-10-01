@@ -1445,7 +1445,12 @@ body.ask-open .fab { opacity: 0; pointer-events: none; }
 .legal-page ul { padding-left: 20px; }
 .legal-page a { color: var(--primary, #5b4bc4); }
 
-/* Google's own "Continue with Google" button (pop-up sign-in) */
-.gsi-btn { display: flex; justify-content: center; min-height: 44px; }
-.gsi-btn[hidden] { display: none; }
+/* Google's real button sits invisibly over Planora's own Google button,
+   so both sign-in buttons look the same as each other. */
+.google-wrap { position: relative; }
+.google-wrap .gsi-btn { position: absolute; top: 0; left: 0; transform-origin: 0 0; opacity: .01; z-index: 1; }
+.google-wrap .gsi-btn[hidden] { display: none; }
+.google-wrap.has-gsi:hover .oauth-btn.google { background: #F8F9FA; box-shadow: 0 1px 3px rgba(60,64,67,.15); }
+.google-wrap.has-gsi:active .oauth-btn.google { transform: scale(.985); }
+.google-wrap.has-gsi:focus-within .oauth-btn.google { outline: 3px solid var(--purple-200, #AFA9EC); outline-offset: 2px; }
 .oauth-btn.is-loading { opacity: .7; cursor: progress; }
