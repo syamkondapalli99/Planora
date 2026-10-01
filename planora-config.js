@@ -16,10 +16,10 @@
 
 window.PLANORA_CONFIG = {
     // e.g. "https://abcdefghijklmnop.supabase.co"
-    supabaseUrl: "",
+    supabaseUrl: "https://wnxevuyxoiysaeoguodb.supabase.co",
 
     // the anon (legacy) or publishable ("sb_publishable_…") key
-    supabaseAnonKey: "",
+    supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndueGV2dXl4b2l5c2Flb2d1b2RiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4NTAzMTIsImV4cCI6MjEwNjQyNjMxMn0.cS7xdHypmg4DFYkqtUyTxakNQUnG5FGpLE95ue0Xe4E",
 
     // The real site. Sign-in links on the live site always come back here.
     productionUrl: "https://planoraai.net",
