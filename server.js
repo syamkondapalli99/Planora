@@ -2,14 +2,49 @@ require("dotenv").config();
 
 const express = require("express");
 const path = require("path");
+const rateLimit = require("express-rate-limit");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Accounts (email/password, Google, Apple), sessions, per-user data
+// and page protection. Must come before express.json() and static files.
+const auth = require("./auth-server");
+auth.install(app);
+
+// One-box AI planner: tasks, deadlines, repeats and goals -> a scheduled plan
+require("./smart-plan-server").install(app, auth.requireAuth);
+
 app.use(express.json());
 
+// Installable app (phones + tablets): the service worker must always be fresh,
+// and the manifest needs its proper type.
+app.get("/sw.js", (req, res) => {
+    res.set({ "Cache-Control": "no-cache", "Service-Worker-Allowed": "/", "Content-Type": "application/javascript; charset=utf-8" });
+    res.sendFile(path.join(__dirname, "sw.js"));
+});
+app.get("/manifest.webmanifest", (req, res) => {
+    res.set({ "Content-Type": "application/manifest+json; charset=utf-8", "Cache-Control": "no-cache" });
+    res.sendFile(path.join(__dirname, "manifest.webmanifest"));
+});
+
 // Serves your existing site (dashboard.html, calendar.html, style.css, etc.)
-app.use(express.static(__dirname));
+// Pages and scripts are revalidated each time so phones pick up updates.
+app.use(express.static(__dirname, {
+    setHeaders(res, file) {
+        if (/\.(html|js|css)$/.test(file)) res.setHeader("Cache-Control", "no-cache");
+    }
+}));
+
+
+// Rate limiter for the AI endpoints only (10 requests per 15 minutes per IP).
+// Not applied globally — attached only to /api/plan and /api/study-plan below.
+const aiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false
+});
 
 
 /* =========================================
@@ -25,7 +60,7 @@ app.use(express.static(__dirname));
      automatically. Nothing else needs to change.
    ========================================= */
 
-app.post("/api/plan", async (req, res) => {
+app.post("/api/plan", auth.requireAuth, aiLimiter, async (req, res) => {
 
     const { message, today } = req.body;
 
@@ -33,7 +68,7 @@ app.post("/api/plan", async (req, res) => {
         return res.status(400).json({ error: "A message is required." });
     }
 
-    const todayDate = today || new Date().toISOString().slice(0, 10);
+    const todayDate = today || new Date().toLocaleDateString("en-CA");
 
     try {
 
@@ -83,7 +118,7 @@ function getMockPlan(message, todayDate) {
 
         return {
             title: capitalize(title),
-            date: date.toISOString().slice(0, 10),
+            date: date.toLocaleDateString("en-CA"),
             start: `${String(hour).padStart(2, "0")}:00`,
             end: `${String(hour + 1).padStart(2, "0")}:00`
         };
@@ -173,7 +208,7 @@ Rules:
    - OPENAI_API_KEY set -> real OpenAI call, same shape returned.
    ========================================= */
 
-app.post("/api/study-plan", async (req, res) => {
+app.post("/api/study-plan", auth.requireAuth, aiLimiter, async (req, res) => {
 
     const { subject, examDate, hoursPerDay, topics, today } = req.body;
 
@@ -189,7 +224,7 @@ app.post("/api/study-plan", async (req, res) => {
         return res.status(400).json({ error: "At least one topic is required." });
     }
 
-    const todayDate = today || new Date().toISOString().slice(0, 10);
+    const todayDate = today || new Date().toLocaleDateString("en-CA");
     const hours = Number(hoursPerDay) > 0 ? Number(hoursPerDay) : 2;
 
     try {
@@ -256,7 +291,7 @@ function getMockStudyPlan(subject, examDate, hoursPerDay, topics, todayDate) {
 
     for (let d = 0; d < totalDays; d++) {
 
-        const date = new Date(start.getTime() + d * MS_DAY).toISOString().slice(0, 10);
+        const date = new Date(start.getTime() + d * MS_DAY).toLocaleDateString("en-CA");
 
         let minutesLeft = Math.round(hoursPerDay * 60);
         if (minutesLeft < 15) minutesLeft = 15;
@@ -428,9 +463,20 @@ app.listen(PORT, () => {
 
     console.log(`Planora server running on http://localhost:${PORT}`);
 
+    // Same Wi-Fi: open this on a phone or tablet
+    try {
+        const nets = require("os").networkInterfaces();
+        const lan = Object.values(nets).flat().find(n => n && n.family === "IPv4" && !n.internal);
+        if (lan) console.log(`On your phone/tablet (same Wi-Fi): http://${lan.address}:${PORT}`);
+    } catch {}
+
     console.log(
         process.env.OPENAI_API_KEY
             ? "Mode: real OpenAI (key found in .env)"
             : "Mode: MOCK (no OPENAI_API_KEY set — add one to .env later to switch to real AI)"
     );
+
+    console.log(auth.supabaseReady()
+        ? `Sign-in: Supabase (${auth.config.url})`
+        : "Sign-in: Supabase NOT configured yet: add supabaseUrl + supabaseAnonKey to planora-config.js (local guest mode only)");
 });

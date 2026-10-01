@@ -3,7 +3,7 @@
 // ======================================================
 
 let currentStep = 1;
-const totalSteps = 4;
+const totalSteps = 3;   // what to help with, productive time, you're ready
 
 let currentTask = null;
 
@@ -21,6 +21,39 @@ const TASK_STORE_KEY = "planora_tasks";
 // ======================================================
 // NAVIGATION
 // ======================================================
+
+// Handles the "Log in" button on index.html.
+//
+// There is no real backend authentication in this app (no
+// account database, no server-side session). This mirrors
+// the existing "Go to Dashboard" button on the same screen:
+// it just checks that something was typed into both fields,
+// then takes the person to the local/demo dashboard, the
+// same way "Go to Dashboard" already does.
+function handleLogin() {
+
+    // Real sign-in (email + password) now lives in login.js.
+    if (window.PlanoraLogin) {
+        return window.PlanoraLogin.login();
+    }
+
+    const emailInput =
+        document.querySelector("#login-screen input[type='email']");
+
+    const passwordInput =
+        document.querySelector("#login-screen input[type='password']");
+
+    const email = emailInput ? emailInput.value.trim() : "";
+    const password = passwordInput ? passwordInput.value : "";
+
+    if (!email || !password) {
+        alert("Please enter both an email and password to continue.");
+        return;
+    }
+
+    location.href = "home.html";
+}
+
 
 function goTo(id) {
 
@@ -118,6 +151,11 @@ function nextStep() {
 
         showStep(currentStep);
 
+    } else if (window.PlanoraLogin) {
+
+        // Save the onboarding answers to the account, then open the app
+        window.PlanoraLogin.finishOnboarding();
+
     } else {
 
         goTo("dashboard-screen");
@@ -145,6 +183,10 @@ function selectOption(el) {
         });
 
     el.classList.add("selected");
+
+    el.parentElement
+        .querySelectorAll(".option-card[role=radio]")
+        .forEach(card => card.setAttribute("aria-checked", card === el ? "true" : "false"));
 }
 
 
@@ -232,9 +274,10 @@ function seedDefaultTasksIfEmpty() {
     const existing =
         loadTaskStore();
 
-    if (existing.length > 0) {
-        return existing;
-    }
+    // New accounts no longer get sample tasks: nothing should look like
+    // activity unless the user created it. (Home shows "Let's build your
+    // first day" instead.)
+    return existing;
 
     const today =
         getDateString(new Date());
@@ -446,6 +489,15 @@ function createTaskElement(task) {
 
         <div class="task-actions">
 
+            ${!task.completed && window.PlanoraFocus ? `<button
+                type="button"
+                class="task-start-btn"
+                aria-label="Start ${String(task.title || "task").replace(/"/g, "&quot;")}">
+
+                <i class="ti ti-player-play"></i>
+
+            </button>` : ""}
+
             <button
                 class="task-edit-btn"
                 onclick="openEditModal(this)"
@@ -470,6 +522,46 @@ function createTaskElement(task) {
     item.querySelector(".t-title")
         .textContent =
         task.title || "";
+
+    // Start: opens the Focus timer for this task
+    const startBtn = item.querySelector(".task-start-btn");
+    if (startBtn) startBtn.addEventListener("click", e => {
+        e.stopPropagation();
+        window.PlanoraFocus.start(task.id);
+    });
+
+    // Tap the task's name for Start · Reschedule · Delete (keeps the original box look)
+    const info = item.firstElementChild;
+    if (info && window.PlanoraCore && PlanoraCore.openTaskSheet) {
+        info.classList.add("task-open");
+        info.setAttribute("role", "button");
+        info.tabIndex = 0;
+        info.setAttribute("aria-label", (task.title || "Task") + ": start, reschedule or delete");
+        info.addEventListener("click", () => PlanoraCore.openTaskSheet(task.id));
+        info.addEventListener("keydown", e => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); PlanoraCore.openTaskSheet(task.id); }
+        });
+    }
+
+    // Repeating tasks show a small repeat icon
+    if (task.seriesId) {
+        const rep = document.createElement("i");
+        rep.className = "ti ti-repeat t-repeat";
+        rep.setAttribute("aria-label", "Repeats");
+        item.querySelector(".t-title").appendChild(rep);
+    }
+
+    // Goal / study sessions show which goal they belong to
+    if (task.goalId && window.PlanoraCore) {
+        const goalName = window.PlanoraCore.goalTitle(task.goalId);
+        if (goalName) {
+            const tag = document.createElement("p");
+            tag.className = "t-goal";
+            tag.innerHTML = '<i class="ti ti-target-arrow" aria-hidden="true"></i>';
+            tag.appendChild(document.createTextNode(goalName));
+            item.querySelector(".t-time").after(tag);
+        }
+    }
 
     const timeElement =
         item.querySelector(".t-time");
@@ -2157,10 +2249,22 @@ function renderGreeting() {
                     : "Good evening";
 
 
+        const name =
+            window.PlanoraAuth ? window.PlanoraAuth.firstName() : "";
+
         heading.textContent =
-            `${greeting}, Alex 👋`;
+            name ? `${greeting}, ${name}` : greeting;
     }
 
+
+    // Home's own sentence (home.js) is worked out from real data
+    if (messageElement && window.PlanoraHome) {
+
+        messageElement.textContent =
+            window.PlanoraHome.sentence();
+
+        return;
+    }
 
     if (messageElement) {
 
@@ -2705,80 +2809,8 @@ function dismissSuggestion() {
 
 function renderMomentum() {
 
-    const container =
-        document.getElementById(
-            "momentum-list"
-        );
-
-    if (!container) return;
-
-
-    const momentum = [
-
-        {
-            icon: "ti-book",
-            label: "Study",
-            days: 5
-        },
-
-        {
-            icon: "ti-run",
-            label: "Exercise",
-            days: 3
-        },
-
-        {
-            icon: "ti-book-2",
-            label: "Reading",
-            days: 7
-        }
-
-    ];
-
-
-    container.innerHTML = "";
-
-
-    momentum.forEach(item => {
-
-        const row =
-            document.createElement(
-                "div"
-            );
-
-
-        row.className =
-            "momentum-row";
-
-
-        row.innerHTML = `
-
-            <span class="momentum-label">
-
-                <i class="ti ${item.icon}"></i>
-
-                <span></span>
-
-            </span>
-
-            <span class="momentum-streak"></span>
-        `;
-
-
-        row.querySelector(
-            ".momentum-label span:last-child"
-        ).textContent =
-            item.label;
-
-
-        row.querySelector(
-            ".momentum-streak"
-        ).textContent =
-            `${item.days} day streak`;
-
-
-        container.appendChild(row);
-    });
+    // Removed: this used to show fixed sample streaks (Study 5 days,
+    // Exercise 3, Reading 7). Real streaks are on the Streak page.
 }
 
 
@@ -2806,280 +2838,15 @@ function renderHomeOverview() {
 // PROFILE
 // ======================================================
 
-const weeklyCompletion = [
+// The Profile charts (weekly completion, categories, activity heatmap)
+// are drawn from the user's real tasks in app-extras.js. The old fixed
+// sample numbers and the random heatmap were removed.
 
-    {
-        dow: "Mon",
-        pct: 80
-    },
+function renderBarChart() {}
 
-    {
-        dow: "Tue",
-        pct: 100
-    },
+function renderCategoryBars() {}
 
-    {
-        dow: "Wed",
-        pct: 60
-    },
-
-    {
-        dow: "Thu",
-        pct: 90
-    },
-
-    {
-        dow: "Fri",
-        pct: 70
-    },
-
-    {
-        dow: "Sat",
-        pct: 40
-    },
-
-    {
-        dow: "Sun",
-        pct: 55
-    }
-];
-
-
-function renderBarChart() {
-
-    const chart =
-        document.getElementById(
-            "weekly-bar-chart"
-        );
-
-    if (!chart) return;
-
-
-    chart.innerHTML = "";
-
-
-    weeklyCompletion.forEach(
-        (day, index) => {
-
-            const column =
-                document.createElement(
-                    "div"
-                );
-
-            column.className =
-                "bar-col";
-
-
-            const bar =
-                document.createElement(
-                    "div"
-                );
-
-            bar.className =
-                "bar";
-
-
-            bar.style.height =
-                day.pct + "%";
-
-
-            bar.title =
-                `${day.dow}: ${day.pct}%`;
-
-
-            const label =
-                document.createElement(
-                    "span"
-                );
-
-            label.className =
-                "dow";
-
-            label.textContent =
-                day.dow;
-
-
-            column.appendChild(bar);
-
-            column.appendChild(label);
-
-            chart.appendChild(column);
-        }
-    );
-}
-
-
-// ======================================================
-// CATEGORY
-// ======================================================
-
-const categoryBreakdown = [
-
-    {
-        label: "Work",
-        pct: 42,
-        color: "var(--purple-400)"
-    },
-
-    {
-        label: "Health",
-        pct: 27,
-        color: "var(--pink-400)"
-    },
-
-    {
-        label: "Personal",
-        pct: 18,
-        color: "var(--blue-400)"
-    },
-
-    {
-        label: "Learning",
-        pct: 13,
-        color: "var(--amber-800)"
-    }
-
-];
-
-
-function renderCategoryBars() {
-
-    const wrapper =
-        document.getElementById(
-            "category-bars"
-        );
-
-    if (!wrapper) return;
-
-
-    wrapper.innerHTML = "";
-
-
-    categoryBreakdown.forEach(category => {
-
-        const row =
-            document.createElement(
-                "div"
-            );
-
-
-        row.className =
-            "cat-row";
-
-
-        row.innerHTML = `
-
-            <div
-                style="
-                    display:flex;
-                    align-items:center;
-                    gap:10px;
-                "
-            >
-
-                <span
-                    class="cat-dot"
-                    style="
-                        background:${category.color};
-                    "
-                ></span>
-
-                <span class="cat-label"></span>
-
-                <span class="cat-pct"></span>
-
-            </div>
-
-            <div class="cat-track">
-
-                <div
-                    class="cat-fill"
-                    style="
-                        width:${category.pct}%;
-                        background:${category.color};
-                    "
-                ></div>
-
-            </div>
-        `;
-
-
-        row.querySelector(
-            ".cat-label"
-        ).textContent =
-            category.label;
-
-
-        row.querySelector(
-            ".cat-pct"
-        ).textContent =
-            category.pct + "%";
-
-
-        wrapper.appendChild(row);
-    });
-}
-
-
-// ======================================================
-// HEATMAP
-// ======================================================
-
-function renderHeatmap() {
-
-    const grid =
-        document.getElementById(
-            "heat-grid"
-        );
-
-    if (!grid) return;
-
-
-    grid.innerHTML = "";
-
-
-    const levels = [
-        "",
-        "l1",
-        "l2",
-        "l3",
-        "l4"
-    ];
-
-
-    for (
-        let i = 0;
-        i < 91;
-        i++
-    ) {
-
-        const cell =
-            document.createElement(
-                "div"
-            );
-
-
-        const level =
-            levels[
-                Math.floor(
-                    Math.random() *
-                    levels.length
-                )
-            ];
-
-
-        cell.className =
-            "heat-cell" +
-            (
-                level
-                    ? " " + level
-                    : ""
-            );
-
-
-        grid.appendChild(cell);
-    }
-}
+function renderHeatmap() {}
 
 
 function initProfilePage() {

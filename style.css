@@ -34,6 +34,9 @@
   margin: 0;
   padding: 0;
 }
+html {
+  overflow-x: hidden;
+}
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: linear-gradient(180deg, var(--blue-50) 0%, var(--purple-50) 100%);
@@ -984,6 +987,7 @@ EDIT TASK MODAL
     border:.5px solid var(--purple-100);
     box-shadow:var(--shadow-card);
 }
+}
 /* ---------- Profile screen ---------- */
 #profile-screen {
   padding-bottom: 90px;
@@ -1725,6 +1729,7 @@ EDIT TASK MODAL
     transform: translateX(-50%);
 
     width: 180px;
+    max-width: calc(100vw - 32px);
 
     background: #FFFFFF;
 
@@ -1876,6 +1881,7 @@ EDIT TASK MODAL
     left: 0;
 
     width: 300px;
+    max-width: calc(100vw - 32px);
 
     padding: 16px;
 
@@ -2087,6 +2093,7 @@ EDIT TASK MODAL
     left: 0;
 
     width: 280px;
+    max-width: calc(100vw - 32px);
     padding: 10px;
 
     background: #fff;
@@ -2366,6 +2373,7 @@ EDIT TASK MODAL
     transform: translateX(-50%) !important;
 
     width: 260px !important;
+    max-width: calc(100vw - 32px) !important;
 
     padding: 12px !important;
 
@@ -2425,6 +2433,7 @@ EDIT TASK MODAL
     transform: translateX(-50%) !important;
 
     width: 170px !important;
+    max-width: calc(100vw - 32px) !important;
 
     max-height: 180px !important;
 
@@ -2486,7 +2495,6 @@ EDIT TASK MODAL
     }
 
 }
-}
 
 /* PLANNER.HTML (Smart Daily Planner / Task Breakdown / Goal Tracker / Study Planner) */
 
@@ -2517,4 +2525,3 @@ EDIT TASK MODAL
     gap: 20px;
   }
 }
-

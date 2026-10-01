@@ -2,108 +2,154 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E6F1FB">
+<meta name="color-scheme" content="light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Planora">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="device.js"></script>
 <title>Planora - Your Daily AI Planner</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="extras.css">
+<script src="planora-config.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="auth.js"></script>
+<link rel="stylesheet" href="devices.css">
 </head>
-<body>
+<body class="page-login">
 
 <div id="app">
 
-  <!-- ============ LOGIN SCREEN ============ -->
+  <!-- ============ SIGN IN / CREATE ACCOUNT (Supabase Auth, login.js) ============ -->
   <div class="screen active" id="login-screen">
-    <div class="logo-mark"><i class="ti ti-calendar-star"></i></div>
-    <h1>Planora</h1>
-    <p class="subtitle">Your daily AI planner</p>
+    <div class="auth-card">
+      <div class="logo-mark" aria-hidden="true"><i class="ti ti-calendar-star"></i></div>
+      <p class="auth-brand">Planora</p>
 
-    <div class="login-form">
-      <input type="email" placeholder="name@email.com">
-      <input type="password" placeholder="Password">
+      <!-- shown while we check for an existing session (no login flash) -->
+      <div class="auth-checking" id="auth-checking" role="status">
+        <span class="auth-spinner" aria-hidden="true"></span>
+        <span id="auth-checking-text">Loading…</span>
+      </div>
+
+      <section class="auth-main" id="auth-main" hidden>
+        <h1 class="auth-title" id="auth-title">Welcome back</h1>
+        <p class="subtitle auth-subtitle" id="auth-subtitle">Plan your day. Get more done.</p>
+
+        <p class="auth-banner" id="auth-banner" role="alert" hidden></p>
+
+        <div class="oauth-buttons" id="oauth-buttons">
+          <button type="button" class="oauth-btn google" id="google-btn" aria-label="Continue with Google"><svg class="oauth-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg><span>Continue with Google</span></button>
+          <button type="button" class="oauth-btn apple" id="apple-btn" aria-label="Continue with Apple"><svg class="oauth-icon" viewBox="0 0 17 20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M14.04 10.63c-.02-2.24 1.83-3.32 1.91-3.37-1.04-1.52-2.66-1.73-3.24-1.75-1.38-.14-2.69.81-3.39.81-.7 0-1.78-.79-2.92-.77-1.5.02-2.89.87-3.66 2.21-1.56 2.71-.4 6.72 1.12 8.92.74 1.08 1.63 2.29 2.79 2.24 1.12-.04 1.54-.72 2.89-.72 1.35 0 1.73.72 2.91.7 1.2-.02 1.96-1.1 2.7-2.18.85-1.25 1.2-2.46 1.22-2.52-.03-.01-2.33-.9-2.35-3.56zM11.82 4.04c.62-.75 1.03-1.78.92-2.82-.89.04-1.96.59-2.6 1.34-.57.66-1.07 1.71-.94 2.73.99.08 2-.5 2.62-1.25z"/></svg><span>Continue with Apple</span></button>
+        </div>
+
+        <div class="divider auth-divider" id="email-divider"><div class="line"></div><span>or continue with email</span><div class="line"></div></div>
+
+        <!-- SIGN IN -->
+        <form class="auth-form" id="login-form" novalidate>
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" placeholder="name@email.com" autocomplete="email" inputmode="email" required>
+          <label for="login-password">Password</label>
+          <div class="password-field">
+            <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password" required>
+            <button type="button" class="pw-toggle" data-pw-toggle aria-label="Show password"><i class="ti ti-eye" aria-hidden="true"></i></button>
+          </div>
+          <p class="auth-error" id="login-error" role="alert" hidden></p>
+          <button type="submit" class="btn-primary auth-submit" id="login-submit"><span>Sign in</span></button>
+          <button type="button" class="link-btn auth-forgot" id="forgot-link">Forgot password?</button>
+        </form>
+
+        <!-- CREATE ACCOUNT -->
+        <form class="auth-form" id="signup-form" novalidate hidden>
+          <label for="signup-name">Name <span class="optional">(optional)</span></label>
+          <input type="text" id="signup-name" placeholder="What should Planora call you?" autocomplete="name">
+          <label for="signup-email">Email</label>
+          <input type="email" id="signup-email" placeholder="name@email.com" autocomplete="email" inputmode="email" required>
+          <label for="signup-password">Password</label>
+          <div class="password-field">
+            <input type="password" id="signup-password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required aria-describedby="pw-rules">
+            <button type="button" class="pw-toggle" data-pw-toggle aria-label="Show password"><i class="ti ti-eye" aria-hidden="true"></i></button>
+          </div>
+          <label for="signup-confirm">Confirm password</label>
+          <input type="password" id="signup-confirm" placeholder="Type it again" autocomplete="new-password" required>
+          <ul class="pw-rules" id="pw-rules" aria-live="polite">
+            <li data-rule="length"><i class="ti ti-circle" aria-hidden="true"></i>At least 8 characters</li>
+            <li data-rule="match"><i class="ti ti-circle" aria-hidden="true"></i>Passwords match</li>
+          </ul>
+          <p class="auth-error" id="signup-error" role="alert" hidden></p>
+          <button type="submit" class="btn-primary auth-submit" id="signup-submit"><span>Create account</span></button>
+        </form>
+
+        <!-- FORGOT PASSWORD -->
+        <form class="auth-form" id="forgot-form" novalidate hidden>
+          <p class="auth-help">Enter the email you use for Planora and we'll send you a link to choose a new password.</p>
+          <label for="forgot-email">Email</label>
+          <input type="email" id="forgot-email" placeholder="name@email.com" autocomplete="email" inputmode="email" required>
+          <p class="auth-error" id="forgot-error" role="alert" hidden></p>
+          <button type="submit" class="btn-primary auth-submit" id="forgot-submit"><span>Send reset link</span></button>
+          <button type="button" class="link-btn" data-mode="login">Back to sign in</button>
+        </form>
+
+        <!-- CHECK YOUR EMAIL -->
+        <div class="auth-sent" id="check-email" hidden>
+          <div class="auth-sent-icon" aria-hidden="true"><i class="ti ti-mail-check"></i></div>
+          <p class="auth-help" id="check-email-text"></p>
+          <p class="auth-error" id="check-email-error" role="alert" hidden></p>
+          <button type="button" class="btn-secondary" id="resend-btn"><span>Resend email</span></button>
+          <button type="button" class="link-btn" data-mode="login">Back to sign in</button>
+        </div>
+
+        <p class="footer-link" id="footer-to-signup">Don't have an account? <button type="button" class="link-btn" data-mode="signup" id="tab-signup">Create account</button></p>
+        <p class="footer-link" id="footer-to-login" hidden>Already have an account? <button type="button" class="link-btn" data-mode="login" id="tab-login">Sign in</button></p>
+
+        <button type="button" class="skip-link" id="skip-btn" hidden>Skip to dashboard <small>(development only)</small> <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+        <p class="auth-demo-note" id="auth-config-note" hidden></p>
+      </section>
     </div>
-<button
-    class="btn-primary"
-    style="margin-top:6px;"
-    onclick="handleLogin()">
-    Log in
-</buttonx>
-
-    <div class="divider"><div class="line"></div><span>or continue with</span><div class="line"></div></div>
-
-    <div class="sso-row">
-      <button class="btn-secondary" onclick="goTo('onboarding-screen')"><i class="ti ti-brand-google" style="color:var(--blue-600);"></i>Google</button>
-      <button class="btn-secondary" onclick="goTo('onboarding-screen')"><i class="ti ti-brand-apple" style="color:var(--blue-800);"></i>Apple</button>
-
-      <button class="btn-primary"
-        style="width:100%; margin-top:16px;"
-        onclick="location.href='home.html'">
-    Go to Dashboard
-</button>
-    </div>
-
-    
-
-    
-
-    <p class="footer-link">Don't have an account? <span onclick="goTo('onboarding-screen')">Sign up</span></p>
   </div>
 
   <!-- ============ ONBOARDING SCREEN ============ -->
   <div class="screen" id="onboarding-screen">
     <div class="progress-bar" id="progress-bar"></div>
 
-    <!-- Step 1: Goal -->
+    <!-- Step 1: what Planora should help with -->
     <div class="onboard-step" data-step="1">
-      <div class="onboard-icon"><i class="ti ti-sparkles"></i></div>
-      <h2>What's your main goal?</h2>
-      <p class="subtitle">Planora tunes your daily plan around this.</p>
-      <div class="option-list">
-        <button class="option-card" onclick="selectOption(this)"><i class="ti ti-briefcase" style="color:var(--purple-800);"></i>Work and productivity<i class="ti ti-circle-check-filled check"></i></button>
-        <button class="option-card" onclick="selectOption(this)"><i class="ti ti-heart" style="color:var(--pink-800);"></i>Health and wellness<i class="ti ti-circle-check-filled check"></i></button>
-        <button class="option-card" onclick="selectOption(this)"><i class="ti ti-book" style="color:#0F6E56;"></i>Study and learning<i class="ti ti-circle-check-filled check"></i></button>
-        <button class="option-card" onclick="selectOption(this)"><i class="ti ti-balance" style="color:var(--blue-600);"></i>Better balance overall<i class="ti ti-circle-check-filled check"></i></button>
+      <div class="onboard-icon"><i class="ti ti-sparkles" aria-hidden="true"></i></div>
+      <h2>What do you want Planora to help you with?</h2>
+      <p class="subtitle">Pick one. You can change it any time.</p>
+      <div class="option-list" role="radiogroup" aria-label="What Planora should help with">
+        <button class="option-card" role="radio" aria-checked="false" onclick="selectOption(this)"><i class="ti ti-layout-list" style="color:var(--purple-800);" aria-hidden="true"></i>Stay organized<i class="ti ti-circle-check-filled check" aria-hidden="true"></i></button>
+        <button class="option-card" role="radio" aria-checked="false" onclick="selectOption(this)"><i class="ti ti-book" style="color:#0F6E56;" aria-hidden="true"></i>Study<i class="ti ti-circle-check-filled check" aria-hidden="true"></i></button>
+        <button class="option-card" role="radio" aria-checked="false" onclick="selectOption(this)"><i class="ti ti-repeat" style="color:var(--pink-800);" aria-hidden="true"></i>Build habits<i class="ti ti-circle-check-filled check" aria-hidden="true"></i></button>
+        <button class="option-card" role="radio" aria-checked="false" onclick="selectOption(this)"><i class="ti ti-target-arrow" style="color:var(--blue-600);" aria-hidden="true"></i>Reach goals<i class="ti ti-circle-check-filled check" aria-hidden="true"></i></button>
+        <button class="option-card" role="radio" aria-checked="false" onclick="selectOption(this)"><i class="ti ti-briefcase" style="color:var(--amber-800);" aria-hidden="true"></i>Manage workload<i class="ti ti-circle-check-filled check" aria-hidden="true"></i></button>
       </div>
     </div>
 
-    <!-- Step 2: Work hours -->
+    <!-- Step 2: productive time -->
     <div class="onboard-step" data-step="2" style="display:none;">
-      <div class="onboard-icon"><i class="ti ti-clock"></i></div>
-      <h2>When are you most productive?</h2>
-      <p class="subtitle">This helps Planora schedule focus time.</p>
-      <div class="chip-row">
-        <button class="chip" onclick="toggleChip(this)">Early morning</button>
-        <button class="chip" onclick="toggleChip(this)">Late morning</button>
-        <button class="chip" onclick="toggleChip(this)">Afternoon</button>
-        <button class="chip" onclick="toggleChip(this)">Evening</button>
-        <button class="chip" onclick="toggleChip(this)">Night owl</button>
+      <div class="onboard-icon"><i class="ti ti-clock" aria-hidden="true"></i></div>
+      <h2>When are you usually most productive?</h2>
+      <p class="subtitle">Planora puts focused work at this time.</p>
+      <div class="option-list" role="radiogroup" aria-label="Most productive time">
+        <button class="option-card" role="radio" aria-checked="false" onclick="selectOption(this)"><i class="ti ti-sunrise" style="color:var(--amber-800);" aria-hidden="true"></i>Morning<i class="ti ti-circle-check-filled check" aria-hidden="true"></i></button>
+        <button class="option-card" role="radio" aria-checked="false" onclick="selectOption(this)"><i class="ti ti-sun" style="color:var(--pink-800);" aria-hidden="true"></i>Afternoon<i class="ti ti-circle-check-filled check" aria-hidden="true"></i></button>
+        <button class="option-card" role="radio" aria-checked="false" onclick="selectOption(this)"><i class="ti ti-moon" style="color:var(--purple-800);" aria-hidden="true"></i>Evening<i class="ti ti-circle-check-filled check" aria-hidden="true"></i></button>
       </div>
     </div>
 
-    <!-- Step 3: Days -->
-    <div class="onboard-step" data-step="3" style="display:none;">
-      <div class="onboard-icon"><i class="ti ti-calendar-week"></i></div>
-      <h2>Which days do you plan around?</h2>
-      <p class="subtitle">Select your active days.</p>
-      <div class="chip-row">
-        <button class="chip selected" onclick="toggleChip(this)">Mon</button>
-        <button class="chip selected" onclick="toggleChip(this)">Tue</button>
-        <button class="chip selected" onclick="toggleChip(this)">Wed</button>
-        <button class="chip selected" onclick="toggleChip(this)">Thu</button>
-        <button class="chip selected" onclick="toggleChip(this)">Fri</button>
-        <button class="chip" onclick="toggleChip(this)">Sat</button>
-        <button class="chip" onclick="toggleChip(this)">Sun</button>
-      </div>
-    </div>
-
-    <!-- Step 4: Reminders -->
-    <div class="onboard-step" data-step="4" style="display:none;">
-      <div class="onboard-icon"><i class="ti ti-bell"></i></div>
-      <h2>Stay on track with reminders?</h2>
-      <p class="subtitle">You can change this anytime in settings.</p>
-      <div class="option-list">
-        <button class="option-card selected" onclick="selectOption(this)"><i class="ti ti-bell-ringing" style="color:var(--purple-800);"></i>Yes, remind me daily<i class="ti ti-circle-check-filled check"></i></button>
-        <button class="option-card" onclick="selectOption(this)"><i class="ti ti-bell-off" style="color:var(--gray-600);"></i>No thanks<i class="ti ti-circle-check-filled check"></i></button>
-      </div>
+    <!-- Step 3: ready -->
+    <div class="onboard-step onboard-ready" data-step="3" style="display:none;">
+      <div class="onboard-icon"><i class="ti ti-circle-check" aria-hidden="true"></i></div>
+      <h2>You're ready.</h2>
+      <p class="subtitle">Tell Planora what you need to get done, and it will plan your day. It learns what works for you as you go.</p>
     </div>
 
     <div class="onboard-nav">
@@ -113,6 +159,8 @@
   </div>
 
     <script src="script.js"></script>
+    <script src="login.js"></script>
 
+<script src="pwa.js"></script>
 </body>
 </html>

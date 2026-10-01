@@ -3,32 +3,315 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E6F1FB">
+<meta name="color-scheme" content="light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Planora">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="device.js"></script>
 
     <title>Planora - Journal</title>
+
+    <!-- SHARED PLANORA STYLES -->
+    <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="extras.css">
+<script src="planora-config.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="auth.js"></script>
+<script src="planora-priority.js"></script>
+<script src="planora-core.js"></script>
+<script src="focus.js"></script>
 
     <!-- TABLER ICONS -->
     <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-
-    <link rel="stylesheet" href="style.css">
-
-    <style>
-
-        /* =====================================================
-           ICON FIX
-        ===================================================== */
-
-        .ti {
-            font-family: "tabler-icons" !important;
-            font-style: normal;
-            font-weight: normal;
-            font-variant: normal;
-            line-height: 1;
-            display: inline-block;
-            speak: none;
+<style>
+        :root {
+            --purple-50: #f5f0ff;
+            --purple-100: #e9e0ff;
+            --purple-400: #9b83df;
+            --purple-600: #7657d9;
+            --purple-800: #55458a;
+            --purple-900: #26215C;
+            --gray-400: #8f8799;
+            --gray-600: #71697b;
+            --gray-900: #29233d;
+            --page: #f8f7fb;
+            --border: #e7e0f0;
         }
 
+        /* Journal-specific components inherit the shared Planora shell
+           from style.css, matching the Home page supplied as the reference. */
+
+        .journal-main {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding-bottom: 100px;
+        }
+
+        .journal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 22px;
+        }
+
+        .journal-header-left {
+            min-width: 0;
+        }
+
+        .journal-header h2 {
+            margin: 4px 0 0;
+            font-size: 24px;
+            line-height: 1.25;
+            font-weight: 600;
+            color: var(--purple-900);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-icon-btn {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--purple-100);
+            border-radius: 11px;
+            background: #fff;
+            color: var(--gray-600);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: .2s ease;
+        }
+
+        .header-icon-btn:hover {
+            background: var(--purple-50);
+            color: var(--purple-600);
+            border-color: var(--purple-100);
+        }
+
+        .header-icon-btn.active {
+            background: var(--purple-50);
+            color: var(--purple-600);
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid var(--purple-100);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 18px;
+            box-shadow: 0 2px 12px rgba(70, 48, 105, .035);
+        }
+
+        .card-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .card-heading-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .card-heading h3 {
+            margin: 0;
+            color: var(--purple-900);
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .card-heading p {
+            margin: 3px 0 0;
+            color: var(--gray-600);
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .section-icon {
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
+            border-radius: 10px;
+            background: var(--purple-50);
+            color: var(--purple-600);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .section-icon i {
+            font-size: 17px !important;
+        }
+
+        .date {
+            margin: 0;
+            color: var(--gray-400);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+
+        .journal-day-navigation {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding: 10px 12px;
+            background: #fff;
+            border: 1px solid var(--purple-100);
+            border-radius: 14px;
+        }
+
+        .day-nav-button {
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
+            border: none;
+            border-radius: 9px;
+            background: var(--purple-50);
+            color: var(--purple-600);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .day-nav-button:hover {
+            background: var(--purple-100);
+        }
+
+        .day-navigation-center {
+            text-align: center;
+            min-width: 0;
+        }
+
+        .day-navigation-label {
+            margin: 0;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--purple-900);
+        }
+
+        .day-navigation-date {
+            margin: 2px 0 6px;
+            font-size: 11px;
+            color: var(--gray-600);
+        }
+
+        .today-button {
+            border: none;
+            background: transparent;
+            color: var(--purple-600);
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 2px 5px;
+        }
+
+        .today-button:hover {
+            text-decoration: underline;
+        }
+
+        .journal-streak-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, var(--purple-50), #fff);
+        }
+
+        .streak-left {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+        }
+
+        .streak-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: #eee5ff;
+            color: var(--purple-600);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .streak-icon i {
+            font-size: 20px !important;
+        }
+
+        .streak-title {
+            margin: 0;
+            color: var(--purple-900);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .streak-subtitle {
+            margin: 3px 0 0;
+            color: var(--gray-600);
+            font-size: 11px;
+        }
+
+        .streak-number {
+            color: var(--purple-600);
+            font-size: 26px;
+            font-weight: 700;
+        }
+
+        .mood-options {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .mood-option {
+            border: 1px solid var(--purple-100);
+            border-radius: 12px;
+            background: #fcfbff;
+            padding: 10px 5px;
+            cursor: pointer;
+            text-align: center;
+            transition: .2s ease;
+        }
+
+        .mood-option:hover,
+        .mood-option.selected {
+            background: var(--purple-50);
+            border-color: var(--purple-400);
+        }
+
+        .mood-emoji {
+            display: block;
+            font-size: 22px;
+            margin-bottom: 4px;
+        }
+
+        .mood-name {
+            display: block;
+            font-size: 10px;
+            color: var(--gray-600);
+        }
 
         /* =====================================================
            JOURNAL LAYOUT
@@ -1109,90 +1392,173 @@
 
         }
 
+    
+    
+
+        /* =====================================================
+           REFERENCE HOME-PAGE VISUAL COMPATIBILITY
+        ===================================================== */
+
+        .journal-main > .card,
+        .journal-main > .editor-card,
+        .journal-main > .small-editor-card,
+        .journal-main > .brain-dump-card,
+        .journal-main > .ideas-card,
+        .journal-main > .insights-card,
+        .journal-main > .monthly-card,
+        .journal-main > .search-card {
+            border-radius: 16px;
+        }
+
+        .journal-main textarea,
+        .journal-main input {
+            color: var(--gray-900);
+        }
+
+        .journal-main button {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        @media (max-width: 900px) {
+            .journal-main {
+                max-width: none;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .journal-main {
+                padding-bottom: 90px;
+            }
+
+            .journal-header h2 {
+                font-size: 20px;
+            }
+
+            .journal-two-column {
+                grid-template-columns: 1fr;
+            }
+
+            .mood-options {
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 480px) {
+            .journal-main {
+                padding-left: 0;
+                padding-right: 0;
+            }
+
+            .journal-header {
+                gap: 10px;
+            }
+
+            .header-icon-btn {
+                width: 38px;
+                height: 38px;
+            }
+
+            .mood-options {
+                gap: 4px;
+            }
+
+            .mood-option {
+                padding: 8px 2px;
+            }
+        }
+
+        /* =========================================
+   JOURNAL — MATCH HOME SIDEBAR EXACTLY
+========================================= */
+
+@media (min-width: 700px) {
+
+    #journal-screen.active {
+        display: grid !important;
+        grid-template-columns: 110px 1fr !important;
+        gap: 0 !important;
+        padding: 0 !important;
+    }
+
+    #journal-screen .side-rail {
+        display: flex !important;
+        background: var(--purple-900) !important;
+        padding: 28px 0 !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 28px !important;
+    }
+
+    #journal-screen .side-rail .logo-mark {
+        width: 44px !important;
+        height: 44px !important;
+        border-radius: 12px !important;
+        font-size: 20px !important;
+        margin-bottom: 12px !important;
+        background: var(--purple-400) !important;
+        color: #fff !important;
+    }
+
+    #journal-screen .side-rail .nav-item {
+        color: var(--purple-200) !important;
+        background: transparent !important;
+        border: none !important;
+    }
+
+    #journal-screen .side-rail .nav-item.active {
+        color: #fff !important;
+        background: transparent !important;
+    }
+
+    #journal-screen .journal-main {
+        padding: 36px 48px 40px !important;
+        overflow-y: auto !important;
+        max-height: 640px !important;
+    }
+}
+
     </style>
+<link rel="stylesheet" href="devices.css">
 </head>
 
-
 <body>
-
 <div id="app">
-
-    <div class="screen active">
-
-        <!-- =================================================
-             SIDE NAV
-        ================================================= -->
+    <div class="screen active" id="journal-screen">
 
         <div class="side-rail">
-
             <div class="logo-mark">
                 <i class="ti ti-calendar-star"></i>
             </div>
 
-            <button
-                class="nav-item"
-                onclick="location.href='home.html'">
-
+            <button class="nav-item" type="button" onclick="location.href='home.html'">
                 <i class="ti ti-home"></i>
-                Home
-
+                <span>Home</span>
             </button>
 
-            <button class="nav-item active">
-
-                <i class="ti ti-notebook"></i>
-                Journal
-
-            </button>
-
-            <button
-                class="nav-item"
-                onclick="location.href='calendar.html'">
-
-                <i class="ti ti-calendar"></i>
-                Calendar
-
-            </button>
-
-            <button
-                class="nav-item"
-                onclick="location.href='streak.html'">
-
-                <i class="ti ti-flame"></i>
-                Streak
-
-            </button>
-
-            <button
-                class="nav-item"
-                onclick="location.href='profile.html'">
-
-                <i class="ti ti-user"></i>
-                Profile
-
-            </button>
-
-            <button
-                class="nav-item"
-                onclick="location.href='planner.html'">
-
+            <button class="nav-item" type="button" onclick="location.href='planner.html'">
                 <i class="ti ti-list-check"></i>
-                Planner
-
+                <span>AI Planner</span>
             </button>
 
+            <button class="nav-item active" type="button" aria-current="page">
+                <i class="ti ti-notebook"></i>
+                <span>Journal</span>
+            </button>
+
+            <button class="nav-item" type="button" onclick="location.href='calendar.html'">
+                <i class="ti ti-calendar"></i>
+                <span>Calendar</span>
+            </button>
+
+            <button class="nav-item" type="button" onclick="location.href='profile.html'">
+                <i class="ti ti-user"></i>
+                <span>Profile</span>
+            </button>
         </div>
 
-
-        <!-- =================================================
-             MAIN
-        ================================================= -->
-
-        <div class="dash-main">
-
+        <main class="dash-main">
             <div class="journal-main">
-
-                <!-- HEADER -->
+<!-- HEADER -->
 
                 <div class="journal-header">
 
@@ -1286,46 +1652,9 @@
                 </div>
 
 
-                <!-- JOURNAL STREAK -->
-
-                <div class="journal-streak-card">
-
-                    <div class="streak-left">
-
-                        <div class="streak-icon">
-
-                            <i class="ti ti-flame"></i>
-
-                        </div>
-
-                        <div>
-
-                            <p class="streak-title">
-                                Journal streak
-                            </p>
-
-                            <p
-                                class="streak-subtitle"
-                                id="streakSubtitle">
-                                Keep showing up for yourself.
-                            </p>
-
-                        </div>
-
-                    </div>
-
-                    <div
-                        class="streak-number"
-                        id="journalStreak">
-                        0
-                    </div>
-
-                </div>
-
-
                 <!-- MOOD -->
 
-                <div class="mood-card">
+                <div class="card mood-card">
 
                     <div class="card-heading">
 
@@ -1338,7 +1667,7 @@
                             <div>
 
                                 <h3>
-                                    How are you feeling?
+                                    How are you feeling today?
                                 </h3>
 
                                 <p>
@@ -1409,38 +1738,9 @@
                 </div>
 
 
-                <!-- DAILY PROMPT -->
-
-                <div class="prompt-card">
-
-                    <div class="prompt-top">
-
-                        <p class="prompt-label">
-                            Today's reflection
-                        </p>
-
-                        <button
-                            class="prompt-button"
-                            onclick="newPrompt()">
-
-                            New prompt
-
-                        </button>
-
-                    </div>
-
-                    <p
-                        class="prompt-question"
-                        id="promptQuestion">
-                        What went well today?
-                    </p>
-
-                </div>
-
-
                 <!-- MAIN JOURNAL -->
 
-                <div class="editor-card">
+                <div class="card editor-card">
 
                     <div class="card-heading">
 
@@ -1491,61 +1791,9 @@
                 </div>
 
 
-                <!-- MORNING / EVENING -->
-
-                <div class="journal-two-column">
-
-                    <div class="small-editor-card">
-
-                        <div class="time-section">
-
-                            <div class="time-section-title">
-
-                                <i class="ti ti-sun"></i>
-
-                                Morning reflection
-
-                            </div>
-
-                            <textarea
-                                id="morningReflection"
-                                class="small-textarea"
-                                placeholder="What do I want to accomplish today? How do I want to feel?">
-                            </textarea>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="small-editor-card">
-
-                        <div class="time-section">
-
-                            <div class="time-section-title">
-
-                                <i class="ti ti-moon"></i>
-
-                                Evening reflection
-
-                            </div>
-
-                            <textarea
-                                id="eveningReflection"
-                                class="small-textarea"
-                                placeholder="How did today go? What did I learn?">
-                            </textarea>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
                 <!-- WINS -->
 
-                <div class="small-editor-card"
+                <div class="card small-editor-card"
                     style="margin-bottom:18px;">
 
                     <div class="card-heading">
@@ -1590,11 +1838,181 @@
                 </div>
 
 
+                <!-- SAVE -->
+
+                <div class="save-bar">
+
+                    <button
+                        class="save-button"
+                        onclick="saveJournal()">
+
+                        <i class="ti ti-device-floppy"></i>
+
+                        Save Journal
+
+                    </button>
+
+                </div>
+                <!-- MORE (everything else, one tap away) -->
+
+                <details class="journal-more" id="journalMore">
+                    <summary>
+                        <span><i class="ti ti-dots-circle-horizontal" aria-hidden="true"></i> More</span>
+                        <small>Prompts, reflections, brain dump, tags &amp; photo, goals, ideas, insights, search, streak</small>
+                    </summary>
+                    <div class="journal-more-body">
+<!-- DAILY PROMPT -->
+
+                <div class="card prompt-card">
+
+                    <div class="prompt-top">
+
+                        <p class="prompt-label">
+                            Today's reflection
+                        </p>
+
+                        <button
+                            class="prompt-button"
+                            onclick="newPrompt()">
+
+                            New prompt
+
+                        </button>
+
+                    </div>
+
+                    <p
+                        class="prompt-question"
+                        id="promptQuestion">
+                        What went well today?
+                    </p>
+
+                </div>
+
+
+                <!-- MORNING / EVENING -->
+
+                <div class="journal-two-column">
+
+                    <div class="card small-editor-card">
+
+                        <div class="time-section">
+
+                            <div class="time-section-title">
+
+                                <i class="ti ti-sun"></i>
+
+                                Morning reflection
+
+                            </div>
+
+                            <textarea
+                                id="morningReflection"
+                                class="small-textarea"
+                                placeholder="What do I want to accomplish today? How do I want to feel?">
+                            </textarea>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="card small-editor-card">
+
+                        <div class="time-section">
+
+                            <div class="time-section-title">
+
+                                <i class="ti ti-moon"></i>
+
+                                Evening reflection
+
+                            </div>
+
+                            <textarea
+                                id="eveningReflection"
+                                class="small-textarea"
+                                placeholder="How did today go? What did I learn?">
+                            </textarea>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- BRAIN DUMP -->
+
+                <div class="card brain-dump-card">
+
+                    <div class="card-heading">
+
+                        <div class="card-heading-left">
+
+                            <div class="section-icon">
+                                <i class="ti ti-brain"></i>
+                            </div>
+
+                            <div>
+
+                                <h3>
+                                    Brain dump
+                                </h3>
+
+                                <p>
+                                    Get everything out of your head.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <textarea
+                        id="brainDump"
+                        class="journal-textarea brain-dump-textarea"
+                        placeholder="Write anything that's on your mind...">
+                    </textarea>
+
+
+                    <div class="ai-action-row">
+
+                        <button
+                            class="ai-button"
+                            onclick="organizeBrainDump()">
+
+                            <i class="ti ti-sparkles"></i>
+                            Organize my thoughts
+
+                        </button>
+
+                        <button
+                            class="secondary-button"
+                            onclick="turnJournalIntoTasks()">
+
+                            <i class="ti ti-list-check"></i>
+                            Turn into tasks
+
+                        </button>
+
+                    </div>
+
+                    <div
+                        id="brainDumpResult"
+                        style="margin-top:12px;">
+                    </div>
+
+                </div>
+
+
                 <!-- TAGS + PHOTO -->
 
                 <div class="journal-two-column">
 
-                    <div class="small-editor-card">
+                    <div class="card small-editor-card">
 
                         <div class="card-heading">
 
@@ -1647,7 +2065,7 @@
                     </div>
 
 
-                    <div class="small-editor-card">
+                    <div class="card small-editor-card">
 
                         <div class="card-heading">
 
@@ -1713,75 +2131,9 @@
                 </div>
 
 
-                <!-- BRAIN DUMP -->
-
-                <div class="brain-dump-card">
-
-                    <div class="card-heading">
-
-                        <div class="card-heading-left">
-
-                            <div class="section-icon">
-                                <i class="ti ti-brain"></i>
-                            </div>
-
-                            <div>
-
-                                <h3>
-                                    Brain dump
-                                </h3>
-
-                                <p>
-                                    Get everything out of your head.
-                                </p>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-                    <textarea
-                        id="brainDump"
-                        class="journal-textarea brain-dump-textarea"
-                        placeholder="Write anything that's on your mind...">
-                    </textarea>
-
-
-                    <div class="ai-action-row">
-
-                        <button
-                            class="ai-button"
-                            onclick="organizeBrainDump()">
-
-                            <i class="ti ti-sparkles"></i>
-                            Organize my thoughts
-
-                        </button>
-
-                        <button
-                            class="secondary-button"
-                            onclick="turnJournalIntoTasks()">
-
-                            <i class="ti ti-list-check"></i>
-                            Turn into tasks
-
-                        </button>
-
-                    </div>
-
-                    <div
-                        id="brainDumpResult"
-                        style="margin-top:12px;">
-                    </div>
-
-                </div>
-
-
                 <!-- GOALS -->
 
-                <div class="small-editor-card"
+                <div class="card small-editor-card"
                     style="margin-bottom:18px;">
 
                     <div class="card-heading">
@@ -1829,7 +2181,7 @@
 
                 <!-- IDEAS VAULT -->
 
-                <div class="ideas-card">
+                <div class="card ideas-card">
 
                     <div class="card-heading">
 
@@ -1884,7 +2236,7 @@
 
                 <!-- AI INSIGHTS -->
 
-                <div class="insights-card">
+                <div class="card insights-card">
 
                     <div class="card-heading">
 
@@ -1941,7 +2293,7 @@
 
                 <!-- MONTHLY REFLECTION -->
 
-                <div class="monthly-card">
+                <div class="card monthly-card">
 
                     <div class="card-heading">
 
@@ -2020,7 +2372,7 @@
 
                 <!-- SEARCH -->
 
-                <div class="search-card">
+                <div class="card search-card">
 
                     <div class="card-heading">
 
@@ -2068,36 +2420,55 @@
                 </div>
 
 
-                <!-- SAVE -->
+                <!-- JOURNAL STREAK -->
 
-                <div class="save-bar">
+                <div class="card journal-streak-card">
 
-                    <button
-                        class="save-button"
-                        onclick="saveJournal()">
+                    <div class="streak-left">
 
-                        <i class="ti ti-device-floppy"></i>
+                        <div class="streak-icon">
 
-                        Save Journal
+                            <i class="ti ti-flame"></i>
 
-                    </button>
+                        </div>
+
+                        <div>
+
+                            <p class="streak-title">
+                                Journal streak
+                            </p>
+
+                            <p
+                                class="streak-subtitle"
+                                id="streakSubtitle">
+                                Keep showing up for yourself.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <div
+                        class="streak-number"
+                        id="journalStreak">
+                        0
+                    </div>
 
                 </div>
 
+
+                
+                    </div>
+                </details>
+
+
             </div>
 
-        </div>
-
-
-        <!-- =================================================
-             BOTTOM NAV
-        ================================================= -->
-
-        <div class="bottom-nav">
+<div class="bottom-nav">
 
             <button
                 class="nav-item"
-                onclick="location.href='dashboard.html'">
+                onclick="location.href='home.html'">
 
                 <i class="ti ti-home"></i>
                 Home
@@ -2148,11 +2519,8 @@
             </button>
 
         </div>
-
+        </main>
     </div>
-
-</div>
-
 
 <!-- =====================================================
      LOCK MODAL
@@ -2217,7 +2585,26 @@
 </div>
 
 
+
+</div>
 <script>
+
+
+    /* =====================================================
+       SCROLL POSITION
+       Stops the browser from restoring a previous scroll
+       offset for this page (it does this automatically,
+       often AFTER our own scripts run, which is why a
+       plain scrollTo(0,0) earlier in the script wasn't
+       enough on its own).
+    ===================================================== */
+
+    if ("scrollRestoration" in history) {
+
+        history.scrollRestoration = "manual";
+
+    }
+
 
     /* =====================================================
        STORAGE
@@ -2355,15 +2742,90 @@
        STORE HELPERS
     ===================================================== */
 
+    function loadMonthlyReflection() {
+
+        const monthKey =
+            currentDate.slice(0, 7);
+
+        let reflections = {};
+
+        try {
+
+            reflections =
+                JSON.parse(
+                    localStorage.getItem(
+                        MONTHLY_REFLECTION_KEY
+                    )
+                ) || {};
+
+        } catch (error) {
+
+            reflections = {};
+
+        }
+
+        document.getElementById(
+            "monthlyReflection"
+        ).value =
+            reflections[monthKey] || "";
+
+    }
+
+
+    function saveMonthlyReflection(text) {
+
+        const monthKey =
+            currentDate.slice(0, 7);
+
+        let reflections = {};
+
+        try {
+
+            reflections =
+                JSON.parse(
+                    localStorage.getItem(
+                        MONTHLY_REFLECTION_KEY
+                    )
+                ) || {};
+
+        } catch (error) {
+
+            reflections = {};
+
+        }
+
+        if (text) {
+
+            reflections[monthKey] = text;
+
+        } else {
+
+            delete reflections[monthKey];
+
+        }
+
+        localStorage.setItem(
+            MONTHLY_REFLECTION_KEY,
+            JSON.stringify(reflections)
+        );
+
+    }
+
+
     function loadJournals() {
 
         try {
 
-            return JSON.parse(
-                localStorage.getItem(
-                    JOURNAL_STORE_KEY
-                )
-            ) || [];
+            const value =
+                JSON.parse(
+                    localStorage.getItem(
+                        JOURNAL_STORE_KEY
+                    )
+                );
+
+            return Array.isArray(value)
+                ? value
+                : [];
 
         } catch (error) {
 
@@ -2388,11 +2850,16 @@
 
         try {
 
-            return JSON.parse(
-                localStorage.getItem(
-                    IDEAS_STORE_KEY
-                )
-            ) || [];
+            const value =
+                JSON.parse(
+                    localStorage.getItem(
+                        IDEAS_STORE_KEY
+                    )
+                );
+
+            return Array.isArray(value)
+                ? value
+                : [];
 
         } catch (error) {
 
@@ -2413,32 +2880,18 @@
     }
 
 
+    // Goals are shared with Planora's Goal Tracker, Ask Planora and Calendar
     function loadGoals() {
-
-        try {
-
-            return JSON.parse(
-                localStorage.getItem(
-                    GOALS_STORE_KEY
-                )
-            ) || [];
-
-        } catch (error) {
-
-            return [];
-
-        }
-
+        return window.PlanoraCore ? PlanoraCore.getGoals() : [];
     }
 
 
     function saveGoals(goals) {
-
-        localStorage.setItem(
-            GOALS_STORE_KEY,
-            JSON.stringify(goals)
-        );
-
+        if (!window.PlanoraCore) return;
+        localStorage.setItem("planora_goals", JSON.stringify(goals.map(g => {
+            const n = PlanoraCore.normaliseGoal(g);
+            return { ...n, progress: PlanoraCore.goalProgress(n) };
+        })));
     }
 
 
@@ -2598,6 +3051,8 @@
 
         updateFavoriteIcon();
 
+        loadMonthlyReflection();
+
     }
 
 
@@ -2692,64 +3147,87 @@
     ) {
 
         const container =
-            document.getElementById(
-                "winsList"
-            );
-
+            document.getElementById("winsList");
 
         const row =
             document.createElement("div");
 
-        row.className =
-            "win-row";
+        row.className = "win-row";
 
+        const input =
+            document.createElement("input");
 
-        row.innerHTML = `
+        input.type = "text";
 
-            <input
-                type="text"
-                placeholder="Something I'm proud of..."
-                value="${escapeHtml(value)}"
-                oninput="currentWins[${index}] = this.value">
+        input.placeholder =
+            "Something I'm proud of...";
 
-            <button
-                class="remove-win"
-                onclick="removeWin(${index})">
+        input.value =
+            value || "";
 
-                <i class="ti ti-x"></i>
+        input.addEventListener(
+            "input",
+            function() {
 
-            </button>
+                currentWins[index] =
+                    input.value;
 
-        `;
+            }
+        );
 
+        const button =
+            document.createElement("button");
+
+        button.type = "button";
+
+        button.className =
+            "remove-win";
+
+        button.title =
+            "Remove win";
+
+        button.innerHTML =
+            '<i class="ti ti-x"></i>';
+
+        button.addEventListener(
+            "click",
+            function() {
+
+                removeWin(index);
+
+            }
+        );
+
+        row.appendChild(input);
+
+        row.appendChild(button);
 
         container.appendChild(row);
 
     }
 
 
-    function addWin(emptyOnly = true) {
+    function addWin() {
 
-        if (!emptyOnly)
-            currentWins.push("");
-
-
-        const container =
-            document.getElementById(
-                "winsList"
-            );
-
-        if (
-            emptyOnly &&
-            container.children.length > 0
-        ) {
-
-            currentWins.push("");
-
-        }
-
+        currentWins.push("");
 
         renderWins();
+
+        requestAnimationFrame(() => {
+
+            const inputs =
+                document.querySelectorAll("#winsList input");
+
+            const lastInput =
+                inputs[inputs.length - 1];
+
+            if (lastInput) {
+
+                lastInput.focus();
+
+            }
+
+        });
 
     }
 
@@ -2870,27 +3348,83 @@
     function handlePhoto(event) {
 
         const file =
+            event.target.files &&
             event.target.files[0];
-
 
         if (!file)
             return;
 
+        if (!file.type.startsWith("image/")) {
 
-        const reader =
-            new FileReader();
+            showToast("Please choose an image file.");
 
+            event.target.value = "";
 
-        reader.onload =
-            function(e) {
+            return;
+
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+
+            const img = new Image();
+
+            img.onload = function() {
+
+                const maxSize = 1400;
+
+                const scale =
+                    Math.min(
+                        1,
+                        maxSize /
+                        Math.max(img.width, img.height)
+                    );
+
+                const canvas =
+                    document.createElement("canvas");
+
+                canvas.width =
+                    Math.max(1, Math.round(img.width * scale));
+
+                canvas.height =
+                    Math.max(1, Math.round(img.height * scale));
+
+                const context =
+                    canvas.getContext("2d");
+
+                context.drawImage(
+                    img,
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height
+                );
 
                 currentPhoto =
-                    e.target.result;
+                    canvas.toDataURL("image/jpeg", 0.82);
 
                 renderPhoto();
 
+                showToast("Photo added.");
+
             };
 
+            img.onerror = function() {
+
+                showToast("Could not load that image.");
+
+            };
+
+            img.src = e.target.result;
+
+        };
+
+        reader.onerror = function() {
+
+            showToast("Could not read that image.");
+
+        };
 
         reader.readAsDataURL(file);
 
@@ -2999,105 +3533,73 @@
     function saveJournal(showMessage = true) {
 
         const content =
-            document.getElementById(
-                "journalContent"
-            ).value.trim();
-
+            document.getElementById("journalContent").value.trim();
 
         const morning =
-            document.getElementById(
-                "morningReflection"
-            ).value.trim();
-
+            document.getElementById("morningReflection").value.trim();
 
         const evening =
-            document.getElementById(
-                "eveningReflection"
-            ).value.trim();
-
+            document.getElementById("eveningReflection").value.trim();
 
         const brainDump =
-            document.getElementById(
-                "brainDump"
-            ).value.trim();
+            document.getElementById("brainDump").value.trim();
 
+        const monthlyReflection =
+            document.getElementById("monthlyReflection").value.trim();
 
         const cleanedWins =
             currentWins
-                .map(win => win.trim())
+                .map(win => String(win || "").trim())
                 .filter(Boolean);
-
-
-        const journals =
-            loadJournals();
-
 
         const journal = {
 
             date: currentDate,
 
-            content: content,
+            content,
 
-            morningReflection:
-                morning,
+            morningReflection: morning,
 
-            eveningReflection:
-                evening,
+            eveningReflection: evening,
 
-            brainDump:
-                brainDump,
+            brainDump,
 
-            mood:
-                currentMood,
+            mood: currentMood,
 
-            wins:
-                cleanedWins,
+            wins: cleanedWins,
 
-            tags:
-                currentTags,
+            tags: [...currentTags],
 
             favorite:
-                currentJournal.favorite || false,
+                Boolean(currentJournal && currentJournal.favorite),
 
             photo:
                 currentPhoto || ""
 
         };
 
+        const journals = loadJournals();
 
         const index =
             journals.findIndex(
-                item =>
-                    item.date === currentDate
+                item => item && item.date === currentDate
             );
-
-
-        /*
-         * IMPORTANT:
-         * Only save an entry if there is actual content
-         * or meaningful journal data.
-         */
 
         const hasMeaningfulData =
             journalHasText(journal) ||
-            journal.mood ||
+            Boolean(journal.mood) ||
             journal.tags.length > 0 ||
-            journal.photo;
-
+            Boolean(journal.photo);
 
         if (index >= 0) {
 
             if (hasMeaningfulData) {
 
-                journals[index] =
-                    journal;
+                journals[index] = journal;
 
             } else {
 
-                journals.splice(
-                    index,
-                    1
-                );
+                journals.splice(index, 1);
 
             }
 
@@ -3107,15 +3609,27 @@
 
         }
 
+        try {
 
-        saveJournals(journals);
+            saveJournals(journals);
 
-        currentJournal =
-            journal;
+        } catch (error) {
 
-        currentWins =
-            cleanedWins;
+            console.error(error);
 
+            showToast(
+                "Could not save. Your browser storage may be full."
+            );
+
+            return false;
+
+        }
+
+        currentJournal = journal;
+
+        currentWins = cleanedWins;
+
+        saveMonthlyReflection(monthlyReflection);
 
         updateStreak();
 
@@ -3123,11 +3637,10 @@
 
         generateInsights();
 
-
         if (showMessage)
-            showToast(
-                "Journal saved ✨"
-            );
+            showToast("Journal saved ✨");
+
+        return true;
 
     }
 
@@ -3499,67 +4012,28 @@
         }
 
 
-        let tasks = [];
+        // Preview first, then add to the shared task list (Home + Calendar)
+        const day =
+            currentDate < PlanoraCore.today() ? PlanoraCore.today() : currentDate;
 
-
-        try {
-
-            tasks =
-                JSON.parse(
-                    localStorage.getItem(
-                        "planora_tasks"
-                    )
-                ) || [];
-
-        } catch {
-
-            tasks = [];
-
-        }
-
-
-        possibleTasks.forEach(
-            taskText => {
-
-                tasks.push({
-
-                    id:
-                        "journal-" +
-                        Date.now() +
-                        Math.random(),
-
-                    title:
-                        cleanTaskText(
-                            taskText
-                        ),
-
-                    date:
-                        currentDate,
-
-                    start:
-                        "",
-
-                    end:
-                        "",
-
-                    completed:
-                        false
-
-                });
-
-            }
-        );
-
-
-        localStorage.setItem(
-            "planora_tasks",
-            JSON.stringify(tasks)
-        );
-
-
-        showToast(
-            `${possibleTasks.length} task(s) added to your planner.`
-        );
+        PlanoraCore.scheduleItems(
+            possibleTasks.map(taskText => ({
+                title: cleanTaskText(taskText),
+                date: day,
+                flexible: true
+            }))
+        ).then(placed => {
+            PlanoraCore.openPlanPreview(
+                { tasks: placed.map(p => ({ ...p, source: "journal" })), goals: [], updates: [] },
+                {
+                    title: "Add these to your plan?",
+                    intro: "Planora found these in your writing and fitted them into your free time. Untick or edit anything first.",
+                    source: "journal"
+                }
+            );
+        }).catch(error => {
+            showToast(error.message || "Planora couldn't plan that right now. Your journal is safe.");
+        });
 
     }
 
@@ -3691,7 +4165,7 @@
             loadIdeas()
                 .filter(
                     idea =>
-                        idea.id !== id
+                        String(idea.id) !== String(id)
                 );
 
 
@@ -3707,167 +4181,56 @@
        ===================================================== */
 
     function addGoal() {
-
-        const title =
-            prompt(
-                "Enter your goal:"
-            );
-
-
-        if (!title)
-            return;
-
-
-        const goals =
-            loadGoals();
-
-
-        goals.push({
-
-            id:
-                Date.now(),
-
-            title:
-                title.trim(),
-
-            progress:
-                0
-
-        });
-
-
-        saveGoals(goals);
-
-        renderGoals();
-
+        // Same goal editor as the Planora page
+        PlanoraCore.openGoalSheet(null, { onSaved: renderGoals });
     }
 
 
     function renderGoals() {
 
         const container =
-            document.getElementById(
-                "goalList"
-            );
+            document.getElementById("goalList");
 
+        if (!container) return;
 
-        const goals =
-            loadGoals();
-
+        const goals = loadGoals();
 
         container.innerHTML = "";
 
-
         if (goals.length === 0) {
-
             container.innerHTML = `
-
-                <div
-                    style="
-                        font-size:11px;
-                        color:#999;
-                        padding:8px 0;
-                    ">
-
-                    No goals added yet.
-
-                </div>
-
-            `;
-
+                <div class="journal-goals-empty">
+                    Set something you're working toward.
+                    <button type="button" onclick="addGoal()">Create a goal</button>
+                </div>`;
             return;
-
         }
 
-
-        goals.forEach(
-            goal => {
-
-                const item =
-                    document.createElement("div");
-
-                item.className =
-                    "goal-item";
-
-
-                item.innerHTML = `
-
-                    <div>
-
-                        <p class="goal-title">
-                            ${escapeHtml(goal.title)}
-                        </p>
-
-                        <div class="goal-progress">
-
-                            <div
-                                class="goal-progress-bar"
-                                style="width:${goal.progress}%">
-                            </div>
-
-                        </div>
-
+        goals.forEach(goal => {
+            const pct = PlanoraCore.goalProgress(goal);
+            const item = document.createElement("button");
+            item.type = "button";
+            item.className = "goal-item";
+            item.setAttribute("aria-label", `${goal.title}, ${pct}% done. Open goal`);
+            item.innerHTML = `
+                <div>
+                    <p class="goal-title">${escapeHtml(goal.title)}</p>
+                    <div class="goal-progress">
+                        <div class="goal-progress-bar" style="width:${pct}%"></div>
                     </div>
+                </div>
+                <div>
+                    <span class="goal-percent">${pct}%</span>
+                </div>`;
+            item.addEventListener("click", () => PlanoraCore.openGoalSheet(goal, { onSaved: renderGoals }));
+            container.appendChild(item);
+        });
 
-                    <div>
-
-                        <span class="goal-percent">
-                            ${goal.progress}%
-                        </span>
-
-                    </div>
-
-                `;
-
-
-                item.addEventListener(
-                    "click",
-                    function() {
-
-                        const newProgress =
-                            prompt(
-                                "Progress (0-100):",
-                                goal.progress
-                            );
-
-
-                        if (
-                            newProgress === null
-                        )
-                            return;
-
-
-                        const value =
-                            Math.max(
-                                0,
-                                Math.min(
-                                    100,
-                                    parseInt(
-                                        newProgress
-                                    ) || 0
-                                )
-                            );
-
-
-                        goal.progress =
-                            value;
-
-
-                        saveGoals(goals);
-
-                        renderGoals();
-
-                    }
-                );
-
-
-                container.appendChild(
-                    item
-                );
-
-            }
-        );
-
+        const link = document.createElement("a");
+        link.href = "planner.html#goals";
+        link.className = "journal-goals-link";
+        link.textContent = "See all goals in Planora";
+        container.appendChild(link);
     }
 
 
@@ -4618,7 +4981,49 @@
     );
 
 
+    function resetJournalScroll() {
+
+        window.scrollTo(0, 0);
+
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+
+        const journalMain =
+            document.querySelector(".journal-main");
+
+        if (journalMain) {
+
+            journalMain.scrollTop = 0;
+
+        }
+
+        const journalScreen =
+            document.getElementById("journal-screen");
+
+        if (journalScreen) {
+
+            journalScreen.scrollTop = 0;
+
+        }
+
+    }
+
+
+    resetJournalScroll();
+
+    window.addEventListener(
+        "load",
+        function() {
+
+            resetJournalScroll();
+
+        }
+    );
+
+
     loadJournalForCurrentDate();
+
+    loadMonthlyReflection();
 
     updateStreak();
 
@@ -4653,8 +5058,10 @@
     ).textContent =
         prompts[promptIndex];
 
+
 </script>
-
+<script src="journal-link.js"></script>
+<script src="app-extras.js"></script>
+<script src="pwa.js"></script>
 </body>
-
 </html>

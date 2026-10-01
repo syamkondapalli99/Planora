@@ -1,0 +1,213 @@
+/* =========================================================
+   PLANORA ON EVERY DEVICE  (devices.css)
+   Loaded last on every page. device.js marks <html> with:
+     .app-mode  (phones + tablets: full-screen app)
+     .web-mode  (laptops/desktops: website)
+     .is-touch  .is-standalone  .is-ios  .is-android
+   Phone layout below 700px wide is unchanged (style.css/extras.css).
+   ========================================================= */
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* ---------- Everything touch ---------- */
+html.is-touch { -webkit-tap-highlight-color: transparent; }
+html.is-touch button,
+html.is-touch a,
+html.is-touch [role="button"],
+html.is-touch label,
+html.is-touch .settings-row { touch-action: manipulation; }   /* no 300ms / double-tap zoom on taps */
+html.is-touch .side-rail,
+html.is-touch .bottom-nav,
+html.is-touch button { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* 16px text in fields: stops iPhone/iPad zooming the page when you tap a box */
+html.is-touch input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.is-touch textarea,
+html.is-touch select { font-size: 16px !important; }
+/* …and bigger text must never push buttons off narrow screens */
+html.is-touch input:not([type="checkbox"]):not([type="radio"]),
+html.is-touch select { min-width: 0; max-width: 100%; }
+.tag-input-row .tag-input,
+.idea-input-row .idea-input { width: 0; min-width: 0; flex: 1 1 auto; }   /* shrink on 320px phones */
+
+/* Comfortable tap targets (Apple ≥44pt, Android ≥48dp — 40px + spacing here) */
+html.is-touch .sp-example,
+html.is-touch .rec-go,
+html.is-touch .btn-ghost,
+html.is-touch .add-small-btn,
+html.is-touch .prompt-button,
+html.is-touch .ai-button,
+html.is-touch .secondary-button,
+html.is-touch .today-button,
+html.is-touch .pf-secondary a,
+html.is-touch #home-week { min-height: 40px; }
+html.is-touch .pf-secondary a,
+html.is-touch #home-week { display: inline-flex; align-items: center; }
+html.is-touch .today-button { display: inline-flex; align-items: center; padding-left: 10px; padding-right: 10px; }
+html.is-touch .icon-link,
+html.is-touch .week-arrow,
+html.is-touch .dash-main .nav-item,
+html.is-touch .remove-win,
+html.is-touch .header-icon-btn,
+html.is-touch .profile-edit-btn,
+html.is-touch .auth-sheet-close,
+html.is-touch .wk-check { min-width: 40px; min-height: 40px; }
+html.is-touch .icon-link,
+html.is-touch .week-arrow,
+html.is-touch .dash-main .nav-item { display: inline-flex; align-items: center; justify-content: center; }
+
+/* Sheets and pop-ups never taller than the visible screen (keyboard, landscape) */
+.auth-sheet { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
+html.app-mode .auth-sheet { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+
+/* Notch / rounded corners when the page runs edge to edge (viewport-fit=cover) */
+html.app-mode body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+}
+html.app-mode.is-standalone body { overscroll-behavior-y: none; }   /* no bounce showing the page behind */
+
+/* Tablets narrower than 700px use the phone layout: let the tab bar use the full width */
+html.device-tablet .bottom-nav { max-width: none; }
+
+/* ---------- Install banner, offline note ---------- */
+.install-banner {
+    display: flex; align-items: center; gap: 12px;
+    background: #fff; border: 1px solid var(--purple-100); border-radius: 18px;
+    padding: 12px 12px 12px 14px; margin: 0 0 16px;
+    box-shadow: 0 4px 16px rgba(83, 74, 183, .08);
+}
+.install-banner img { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; }
+.install-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.install-text strong { font-size: 14px; font-weight: 600; color: var(--purple-900); }
+.install-text span { font-size: 13px; color: var(--gray-600); line-height: 1.35; }
+.install-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.install-actions .btn-primary { min-height: 40px; padding: 8px 14px; font-size: 14px; width: auto; margin: 0; }
+.install-close {
+    width: 40px; height: 40px; border: 0; background: transparent; border-radius: 12px;
+    color: var(--gray-400); font-size: 18px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+@media (max-width: 420px) {
+    .install-banner { flex-wrap: wrap; }
+    .install-actions { width: 100%; justify-content: flex-end; }
+}
+.install-steps { list-style: none; padding: 0; margin: 4px 0 12px; display: flex; flex-direction: column; gap: 12px; }
+.install-steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 15px; line-height: 1.45; color: var(--gray-900); }
+.install-num {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--purple-50); color: var(--purple-600);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0;
+}
+.install-steps i { color: var(--purple-600); }
+
+.offline-note {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    top: calc(10px + env(safe-area-inset-top)); z-index: 100000001;
+    background: var(--purple-900); color: #fff; font-size: 13px; line-height: 1.3;
+    padding: 8px 14px; border-radius: 999px; box-shadow: 0 6px 20px rgba(38, 33, 92, .25);
+    display: flex; align-items: center; gap: 6px; max-width: calc(100% - 24px); text-align: center;
+}
+
+
+/* =========================================================
+   700px and wider
+   ========================================================= */
+@media (min-width: 700px) {
+
+    /* ---------- Shared: the page fills the height, the content scrolls ---------- */
+    html.app-mode .screen,
+    html.web-mode .screen { min-height: 0; }
+    html.app-mode .screen.active,
+    html.web-mode .screen.active { height: 100%; overflow-y: auto; }
+    html.app-mode .dash-main,
+    html.web-mode .dash-main,
+    html.app-mode #journal-screen .journal-main,
+    html.web-mode #journal-screen .journal-main { max-height: none !important; }
+    html.app-mode .screen.active > .dash-main,
+    html.web-mode .screen.active > .dash-main { height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+    html.app-mode .screen.active > .side-rail,
+    html.web-mode .screen.active > .side-rail { height: 100%; overflow-y: auto; scrollbar-width: none; }
+    html.app-mode .screen.active > .side-rail > *,
+    html.web-mode .screen.active > .side-rail > * { flex-shrink: 0; }
+    html.app-mode .screen.active > .side-rail::-webkit-scrollbar,
+    html.web-mode .screen.active > .side-rail::-webkit-scrollbar { display: none; }
+    html.app-mode #login-screen.active,
+    html.app-mode #onboarding-screen.active,
+    html.web-mode #login-screen.active,
+    html.web-mode #onboarding-screen.active { display: flex; flex-direction: column; }
+
+    /* ---------- Website (laptops / desktops): a bigger card that fits the window ---------- */
+    html.web-mode body { padding: 24px; align-items: center; min-height: 100vh; box-sizing: border-box; }
+    html.web-mode #app {
+        max-width: min(1240px, 100%);
+        height: calc(100vh - 48px);
+        height: calc(100dvh - 48px);
+        min-height: 560px;
+    }
+    /* login keeps its compact card */
+    html.web-mode body.page-login #app { max-width: 900px; height: auto; min-height: 0; }
+    html.web-mode body.page-login .screen.active { height: auto; min-height: 640px; }
+
+    /* ---------- App (tablets, phones on their side): full screen, no card ---------- */
+    html.app-mode body { padding-top: 0; padding-bottom: 0; align-items: stretch; min-height: 100vh; min-height: 100dvh; }
+    html.app-mode #app {
+        max-width: none; width: 100%;
+        height: 100vh; height: 100dvh; min-height: 0;
+        border-radius: 0; box-shadow: none;
+    }
+    html.app-mode .screen.active > .side-rail {
+        padding-top: max(28px, calc(env(safe-area-inset-top) + 16px));
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+    html.app-mode .screen.active > .dash-main {
+        padding-top: max(36px, calc(env(safe-area-inset-top) + 20px)) !important;
+        padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+    }
+    html.app-mode .fab { bottom: calc(28px + env(safe-area-inset-bottom)); }
+    html.app-mode #login-screen.active,
+    html.app-mode #onboarding-screen.active {
+        justify-content: center;
+        padding: max(40px, env(safe-area-inset-top)) max(24px, calc(50% - 240px)) max(40px, env(safe-area-inset-bottom)) !important;
+    }
+
+    /* Tablets: roomier content, readable line length */
+    html.device-tablet .screen.active > .dash-main { padding-left: 40px !important; padding-right: 40px !important; }
+    html.device-tablet .home-main > *,
+    html.device-tablet .planora-main > * { max-width: 1100px; }
+}
+
+/* Phones on their side / short screens: compact side navigation */
+@media (min-width: 700px) and (max-height: 560px) {
+    html.app-mode .screen.active > .side-rail { gap: 2px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: 8px; }
+    html.app-mode .side-rail .logo-mark { display: none; }
+    html.app-mode .side-rail .nav-item { padding-top: 5px; padding-bottom: 5px; min-height: 44px; }
+    html.app-mode .screen.active > .dash-main { padding-top: 20px !important; padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important; }
+    html.app-mode .screen.active > .dash-main { padding-left: 24px !important; padding-right: 24px !important; }
+    html.app-mode .fab { bottom: 16px; right: 16px; }
+}
+
+/* Very large screens: keep the website card from getting too wide */
+@media (min-width: 1600px) {
+    html.web-mode #app { max-width: 1320px; }
+}
+
+/* Focus Mode on tablets: a bigger timer that reads from across the desk */
+@media (min-width: 700px) and (min-height: 700px) {
+    html.app-mode .focus-inner { max-width: 560px; gap: 12px; }
+    html.app-mode .focus-task { font-size: 30px; }
+    html.app-mode .focus-ring { width: 300px; height: 300px; margin: 24px 0 -256px; }
+    html.app-mode .focus-time { font-size: 72px; height: 256px; }
+    html.app-mode .focus-actions .btn-primary,
+    html.app-mode .focus-actions .btn-secondary { min-height: 52px; font-size: 17px; padding-left: 28px; padding-right: 28px; }
+}
+/* Focus Mode on a phone turned sideways */
+@media (max-height: 500px) {
+    .focus-mode { overflow-y: auto; }
+    .focus-inner { gap: 4px; margin: auto; }
+    .focus-task { font-size: 20px; }
+    .focus-ring { display: none; }
+    .focus-time { font-size: 44px; height: auto; margin: 4px 0; }
+}
+
+@media print {
+    .install-banner, .offline-note, .bottom-nav, .side-rail, .fab, .focus-pill { display: none !important; }
+}

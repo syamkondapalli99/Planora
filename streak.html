@@ -1,30 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planora - Streak</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E6F1FB">
+<meta name="color-scheme" content="light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Planora">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="device.js"></script>
+<title>Planora - Streak</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="extras.css">
+<script src="planora-config.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="auth.js"></script>
+<script src="planora-priority.js"></script>
+<script src="planora-core.js"></script>
+<script src="focus.js"></script>
+<style>
+    /* =========================================
+       PLANORA NAVIGATION — MATCH HOME
+    ========================================= */
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
-    <link rel="stylesheet" href="style.css">
+    .side-rail {
+      background: var(--purple-900);
+    }
+
+    .nav-item {
+      background: transparent;
+      color: var(--purple-200);
+    }
+
+    .nav-item:hover {
+      background: transparent;
+      color: #fff;
+    }
+
+    .nav-item.active {
+      background: transparent;
+      color: #fff;
+    }
+</style>
+<link rel="stylesheet" href="devices.css">
 </head>
 <body>
 
 <div id="app">
 
-    <!-- ============ STREAK SCREEN ============ -->
-    <div class="screen active" id="streak-screen">
-
-        <div class="side-rail">
+  <!-- ============ STREAK SCREEN ============ -->
+  <div class="screen active" id="streak-screen">
+    <div class="side-rail">
   <div class="logo-mark">
     <i class="ti ti-calendar-star"></i>
   </div>
 
-  <button class="nav-item" onclick="location.href='dashboard.html'">
+ <button class="nav-item" onclick="location.href='home.html'">
   <i class="ti ti-home"></i>Home
 </button>
+ <button class="nav-item" onclick="location.href='planner.html'">
+    <i class="ti ti-list-check"></i>AI Planner
+  </button>
 
-  <button class="nav-item" onclick="location.href='journal.html'">
+  <button class="nav-item" onclick="localStorage.removeItem('planora_journal_selected_date'); location.href='journal.html'">
     <i class="ti ti-notebook"></i>Journal
   </button>
 
@@ -32,92 +76,76 @@
     <i class="ti ti-calendar"></i>Calendar
   </button>
 
-  <button class="nav-item active" onclick="location.href='streak.html'">
-    <i class="ti ti-flame"></i>Streak
-  </button>
 
   <button class="nav-item" onclick="location.href='profile.html'">
     <i class="ti ti-user"></i>Profile
   </button>
 
-  <button class="nav-item" onclick="location.href='planner.html'">
-    <i class="ti ti-list-check"></i>Planner
-  </button>
-</div>
+  </div>
 
-        <div class="dash-header" style="width:100%;">
-            <h2>Your streak</h2>
-            <button class="nav-item" onclick="location.href='index.html'" style="color:var(--purple-600);">
-                <i class="ti ti-x"></i>
-            </button>
+    <div class="dash-main" id="streak-page">
+      <div class="dash-header">
+        <div>
+          <p class="date">Streak</p>
+          <h2>Your momentum</h2>
         </div>
+        <button class="nav-item" onclick="location.href='home.html'" style="color:var(--purple-600);" aria-label="Close"><i class="ti ti-x"></i></button>
+      </div>
 
-        <div class="streak-hero">
-            <i class="ti ti-flame"></i>
-        </div>
-
-        <div class="streak-count">12 days</div>
-
-        <p class="subtitle">
-            Keep planning daily to grow your streak
-        </p>
-
-        <div class="week-dots">
-            <div class="dot"><i class="ti ti-check"></i></div>
-            <div class="dot"><i class="ti ti-check"></i></div>
-            <div class="dot"><i class="ti ti-check"></i></div>
-            <div class="dot"><i class="ti ti-check"></i></div>
-            <div class="dot"><i class="ti ti-check"></i></div>
-            <div class="dot"><i class="ti ti-check"></i></div>
-            <div class="dot empty">7</div>
-        </div>
-
-        <div class="streak-stats">
-            <div class="stat-card">
-                <p class="label">Longest streak</p>
-                <p class="value">27 days</p>
+      <div class="two-col">
+        <div>
+          <div class="sk-hero">
+            <div class="flame"><i class="ti ti-flame"></i></div>
+            <div>
+              <div class="num" id="streak-current">0</div>
+              <div class="lbl" id="streak-current-label">day streak</div>
             </div>
+          </div>
 
-            <div class="stat-card">
-                <p class="label">Total planned days</p>
-                <p class="value">94 days</p>
+          <div class="sk-stats">
+            <div class="stat-mini"><div class="value" id="streak-best">0</div><div class="label">Best streak</div></div>
+            <div class="stat-mini"><div class="value" id="streak-active">0</div><div class="label">Active days</div></div>
+            <div class="stat-mini"><div class="value" id="streak-done">0</div><div class="label">Tasks done</div></div>
+          </div>
+
+          <div class="card">
+            <div class="ai-tip" style="margin-bottom:0;">
+              <i class="ti ti-sparkles"></i>
+              <span id="streak-message"></span>
             </div>
+            <p class="streak-tip">Your streak grows each day you complete at least one task. Tick tasks off on Home or Calendar.</p>
+            <button class="btn-primary" style="margin-top:12px;" onclick="location.href='home.html'">Go to today's tasks</button>
+          </div>
         </div>
 
-        <!-- Bottom Navigation -->
-        <div class="bottom-nav">
-
-            <button class="nav-item" onclick="location.href='index.html'">
-                <i class="ti ti-home"></i>Home
-            </button>
-
-            <button class="nav-item" onclick="location.href='calendar.html'">
-                <i class="ti ti-calendar"></i>Calendar
-            </button>
-
-            <button class="nav-item">
-                <i class="ti ti-plus"></i>Add
-            </button>
-
-            <button class="nav-item active">
-                <i class="ti ti-flame"></i>Streak
-            </button>
-
-            <button class="nav-item" onclick="location.href='profile.html'">
-                <i class="ti ti-user"></i>Profile
-            </button>
-
-            <button class="nav-item" onclick="location.href='planner.html'">
-                <i class="ti ti-list-check"></i>Planner
-            </button>
-
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <button class="nav-item" onclick="changeStreakMonth(-1)" aria-label="Previous month" style="color:var(--purple-600);"><i class="ti ti-chevron-left" style="font-size:18px;"></i></button>
+              <span id="streak-month-title"></span>
+              <button class="nav-item" onclick="changeStreakMonth(1)" aria-label="Next month" style="color:var(--purple-600);"><i class="ti ti-chevron-right" style="font-size:18px;"></i></button>
+            </div>
+            <div class="streak-month" id="streak-month" data-offset="0"></div>
+            <p class="streak-tip"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--purple-400);"></span> all done &nbsp; <span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--purple-100);"></span> some done</p>
+          </div>
         </div>
-
+      </div>
     </div>
 
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="location.href='home.html'"><i class="ti ti-home"></i>Home</button>
+      <button class="nav-item" onclick="location.href='calendar.html'"><i class="ti ti-calendar"></i>Calendar</button>
+      <button class="nav-item" onclick="location.href='home.html'"><i class="ti ti-plus"></i>Add</button>
+      <button class="nav-item active"><i class="ti ti-flame"></i>Streak</button>
+      <button class="nav-item" onclick="location.href='profile.html'"><i class="ti ti-user"></i>Profile</button>
+      <button class="nav-item" onclick="location.href='planner.html'"><i class="ti ti-list-check"></i>Planner</button>
+    </div>
+  </div>
+
 </div>
 
-<script src="script.js"></script>
+<script src="app-extras.js"></script>
 
+<script src="pwa.js"></script>
 </body>
 </html>

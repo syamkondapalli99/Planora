@@ -3,21 +3,37 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E6F1FB">
+<meta name="color-scheme" content="light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Planora">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="device.js"></script>
 
     <title>Planora - Home</title>
 
     <!-- Tabler Icons -->
-    <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 
     <!-- Main CSS -->
     <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="extras.css">
+<script src="planora-config.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="auth.js"></script>
+<script src="planora-priority.js"></script>
+<script src="planora-core.js"></script>
+<script src="focus.js"></script>
 
-   
+
 
     <style>
-
         /* =========================================
            AI DASHBOARD
         ========================================= */
@@ -29,11 +45,9 @@
         }
 
         .ai-overview-card {
-            background: linear-gradient(
-                135deg,
-                var(--purple-50),
-                var(--blue-50)
-            );
+            background: linear-gradient(135deg,
+                    var(--purple-50),
+                    var(--blue-50));
         }
 
         .ai-overview-text {
@@ -999,218 +1013,258 @@
             }
         }
 
+        /* =========================================
+   PLANORA NAVIGATION — MATCH DASHBOARD
+========================================= */
+
+        .side-rail {
+            background: var(--purple-900);
+        }
+
+        .nav-item {
+            background: transparent;
+            color: var(--purple-200);
+        }
+
+        .nav-item:hover {
+            background: transparent;
+            color: #fff;
+        }
+
+        .nav-item.active {
+            background: transparent;
+            color: #fff;
+        }
     </style>
 
+<link rel="stylesheet" href="devices.css">
 </head>
 
 
 <body>
 
-<div id="app">
+    <div id="app">
 
 
-    <!-- =========================================
+        <!-- =========================================
          DASHBOARD
     ========================================= -->
 
-    <div class="screen active" id="dashboard-screen">
+        <div class="screen active" id="dashboard-screen">
 
 
-        <!-- SIDE NAVIGATION -->
+            <!-- SIDE NAVIGATION -->
 
-        <div class="side-rail">
-
-            <div class="logo-mark">
-                <i class="ti ti-calendar-star"></i>
-            </div>
+            <nav class="side-rail"></nav>
 
 
-            <button class="nav-item active"
-                onclick="location.href='dashboard.html'">
+            <!-- MAIN -->
+            <main class="dash-main home-main">
 
-                <i class="ti ti-home"></i>
+                <!-- HEADER: greeting + one real sentence about today -->
+                <div class="dash-header home-header">
+                    <div>
+                        <p class="date" id="current-date"></p>
+                        <h1 class="home-greeting" id="greeting-heading">Hello</h1>
+                        <p class="ai-greeting-msg" id="ai-greeting-msg"></p>
+                    </div>
+                    <div class="home-header-side">
+                        <div class="home-header-row">
+                            <a class="week-chip" id="home-week" href="profile.html" hidden></a>
+                            <button type="button" class="icon-btn-round home-search" data-search aria-label="Search Planora"><i class="ti ti-search" aria-hidden="true"></i></button>
+                        </div>
+                        <!-- Planora: opens Ask Planora in a pop-up -->
+                        <button type="button" class="planora-btn" id="open-ask" aria-haspopup="dialog" aria-controls="ask-pop"><i class="ti ti-sparkles" aria-hidden="true"></i> Planora</button>
+                    </div>
+                </div>
 
-                Home
+                <!-- AM I ON TRACK? + the two main actions -->
+                <section class="today-bar" id="today-bar" aria-label="Today at a glance" hidden>
+                    <p class="wl" id="home-status"><span class="wl-dot" aria-hidden="true"></span><strong class="wl-label"></strong><span class="wl-text"></span></p>
+                    <div class="today-actions">
+                        <button type="button" class="btn-primary" id="btn-what-now"><i class="ti ti-bolt" aria-hidden="true"></i> What should I do now?</button>
+                        <button type="button" class="btn-secondary" id="btn-optimize"><i class="ti ti-wand" aria-hidden="true"></i> Optimize my day</button>
+                        <button type="button" class="btn-secondary" id="btn-review" hidden><i class="ti ti-clipboard-check" aria-hidden="true"></i> Review today</button>
+                    </div>
+                </section>
 
-            </button>
+                <div class="home-grid">
+                    <div class="home-left">
 
-            <button class="nav-item"
-                onclick="location.href='planner.html'">
+                        <!-- FIRST TIME: nothing planned yet -->
+                        <section class="card first-day-card" id="first-day" hidden aria-labelledby="first-day-title">
+                            <h2 class="card-title" id="first-day-title">Let's build your first day</h2>
+                            <p class="card-sub">Pick a few things to start with. Planora will find the time and show you the plan first.</p>
+                            <div class="first-day-options" role="group" aria-label="Starter tasks">
+                                <label class="pick-chip"><input type="checkbox" value="Finish an assignment"><span>Finish an assignment</span></label>
+                                <label class="pick-chip"><input type="checkbox" value="Go to the gym"><span>Go to the gym</span></label>
+                                <label class="pick-chip"><input type="checkbox" value="Read 20 pages"><span>Read 20 pages</span></label>
+                                <label class="pick-chip"><input type="checkbox" value="Reply to emails"><span>Reply to emails</span></label>
+                            </div>
+                            <div class="first-day-actions">
+                                <button type="button" class="btn-primary" id="first-day-plan" disabled>Plan these for me</button>
+                                <button type="button" class="btn-ghost" data-quick-add>Add my own task</button>
+                            </div>
+                        </section>
 
-                <i class="ti ti-list-check"></i>
+                        <!-- (kept for older code, never shown) -->
+                        <section class="card focus-card" id="home-focus" aria-labelledby="focus-title" hidden>
+                            <div class="card-header"><h2 class="card-title" id="focus-title">Today's focus</h2></div>
+                            <ol class="focus-list" id="focus-list"></ol>
+                        </section>
 
-                AI Planner
+                        <!-- PLANORA RECOMMENDATIONS (0-2, only when genuinely useful) -->
+                        <div id="home-recs" class="home-recs"></div>
 
-            </button>
+                        <!-- TODAY'S SCHEDULE -->
+                        <section class="card schedule-card" id="schedule-card" aria-labelledby="schedule-title">
+                            <div class="card-header">
+                                <h2 class="card-title" id="schedule-title">Today's schedule</h2>
+                                <a class="icon-link" href="calendar.html" aria-label="Open calendar"><i class="ti ti-calendar" aria-hidden="true"></i></a>
+                            </div>
+                            <div class="week-calendar">
+                                <button type="button" class="week-arrow" onclick="changeWeek(-1)" aria-label="Previous week">
+                                    <i class="ti ti-chevron-left" aria-hidden="true"></i>
+                                </button>
+                                <div class="week-strip" id="week-strip"></div>
+                                <button type="button" class="week-arrow" onclick="changeWeek(1)" aria-label="Next week">
+                                    <i class="ti ti-chevron-right" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            <div class="task-list" id="task-list"></div>
+                            <div class="schedule-empty" id="schedule-empty" hidden></div>
+                            <div class="completed-section" id="completed-section" style="display:none;">
+                                <p class="section-label completed-label"><i class="ti ti-check" aria-hidden="true"></i> Completed</p>
+                                <div class="task-list" id="completed-list"></div>
+                            </div>
+                        </section>
+                    </div>
 
+                    <div class="home-right">
+                        <!-- JOURNAL NUDGE (only if nothing written today) -->
+                        <a class="journal-nudge" id="journal-nudge" href="journal.html" hidden>
+                            <i class="ti ti-notebook" aria-hidden="true"></i>
+                            <span><strong>How are you feeling today?</strong><br>Take a minute to write in your journal.</span>
+                            <i class="ti ti-chevron-right" aria-hidden="true"></i>
+                        </a>
 
-            <button class="nav-item"
-                onclick="location.href='journal.html'">
+                        <!-- GET AROUND QUICKLY -->
+                        <nav class="home-links" aria-label="Shortcuts">
+                            <p class="home-links-title">Go to</p>
+                            <a href="calendar.html"><i class="ti ti-calendar" aria-hidden="true"></i><span>Calendar</span></a>
+                            <a href="planner.html#goals"><i class="ti ti-target-arrow" aria-hidden="true"></i><span>Goals</span></a>
+                            <a href="journal.html" data-nav="journal"><i class="ti ti-notebook" aria-hidden="true"></i><span>Journal</span></a>
+                            <button type="button" data-quick-add><i class="ti ti-plus" aria-hidden="true"></i><span>Add task</span></button>
+                        </nav>
+                    </div>
+                </div>
 
-                <i class="ti ti-notebook"></i>
+                <!-- ASK PLANORA (pop-up, opened by the Planora button) -->
+                <div class="ask-pop" id="ask-pop" role="dialog" aria-modal="true" aria-label="Ask Planora" hidden>
+                    <div class="ask-pop-panel">
+                        <button type="button" class="ask-pop-close" id="ask-pop-close" aria-label="Close Ask Planora"><i class="ti ti-x" aria-hidden="true"></i></button>
+                        <section class="task-input-panel home-ask" aria-label="Ask Planora">
+                            <div data-smart-planner data-placeholder="What do you need to get done?"></div>
+                        </section>
+                    </div>
+                </div>
 
-                Journal
+                <!-- QUICK ADD -->
+                <button class="fab" data-quick-add aria-label="Add a task">
+                    <i class="ti ti-plus" aria-hidden="true"></i>
+                </button>
 
-            </button>
-
-
-            <button class="nav-item"
-                onclick="location.href='calendar.html'">
-
-                <i class="ti ti-calendar"></i>
-
-                Calendar
-
-            </button>
-
-
-            <button class="nav-item"
-                onclick="location.href='streak.html'">
-
-                <i class="ti ti-flame"></i>
-
-                Streak
-
-            </button>
-
-
-            <button class="nav-item"
-                onclick="location.href='profile.html'">
-
-                <i class="ti ti-user"></i>
-
-                Profile
-
-            </button>
-
-
-            
-
+                <nav class="bottom-nav"></nav>
+            </main>
         </div>
 
 
+        <!-- =========================================
+         ADD / EDIT TASK MODAL
+    ========================================= -->
 
-        <!-- MAIN -->
-
-        <div class="dash-main">
-
-
-            <!-- HEADER -->
-
-            <div class="dash-header">
-
-                <div>
-
-                    <p class="date"
-                        id="current-date"></p>
-
-                    <h2 id="greeting-heading">
-                        Hi Alex
-                    </h2>
-
-                    <p class="ai-greeting-msg"
-                        id="ai-greeting-msg">
-                    </p>
-
-                </div>
+        <div id="edit-modal" class="edit-modal">
 
 
-                <div class="streak-badge"
-                    onclick="location.href='streak.html'"
-                    style="cursor:pointer;">
+            <div class="edit-box">
 
-                    <i class="ti ti-flame"></i>
 
-                    <span>12</span>
+                <!-- HEADER -->
+
+                <div class="edit-header">
+
+                    <h3 id="task-modal-title">
+                        Add a task
+                    </h3>
+
+
+                    <button type="button" onclick="closeEditModal()" aria-label="Close">
+
+                        <i class="ti ti-x"></i>
+
+                    </button>
 
                 </div>
 
-            </div>
+
+
+                <!-- TASK NAME -->
+
+                <label>
+                    Task Name
+                </label>
+
+
+                <input id="edit-title" type="text" placeholder="What do you need to do?">
 
 
 
-            <!-- TWO COLUMNS -->
+                <!-- DATE -->
 
-            <div class="two-col">
+                <div class="date-picker-wrapper">
 
-
-                <!-- LEFT -->
-
-                <div>
-
-
-                    <!-- AI OVERVIEW -->
-
-                    <div class="card ai-overview-card">
-
-                        <div class="card-header">
-
-                            <span>
-                                ✨ Your Day at a Glance
-                            </span>
-
-                        </div>
+                    <label>
+                        Date
+                    </label>
 
 
-                        <p class="ai-overview-text"
-                            id="ai-overview-text">
-                        </p>
+                    <input id="edit-date" type="date" class="hidden-date-input" tabindex="-1" aria-hidden="true">
 
 
-                        <button class="btn-secondary"
-                            style="margin-top:10px;"
-                            onclick="optimizeMyDay()">
+                    <button type="button" class="custom-date-button" id="date-picker-button">
 
-                            <i class="ti ti-sparkles"></i>
+                        <i class="ti ti-calendar"></i>
 
-                            Optimize My Day
 
-                        </button>
+                        <span id="date-picker-display">
+                            Select date
+                        </span>
 
-                    </div>
+
+                        <i class="ti ti-chevron-down"></i>
+
+                    </button>
 
 
 
-                    <!-- SCHEDULE -->
+                    <!-- CUSTOM CALENDAR -->
 
-                    <div class="card">
-
-                        <div class="card-header">
-
-                            <span id="schedule-title">
-                                Today's Schedule
-                            </span>
-
-                            <i class="ti ti-calendar"
-                                onclick="location.href='calendar.html'"
-                                style="cursor:pointer;">
-                            </i>
-
-                        </div>
+                    <div class="custom-calendar" id="custom-calendar">
 
 
+                        <div class="calendar-header">
 
-                        <!-- WEEK -->
-
-                        <div class="week-calendar">
-
-                            <button type="button"
-                                class="week-arrow"
-                                onclick="changeWeek(-1)">
+                            <button type="button" id="calendar-prev">
 
                                 <i class="ti ti-chevron-left"></i>
 
                             </button>
 
 
-                            <div class="week-strip"
-                                id="week-strip">
-                            </div>
+                            <span id="calendar-month"></span>
 
 
-                            <button type="button"
-                                class="week-arrow"
-                                onclick="changeWeek(1)">
+                            <button type="button" id="calendar-next">
 
                                 <i class="ti ti-chevron-right"></i>
 
@@ -1220,150 +1274,26 @@
 
 
 
-                        <!-- AI TIP -->
+                        <div class="calendar-weekdays">
 
-                        <div class="ai-tip">
+                            <span>Mon</span>
 
-                            <i class="ti ti-sparkles"></i>
+                            <span>Tue</span>
 
-                            <span>
-                                AI suggests: block 2–4pm for deep work today.
-                            </span>
+                            <span>Wed</span>
 
-                        </div>
+                            <span>Thu</span>
 
+                            <span>Fri</span>
 
+                            <span>Sat</span>
 
-                        <!-- TASKS -->
-
-                        <p class="section-label">
-                            Today's Schedule
-                        </p>
-
-
-                        <div class="task-list"
-                            id="task-list">
-
-                            <!-- Rendered from shared task store -->
+                            <span>Sun</span>
 
                         </div>
 
 
-
-                        <!-- COMPLETED -->
-
-                        <div class="completed-section"
-                            id="completed-section"
-                            style="display:none;">
-
-                            <p class="section-label completed-label">
-
-                                <i class="ti ti-check"></i>
-
-                                Completed
-
-                            </p>
-
-
-                            <div class="task-list"
-                                id="completed-list">
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-
-                    <!-- PROGRESS -->
-
-                    <div class="card">
-
-                        <div class="card-header">
-
-                            <span>
-                                📊 Today's Progress
-                            </span>
-
-                        </div>
-
-
-                        <div class="cat-track">
-
-                            <div class="cat-fill"
-                                id="progress-fill"
-                                style="width:0%; background:var(--purple-400);">
-                            </div>
-
-                        </div>
-
-
-                        <p class="progress-text"
-                            id="progress-text">
-                        </p>
-
-                    </div>
-
-
-
-                    <!-- AI SUGGESTION -->
-
-                    <div class="card"
-                        id="ai-suggestion-card"
-                        style="display:none;">
-
-                        <div class="card-header">
-
-                            <span>
-                                🤖 Planora suggests
-                            </span>
-
-                        </div>
-
-
-                        <p id="ai-suggestion-text"></p>
-
-
-                        <div style="display:flex; gap:10px; margin-top:12px;">
-
-                            <button class="btn-primary"
-                                style="flex:1;"
-                                onclick="planSuggestion()">
-
-                                Plan it for me
-
-                            </button>
-
-
-                            <button class="btn-secondary"
-                                style="flex:1;"
-                                onclick="dismissSuggestion()">
-
-                                Dismiss
-
-                            </button>
-
-                        </div>
-
-                    </div>
-
-
-
-                    <!-- MOMENTUM -->
-
-                    <div class="card">
-
-                        <div class="card-header">
-
-                            <span>
-                                🔥 Your Momentum
-                            </span>
-
-                        </div>
-
-
-                        <div class="momentum-list"
-                            id="momentum-list">
+                        <div class="calendar-days" id="calendar-days">
                         </div>
 
                     </div>
@@ -1371,122 +1301,161 @@
                 </div>
 
 
-                <!-- RIGHT: AI ASSISTANT -->
 
-                <div class="task-input-panel">
+                <!-- TIME -->
 
-                    <div class="card-header">
-                        <span>💬 Ask Planora</span>
-                        <i class="ti ti-sparkles"></i>
-                    </div>
+                <div class="time-row">
 
-                    <div class="ai-chat-log" id="ai-chat-log">
-                        <div class="ai-bubble assistant">
-                            Tell me what's on your plate and I'll turn it into a schedule — e.g. "3 client calls, gym 3x, finish the report by Friday."
-                        </div>
-                    </div>
 
-                    <div class="ai-send-row">
-                        <textarea
-                            class="task-textarea"
-                            id="ai-chat-input"
-                            placeholder="Help me organize my week..."></textarea>
+                    <!-- START TIME -->
 
-                        <button type="button" id="ai-send-btn" aria-label="Send">
-                            <i class="ti ti-send"></i>
+                    <div class="time-picker-wrapper">
+
+                        <label>
+                            Start Time
+                        </label>
+
+
+                        <input id="edit-start" type="time" class="hidden-time-input">
+
+
+                        <button type="button" class="custom-time-button" id="start-time-button">
+
+                            <i class="ti ti-clock"></i>
+
+
+                            <span id="start-time-display">
+                                Select time
+                            </span>
+
+
+                            <i class="ti ti-chevron-down"></i>
+
                         </button>
+
+
+                        <div class="custom-time-dropdown" id="start-time-dropdown">
+                        </div>
+
                     </div>
 
-                    <div class="ai-plan-review" id="ai-plan-review" style="display:none;">
 
-                        <p class="section-label">Review your plan</p>
 
-                        <div id="ai-plan-tasks"></div>
+                    <!-- END TIME -->
 
-                        <div class="ai-plan-actions">
-                            <button type="button" class="btn-secondary" id="ai-plan-edit-btn">Edit</button>
-                            <button type="button" class="btn-primary" id="ai-plan-ok-btn">OK, add to calendar</button>
+                    <div class="time-picker-wrapper">
+
+                        <label>
+                            End Time
+                        </label>
+
+
+                        <input id="edit-end" type="time" class="hidden-time-input">
+
+
+                        <button type="button" class="custom-time-button" id="end-time-button">
+
+                            <i class="ti ti-clock"></i>
+
+
+                            <span id="end-time-display">
+                                Select time
+                            </span>
+
+
+                            <i class="ti ti-chevron-down"></i>
+
+                        </button>
+
+
+                        <div class="custom-time-dropdown" id="end-time-dropdown">
                         </div>
 
                     </div>
 
                 </div>
 
-            </div>
+
+
+                <!-- =========================================
+                 QUICK ADD
+            ========================================= -->
+
+                <p class="quick-add-title" id="quick-add-title">
+
+                    Quick add
+
+                </p>
+
+
+                <div class="quick-add-list" id="quick-add-list">
+
+
+                    <button type="button" class="quick-chip" onclick="quickAddDashboardTask('Morning coffee break')">
+
+                        <i class="ti ti-coffee"></i>
+
+                        <span>
+                            Morning coffee break
+                        </span>
+
+                    </button>
+
+
+                    <button type="button" class="quick-chip" onclick="quickAddDashboardTask('Check emails')">
+
+                        <i class="ti ti-mail"></i>
+
+                        <span>
+                            Check emails
+                        </span>
+
+                    </button>
+
+
+                    <button type="button" class="quick-chip" onclick="quickAddDashboardTask('Call a friend or family')">
+
+                        <i class="ti ti-phone"></i>
+
+                        <span>
+                            Call a friend or family
+                        </span>
+
+                    </button>
+
+
+                    <button type="button" class="quick-chip" onclick="quickAddDashboardTask('20 min walk')">
+
+                        <i class="ti ti-walk"></i>
+
+                        <span>
+                            20 min walk
+                        </span>
+
+                    </button>
+
+                </div>
 
 
 
-            <!-- FLOATING ADD -->
+                <!-- SUBMIT -->
 
-            <button class="fab"
-                onclick="openAddTaskModal()"
-                aria-label="Add task">
+                <button type="button" class="btn-primary" id="task-modal-submit-btn" onclick="saveEditModal()">
 
-                <i class="ti ti-plus"></i>
-
-            </button>
-
-
-
-            <!-- BOTTOM NAV -->
-
-            <div class="bottom-nav">
-
-                <button class="nav-item active">
-
-                    <i class="ti ti-home"></i>
-
-                    Home
+                    Add Task
 
                 </button>
 
 
-                <button class="nav-item"
-                    onclick="location.href='calendar.html'">
 
-                    <i class="ti ti-calendar"></i>
+                <!-- DELETE - ONLY SHOWN WHEN EDITING -->
 
-                    Calendar
+                <button type="button" class="btn-delete" id="task-modal-delete-btn" onclick="deleteEditModalTask()"
+                    style="display:none;">
 
-                </button>
+                    <i class="ti ti-trash"></i>
 
-
-                <button class="nav-item"
-                    onclick="openAddTaskModal()">
-
-                    <i class="ti ti-plus"></i>
-
-                    Add
-
-                </button>
-
-
-                <button class="nav-item"
-                    onclick="location.href='streak.html'">
-
-                    <i class="ti ti-flame"></i>
-
-                    Streak
-
-                </button>
-
-
-                <button class="nav-item"
-                    onclick="location.href='profile.html'">
-
-                    <i class="ti ti-user"></i>
-
-                    Profile
-
-                </button>
-
-
-                <button class="nav-item"
-                    onclick="location.href='planner.html'">
-
-                    <i class="ti ti-list-check"></i>
-
-                    Planner
+                    Delete Task
 
                 </button>
 
@@ -1499,456 +1468,131 @@
 
 
     <!-- =========================================
-         ADD / EDIT TASK MODAL
-    ========================================= -->
-
-    <div id="edit-modal"
-        class="edit-modal">
-
-
-        <div class="edit-box">
-
-
-            <!-- HEADER -->
-
-            <div class="edit-header">
-
-                <h3 id="task-modal-title">
-                    Add a task
-                </h3>
-
-
-                <button type="button"
-                    onclick="closeEditModal()"
-                    aria-label="Close">
-
-                    <i class="ti ti-x"></i>
-
-                </button>
-
-            </div>
-
-
-
-            <!-- TASK NAME -->
-
-            <label>
-                Task Name
-            </label>
-
-
-            <input id="edit-title"
-                type="text"
-                placeholder="What do you need to do?">
-
-
-
-            <!-- DATE -->
-
-            <div class="date-picker-wrapper">
-
-                <label>
-                    Date
-                </label>
-
-
-                <input id="edit-date"
-                    type="date"
-                    class="hidden-date-input"
-                    tabindex="-1"
-                    aria-hidden="true">
-
-
-                <button type="button"
-                    class="custom-date-button"
-                    id="date-picker-button">
-
-                    <i class="ti ti-calendar"></i>
-
-
-                    <span id="date-picker-display">
-                        Select date
-                    </span>
-
-
-                    <i class="ti ti-chevron-down"></i>
-
-                </button>
-
-
-
-                <!-- CUSTOM CALENDAR -->
-
-                <div class="custom-calendar"
-                    id="custom-calendar">
-
-
-                    <div class="calendar-header">
-
-                        <button type="button"
-                            id="calendar-prev">
-
-                            <i class="ti ti-chevron-left"></i>
-
-                        </button>
-
-
-                        <span id="calendar-month"></span>
-
-
-                        <button type="button"
-                            id="calendar-next">
-
-                            <i class="ti ti-chevron-right"></i>
-
-                        </button>
-
-                    </div>
-
-
-
-                    <div class="calendar-weekdays">
-
-                        <span>Mon</span>
-
-                        <span>Tue</span>
-
-                        <span>Wed</span>
-
-                        <span>Thu</span>
-
-                        <span>Fri</span>
-
-                        <span>Sat</span>
-
-                        <span>Sun</span>
-
-                    </div>
-
-
-                    <div class="calendar-days"
-                        id="calendar-days">
-                    </div>
-
-                </div>
-
-            </div>
-
-
-
-            <!-- TIME -->
-
-            <div class="time-row">
-
-
-                <!-- START TIME -->
-
-                <div class="time-picker-wrapper">
-
-                    <label>
-                        Start Time
-                    </label>
-
-
-                    <input id="edit-start"
-                        type="time"
-                        class="hidden-time-input">
-
-
-                    <button type="button"
-                        class="custom-time-button"
-                        id="start-time-button">
-
-                        <i class="ti ti-clock"></i>
-
-
-                        <span id="start-time-display">
-                            Select time
-                        </span>
-
-
-                        <i class="ti ti-chevron-down"></i>
-
-                    </button>
-
-
-                    <div class="custom-time-dropdown"
-                        id="start-time-dropdown">
-                    </div>
-
-                </div>
-
-
-
-                <!-- END TIME -->
-
-                <div class="time-picker-wrapper">
-
-                    <label>
-                        End Time
-                    </label>
-
-
-                    <input id="edit-end"
-                        type="time"
-                        class="hidden-time-input">
-
-
-                    <button type="button"
-                        class="custom-time-button"
-                        id="end-time-button">
-
-                        <i class="ti ti-clock"></i>
-
-
-                        <span id="end-time-display">
-                            Select time
-                        </span>
-
-
-                        <i class="ti ti-chevron-down"></i>
-
-                    </button>
-
-
-                    <div class="custom-time-dropdown"
-                        id="end-time-dropdown">
-                    </div>
-
-                </div>
-
-            </div>
-
-
-
-            <!-- =========================================
-                 QUICK ADD
-            ========================================= -->
-
-            <p class="quick-add-title"
-                id="quick-add-title">
-
-                Quick add
-
-            </p>
-
-
-            <div class="quick-add-list"
-                id="quick-add-list">
-
-
-                <button type="button"
-                    class="quick-chip"
-                    onclick="quickAddDashboardTask('Morning coffee break')">
-
-                    <i class="ti ti-coffee"></i>
-
-                    <span>
-                        Morning coffee break
-                    </span>
-
-                </button>
-
-
-                <button type="button"
-                    class="quick-chip"
-                    onclick="quickAddDashboardTask('Check emails')">
-
-                    <i class="ti ti-mail"></i>
-
-                    <span>
-                        Check emails
-                    </span>
-
-                </button>
-
-
-                <button type="button"
-                    class="quick-chip"
-                    onclick="quickAddDashboardTask('Call a friend or family')">
-
-                    <i class="ti ti-phone"></i>
-
-                    <span>
-                        Call a friend or family
-                    </span>
-
-                </button>
-
-
-                <button type="button"
-                    class="quick-chip"
-                    onclick="quickAddDashboardTask('20 min walk')">
-
-                    <i class="ti ti-walk"></i>
-
-                    <span>
-                        20 min walk
-                    </span>
-
-                </button>
-
-            </div>
-
-
-
-            <!-- SUBMIT -->
-
-            <button type="button"
-                class="btn-primary"
-                id="task-modal-submit-btn"
-                onclick="saveEditModal()">
-
-                Add Task
-
-            </button>
-
-
-
-            <!-- DELETE - ONLY SHOWN WHEN EDITING -->
-
-            <button type="button"
-                class="btn-delete"
-                id="task-modal-delete-btn"
-                onclick="deleteEditModalTask()"
-                style="display:none;">
-
-                <i class="ti ti-trash"></i>
-
-                Delete Task
-
-            </button>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-
-<!-- =========================================
      DASHBOARD JAVASCRIPT
 ========================================= -->
 
-<script src="script.js"></script>
-<script src="ai-assistant.js"></script>
+    <script src="script.js"></script>
+    <script src="ai-assistant.js"></script>
 
 
-<script>
+    <script>
 
-    /*
-     * Quick Add
-     *
-     * Uses the existing Dashboard modal instead of creating
-     * another task system. This keeps your current
-     * saveEditModal() functionality intact.
-     */
+        /*
+         * Quick Add
+         *
+         * Uses the existing Dashboard modal instead of creating
+         * another task system. This keeps your current
+         * saveEditModal() functionality intact.
+         */
 
-    function quickAddDashboardTask(taskName) {
+        function quickAddDashboardTask(taskName) {
 
-        const titleInput =
-            document.getElementById("edit-title");
+            const titleInput =
+                document.getElementById("edit-title");
 
-        if (!titleInput) return;
+            if (!titleInput) return;
 
-        titleInput.value = taskName;
+            titleInput.value = taskName;
 
-        titleInput.focus();
+            titleInput.focus();
 
-    }
-
-
-    /*
-     * When adding a task, show Quick Add.
-     * When editing a task, hide Quick Add.
-     *
-     * This wraps your existing openAddTaskModal function
-     * without replacing its functionality.
-     */
-
-    const originalOpenAddTaskModal =
-        window.openAddTaskModal;
-
-    if (typeof originalOpenAddTaskModal === "function") {
-
-        window.openAddTaskModal = function () {
-
-            originalOpenAddTaskModal();
-
-            const title =
-                document.getElementById("quick-add-title");
-
-            const list =
-                document.getElementById("quick-add-list");
-
-            if (title) {
-                title.style.display = "block";
-            }
-
-            if (list) {
-                list.style.display = "flex";
-            }
-
-            const modalTitle =
-                document.getElementById("task-modal-title");
-
-            const submitButton =
-                document.getElementById("task-modal-submit-btn");
-
-            const deleteButton =
-                document.getElementById("task-modal-delete-btn");
-
-            if (modalTitle) {
-                modalTitle.textContent = "Add a task";
-            }
-
-            if (submitButton) {
-                submitButton.textContent = "Add Task";
-            }
-
-            if (deleteButton) {
-                deleteButton.style.display = "none";
-            }
-
-        };
-
-    }
+        }
 
 
-    /*
-     * Hide Quick Add when editing.
-     */
+        /*
+         * When adding a task, show Quick Add.
+         * When editing a task, hide Quick Add.
+         *
+         * This wraps your existing openAddTaskModal function
+         * without replacing its functionality.
+         */
 
-    const originalOpenEditModal =
-        window.openEditModal;
+        const originalOpenAddTaskModal =
+            window.openAddTaskModal;
 
-    if (typeof originalOpenEditModal === "function") {
+        if (typeof originalOpenAddTaskModal === "function") {
 
-        window.openEditModal = function () {
+            window.openAddTaskModal = function () {
 
-            originalOpenEditModal.apply(this, arguments);
+                originalOpenAddTaskModal();
 
-            const title =
-                document.getElementById("quick-add-title");
+                const title =
+                    document.getElementById("quick-add-title");
 
-            const list =
-                document.getElementById("quick-add-list");
+                const list =
+                    document.getElementById("quick-add-list");
 
-            if (title) {
-                title.style.display = "none";
-            }
+                if (title) {
+                    title.style.display = "block";
+                }
 
-            if (list) {
-                list.style.display = "none";
-            }
+                if (list) {
+                    list.style.display = "flex";
+                }
 
-        };
+                const modalTitle =
+                    document.getElementById("task-modal-title");
 
-    }
+                const submitButton =
+                    document.getElementById("task-modal-submit-btn");
 
-</script>
+                const deleteButton =
+                    document.getElementById("task-modal-delete-btn");
 
+                if (modalTitle) {
+                    modalTitle.textContent = "Add a task";
+                }
+
+                if (submitButton) {
+                    submitButton.textContent = "Add Task";
+                }
+
+                if (deleteButton) {
+                    deleteButton.style.display = "none";
+                }
+
+            };
+
+        }
+
+
+        /*
+         * Hide Quick Add when editing.
+         */
+
+        const originalOpenEditModal =
+            window.openEditModal;
+
+        if (typeof originalOpenEditModal === "function") {
+
+            window.openEditModal = function () {
+
+                originalOpenEditModal.apply(this, arguments);
+
+                const title =
+                    document.getElementById("quick-add-title");
+
+                const list =
+                    document.getElementById("quick-add-list");
+
+                if (title) {
+                    title.style.display = "none";
+                }
+
+                if (list) {
+                    list.style.display = "none";
+                }
+
+            };
+
+        }
+
+    </script>
+
+<script src="smart-planner.js"></script>
+<script src="home.js"></script>
+<script src="app-extras.js"></script>
+<script src="pwa.js"></script>
 </body>
 
 </html>

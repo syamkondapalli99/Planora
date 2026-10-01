@@ -17,12 +17,37 @@ document.addEventListener("DOMContentLoaded", function () {
     if (examInput) {
         const d = new Date();
         d.setDate(d.getDate() + 14);
-        examInput.value = d.toISOString().slice(0, 10);
+        examInput.value = d.toLocaleDateString("en-CA");
     }
 
     renderDPTasks();
     renderTBList();
     renderGTList();
+
+    // Deep links from old pages and other screens:
+    // #goals, #daily, #breakdown, #study, ?plan-goal=<id>
+    const hash = location.hash.replace("#", "");
+    if (["daily", "breakdown", "study"].includes(hash)) switchPlannerTab(hash);
+    if (hash === "goals") setTimeout(function () { const g = document.getElementById("goals"); if (g) g.scrollIntoView({ block: "start" }); }, 100);
+    const openGoal = new URLSearchParams(location.search).get("goal");
+    if (openGoal) { openGoalIds.add(openGoal); renderGTList(); }
+    const planGoal = new URLSearchParams(location.search).get("plan-goal");
+    if (planGoal) {
+        setTimeout(function () {
+            const goal = PlanoraCore.getGoal(planGoal);
+            if (goal && window.PlanoraAsk) window.PlanoraAsk.planForGoal(goal);
+        }, 300);
+    }
+
+    // Anything that changes tasks or goals (Ask Planora, other tabs) refreshes the goal list
+    document.addEventListener("planora:data-changed", renderGTList);
+    document.addEventListener("planora:plan-added", renderGTList);
+
+    // Restore a previously generated Study Planner result, if one exists.
+    const savedStudyPlan = loadJSON("planora_study_plan", null);
+    if (savedStudyPlan && Array.isArray(savedStudyPlan.sessions) && savedStudyPlan.sessions.length) {
+        renderStudyPlan(savedStudyPlan.sessions, savedStudyPlan.source);
+    }
 });
 
 
@@ -52,7 +77,7 @@ function saveJSON(key, value) {
 }
 
 function todayISO() {
-    return new Date().toISOString().slice(0, 10);
+    return new Date().toLocaleDateString("en-CA");
 }
 
 function daysBetween(dateStr, fromStr) {
@@ -96,13 +121,43 @@ function escapeHTML(str) {
 
 function switchPlannerTab(tab) {
 
+    // "goals" lives on the page itself now (Your goals)
+    if (tab === "goals") {
+        const goals = document.getElementById("goals");
+        if (goals) goals.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (!PlanoraCore.getGoals().length) createGoal();
+        return;
+    }
+
+    const area = document.getElementById("tool-area");
+    const current = document.querySelector(".tab-panel.active");
+    const same = current && current.id === "tab-" + tab && area && !area.hidden;
+
     document.querySelectorAll(".planner-tab").forEach(function (btn) {
-        btn.classList.toggle("active", btn.dataset.tab === tab);
+        const on = !same && btn.dataset.tab === tab;
+        btn.classList.toggle("active", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
     });
 
     document.querySelectorAll(".tab-panel").forEach(function (panel) {
-        panel.classList.toggle("active", panel.id === "tab-" + tab);
+        panel.classList.toggle("active", !same && panel.id === "tab-" + tab);
     });
+
+    if (area) {
+        area.hidden = same;
+        if (!same) {
+            area.scrollIntoView({ behavior: "smooth", block: "start" });
+            const first = area.querySelector(".tab-panel.active input, .tab-panel.active textarea");
+            if (first && window.innerWidth > 700) setTimeout(function () { first.focus(); }, 250);
+        }
+    }
+}
+
+function closePlannerTool() {
+    const area = document.getElementById("tool-area");
+    if (area) area.hidden = true;
+    document.querySelectorAll(".planner-tab").forEach(function (btn) { btn.classList.remove("active"); btn.setAttribute("aria-pressed", "false"); });
+    document.querySelectorAll(".tab-panel").forEach(function (panel) { panel.classList.remove("active"); });
 }
 
 
@@ -297,7 +352,54 @@ function autoPlanTasks() {
         }
     });
 
+    dpLastSchedule = scheduled;
     renderDPSchedule(scheduled, unscheduled);
+}
+
+let dpLastSchedule = [];
+
+// Preview the generated schedule, then create real tasks (Home, Calendar, stats)
+async function dpAddToPlan() {
+    if (!dpLastSchedule.length) return;
+    const btn = document.getElementById("dp-add-plan");
+    if (btn) { btn.disabled = true; btn.textContent = "Checking your calendar…"; }
+    const priorityMap = { high: "high", medium: null, low: "low" };
+    try {
+        const placed = await PlanoraCore.scheduleItems(dpLastSchedule.map(function (s) {
+            return {
+                title: s.task.title,
+                date: todayISO(),
+                start: PlanoraCore.toClock(s.start),
+                duration: s.task.duration,
+                flexible: true,
+                deadline: s.task.due || null,
+                sourceId: s.task.id
+            };
+        }));
+        const byId = {};
+        dpLastSchedule.forEach(function (s) { byId[s.task.id] = s.task; });
+        const tasks = placed.map(function (p) {
+            const t = byId[p.sourceId] || {};
+            return Object.assign({}, p, { priority: priorityMap[t.priority] || null, deadline: t.due || null, source: "daily-planner" });
+        });
+        PlanoraCore.openPlanPreview({ tasks: tasks, goals: [], updates: [] }, {
+            title: "Add today's schedule",
+            intro: "Planora fitted these around what's already in your calendar. Edit anything, then add them to your plan.",
+            source: "daily-planner",
+            onDone: function (result) {
+                // the planned items are now real tasks, so they leave this draft list
+                const addedTitles = new Set(tasks.map(function (t) { return t.title; }));
+                setDPTasks(getDPTasks().filter(function (t) { return !addedTitles.has(t.title); }));
+                dpLastSchedule = [];
+                renderDPTasks();
+                document.getElementById("dp-schedule").innerHTML = '<div class="empty-state">Added to your plan. You\'ll find these on Home and in your Calendar.</div>';
+            }
+        });
+    } catch (error) {
+        PlanoraCore.toast(error.message || "Planora couldn't plan that right now. Your tasks are safe.", "error");
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Review & add to my plan'; }
+    }
 }
 
 function renderDPSchedule(scheduled, unscheduled) {
@@ -333,6 +435,11 @@ function renderDPSchedule(scheduled, unscheduled) {
             </div>
         `;
     }
+
+    html += `
+        <button type="button" class="btn-primary tool-confirm" id="dp-add-plan" onclick="dpAddToPlan()">
+            <i class="ti ti-check" aria-hidden="true"></i> Review &amp; add to my plan
+        </button>`;
 
     el.innerHTML = html;
 }
@@ -530,6 +637,41 @@ function addSubtaskToGroup(groupId, inputEl) {
     renderTBList();
 }
 
+// Turn breakdown steps into real tasks (preview first)
+async function tbAddToPlan(groupId, subId) {
+    const group = getTBGroups().find(function (g) { return g.id === groupId; });
+    if (!group) return;
+    const steps = group.subtasks.filter(function (s) {
+        return (subId ? s.id === subId : true) && !s.done && !s.addedTaskId;
+    });
+    if (!steps.length) { PlanoraCore.toast("These steps are already in your plan."); return; }
+    try {
+        const placed = await PlanoraCore.scheduleItems(steps.map(function (s) {
+            return { title: s.text, date: todayISO(), flexible: true, sourceId: s.id };
+        }));
+        PlanoraCore.openPlanPreview({ tasks: placed.map(function (p) { return Object.assign({}, p, { source: "breakdown" }); }), goals: [], updates: [] }, {
+            title: subId ? "Add this step" : "Add steps to my plan",
+            intro: `Steps for "${group.title}", fitted into your free time. Change anything, then add them.`,
+            source: "breakdown",
+            onDone: function (result) {
+                const groups = getTBGroups();
+                const g = groups.find(function (x) { return x.id === groupId; });
+                if (g) {
+                    const ids = result.taskIds || [];
+                    let k = 0;
+                    g.subtasks.forEach(function (s) {
+                        if (steps.some(function (x) { return x.id === s.id; }) && k < ids.length) s.addedTaskId = ids[k++];
+                    });
+                    setTBGroups(groups);
+                }
+                renderTBList();
+            }
+        });
+    } catch (error) {
+        PlanoraCore.toast(error.message || "Planora couldn't plan that right now. Your tasks are safe.", "error");
+    }
+}
+
 function renderTBList() {
 
     const el = document.getElementById("tb-list");
@@ -562,8 +704,9 @@ function renderTBList() {
                     <button class="subtask-check ${s.done ? "done" : ""}" onclick="toggleSubtask('${g.id}','${s.id}')">
                         <i class="ti ti-check"></i>
                     </button>
-                    <span class="subtask-text ${s.done ? "done" : ""}">${escapeHTML(s.text)}</span>
-                    <button class="icon-btn-sm" onclick="startEditSubtask('${g.id}','${s.id}')"><i class="ti ti-pencil"></i></button>
+                    <span class="subtask-text ${s.done ? "done" : ""}">${escapeHTML(s.text)}${s.addedTaskId ? ' <span class="in-plan">In your plan</span>' : ""}</span>
+                    ${s.addedTaskId || s.done ? "" : `<button class="icon-btn-sm" onclick="tbAddToPlan('${g.id}','${s.id}')" aria-label="Add ${escapeHTML(s.text)} to my plan" title="Add to my plan"><i class="ti ti-calendar-plus"></i></button>`}
+                    <button class="icon-btn-sm" onclick="startEditSubtask('${g.id}','${s.id}')" aria-label="Edit step"><i class="ti ti-pencil"></i></button>
                     <button class="icon-btn-sm danger" onclick="deleteSubtask('${g.id}','${s.id}')"><i class="ti ti-trash"></i></button>
                 </div>
             `;
@@ -578,9 +721,10 @@ function renderTBList() {
                 <p class="dp-task-meta" style="margin-bottom:8px;">${done}/${g.subtasks.length} complete</p>
                 ${subtaskHTML}
                 <div class="add-subtask-row">
-                    <input type="text" id="add-input-${g.id}" placeholder="Add a subtask...">
-                    <button class="icon-btn-sm" onclick="addSubtaskToGroup('${g.id}', document.getElementById('add-input-${g.id}'))"><i class="ti ti-plus"></i></button>
+                    <input type="text" id="add-input-${g.id}" placeholder="Add a step..." aria-label="Add a step">
+                    <button class="icon-btn-sm" onclick="addSubtaskToGroup('${g.id}', document.getElementById('add-input-${g.id}'))" aria-label="Add step"><i class="ti ti-plus"></i></button>
                 </div>
+                ${g.subtasks.some(function (s) { return !s.done && !s.addedTaskId; }) ? `<button type="button" class="btn-primary tool-confirm" onclick="tbAddToPlan('${g.id}')"><i class="ti ti-calendar-plus" aria-hidden="true"></i> Add all to my tasks</button>` : ""}
             </div>
         `;
     }).join("");
@@ -588,89 +732,115 @@ function renderTBList() {
 
 
 /* =======================================================================
-   3. GOAL TRACKER
+   3. GOALS  (one shared goal model: PlanoraCore — same goals as Journal,
+      Ask Planora and Calendar. Sessions are tasks with goalId.)
    ======================================================================= */
 
 function getGoals() {
-    return loadJSON("planora_goals", []);
+    return PlanoraCore.getGoals();
 }
 
 function setGoals(goals) {
-    saveJSON("planora_goals", goals);
+    const tasks = PlanoraCore.getTasks();
+    saveJSON("planora_goals", goals.map(function (g) {
+        const n = PlanoraCore.normaliseGoal(g);
+        return Object.assign({}, n, { progress: PlanoraCore.goalProgress(n, tasks) });
+    }));
 }
 
 function addMilestoneInputRow() {
     const wrap = document.getElementById("gt-milestone-inputs");
+    if (!wrap) return;
     const row = document.createElement("div");
     row.className = "milestone-input-row";
     row.innerHTML = `<input type="text" placeholder="Milestone ${wrap.children.length + 1}">`;
     wrap.appendChild(row);
 }
 
+// New goal: same goal editor used everywhere (with "let Planora schedule sessions")
 function createGoal() {
-
-    const titleEl = document.getElementById("gt-title");
-    const dateEl = document.getElementById("gt-date");
-
-    const title = titleEl.value.trim();
-    const date = dateEl.value;
-
-    if (!title || !date) {
-        (title ? dateEl : titleEl).focus();
-        return;
-    }
-
-    const milestoneInputs = document.querySelectorAll("#gt-milestone-inputs input");
-    const milestones = Array.from(milestoneInputs)
-        .map(function (i) { return i.value.trim(); })
-        .filter(Boolean)
-        .map(function (text) { return { id: uid(), text: text, done: false }; });
-
-    const goals = getGoals();
-    goals.unshift({ id: uid(), title: title, date: date, milestones: milestones });
-    setGoals(goals);
-
-    titleEl.value = "";
-    dateEl.value = "";
-    document.getElementById("gt-milestone-inputs").innerHTML = `
-        <div class="milestone-input-row"><input type="text" placeholder="Milestone 1"></div>
-        <div class="milestone-input-row"><input type="text" placeholder="Milestone 2"></div>
-    `;
-
-    renderGTList();
+    PlanoraCore.openGoalSheet(null, { onSaved: renderGTList });
 }
 
-function deleteGoal(goalId) {
-    setGoals(getGoals().filter(function (g) { return g.id !== goalId; }));
+function editGoal(goalId) {
+    PlanoraCore.openGoalSheet({ id: goalId }, { onSaved: renderGTList });
+}
+
+async function deleteGoal(goalId) {
+    const goal = PlanoraCore.getGoal(goalId);
+    if (!goal) return;
+    const open = PlanoraCore.goalSessions(goalId).filter(function (t) { return !t.completed; }).length;
+    const ok = await PlanoraCore.confirm({
+        title: "Delete this goal?",
+        message: `"${goal.title}" will be deleted.${open ? ` Its ${open} unfinished session${open === 1 ? "" : "s"} will be removed from your schedule.` : ""} Completed sessions stay in your history.`,
+        confirmText: "Delete goal",
+        danger: true
+    });
+    if (!ok) return;
+    PlanoraCore.deleteGoal(goalId);
+    PlanoraCore.toast("Goal deleted.");
     renderGTList();
 }
 
 function toggleMilestone(goalId, msId) {
-    const goals = getGoals();
-    const g = goals.find(function (x) { return x.id === goalId; });
-    if (!g) return;
-    const m = g.milestones.find(function (x) { return x.id === msId; });
-    if (m) m.done = !m.done;
-    setGoals(goals);
+    PlanoraCore.toggleMilestone(goalId, msId);
     renderGTList();
 }
 
 function addMilestoneToGoal(goalId, inputEl) {
     const value = inputEl.value.trim();
     if (!value) return;
-    const goals = getGoals();
-    const g = goals.find(function (x) { return x.id === goalId; });
-    if (!g) return;
-    g.milestones.push({ id: uid(), text: value, done: false });
-    setGoals(goals);
+    const goal = PlanoraCore.getGoal(goalId);
+    if (!goal) return;
+    PlanoraCore.updateGoal(goalId, { milestones: goal.milestones.concat([{ id: uid(), text: value, done: false }]) });
     inputEl.value = "";
+    openGoalIds.add(goalId);
     renderGTList();
 }
 
+function planGoal(goalId) {
+    const goal = PlanoraCore.getGoal(goalId);
+    if (goal) PlanoraCore.planGoalSessions(goal);
+}
+
 function goalProgress(goal) {
-    if (!goal.milestones.length) return 0;
-    const done = goal.milestones.filter(function (m) { return m.done; }).length;
-    return Math.round((done / goal.milestones.length) * 100);
+    return PlanoraCore.goalProgress(goal);
+}
+
+// Sessions Planora scheduled for a goal (tasks with goalId)
+function nextSessionOf(goal) {
+    const now = todayISO();
+    return PlanoraCore.goalSessions(goal.id)
+        .filter(function (t) { return !t.completed && t.date >= now; })
+        .sort(function (a, b) { return (a.date + (a.start || "")).localeCompare(b.date + (b.start || "")); })[0] || null;
+}
+
+function goalSessionsHTML(goal) {
+    const sessions = PlanoraCore.goalSessions(goal.id);
+    const done = sessions.filter(function (t) { return t.completed; }).length;
+    const next = nextSessionOf(goal);
+    const nextBlock = next ? `
+        <div class="goal-next">
+            <p class="next-label">Next session</p>
+            <p class="goal-next-when">${escapeHTML(PlanoraCore.dayLabel(next.date))}${next.start ? " · " + PlanoraCore.time12(next.start) : ""}</p>
+            <p class="goal-next-what">${escapeHTML(next.title.replace(/^[^:]+:\s*/, ""))} · ${PlanoraCore.durLabel(PlanoraCore.taskDuration(next))}</p>
+            <button type="button" class="btn-primary" onclick="PlanoraFocus.start('${escapeHTML(String(next.id))}')"><i class="ti ti-player-play" aria-hidden="true"></i> Start session</button>
+        </div>` : (goal.status === "completed" ? "" : `
+        <div class="goal-next">
+            <p class="next-label">Next session</p>
+            <p class="goal-next-what">Nothing planned yet.</p>
+            <button type="button" class="btn-primary" onclick="planGoal('${goal.id}')"><i class="ti ti-sparkles" aria-hidden="true"></i> Plan next session</button>
+        </div>`);
+    return `
+        ${nextBlock}
+        ${sessions.length ? `<div class="goal-sessions"><span class="pill"><i class="ti ti-calendar-check" aria-hidden="true"></i> ${done}/${sessions.length} sessions done</span></div>` : ""}`;
+}
+
+const openGoalIds = new Set();
+
+function toggleGoalOpen(goalId) {
+    if (openGoalIds.has(goalId)) openGoalIds.delete(goalId); else openGoalIds.add(goalId);
+    renderGTList();
 }
 
 function renderGTList() {
@@ -678,62 +848,74 @@ function renderGTList() {
     const el = document.getElementById("gt-list");
     if (!el) return;
 
-    const goals = getGoals();
+    const goals = PlanoraCore.getGoals({ includeArchived: false });
 
     if (goals.length === 0) {
-        el.innerHTML = '<div class="empty-state">No goals yet — create one above.</div>';
+        el.innerHTML = `
+            <div class="pl-empty">
+                <i class="ti ti-target-arrow" aria-hidden="true"></i>
+                <p><strong>Set something you're working toward.</strong><br>Planora will break it into milestones and schedule practice sessions for you.</p>
+                <button type="button" class="btn-primary" onclick="createGoal()">Create a goal</button>
+            </div>`;
         return;
     }
 
+    // active first, then achieved
+    goals.sort(function (a, b) { return (a.status === "completed") - (b.status === "completed"); });
+
     el.innerHTML = goals.map(function (g) {
 
-        const pct = goalProgress(g);
-        const daysUntil = daysBetween(g.date, todayISO());
-        let dateLabel;
-
-        if (daysUntil > 0) dateLabel = `Due in ${daysUntil} day${daysUntil === 1 ? "" : "s"} · ${formatFriendlyDate(g.date)}`;
-        else if (daysUntil === 0) dateLabel = `Due today · ${formatFriendlyDate(g.date)}`;
-        else dateLabel = `Overdue by ${Math.abs(daysUntil)} day${Math.abs(daysUntil) === 1 ? "" : "s"} · ${formatFriendlyDate(g.date)}`;
-
-        const barColor = pct === 100 ? "var(--blue-400)" : "var(--purple-400)";
+        const pct = PlanoraCore.goalProgress(g);
+        const open = openGoalIds.has(g.id);
+        let dateLabel = "No target date";
+        if (g.status === "completed") dateLabel = "Achieved 🎉";
+        else if (g.date) {
+            const daysUntil = daysBetween(g.date, todayISO());
+            if (daysUntil > 0) dateLabel = `${daysUntil} day${daysUntil === 1 ? "" : "s"} left · ${formatFriendlyDate(g.date)}`;
+            else if (daysUntil === 0) dateLabel = `Due today`;
+            else dateLabel = `${Math.abs(daysUntil)} day${Math.abs(daysUntil) === 1 ? "" : "s"} past target · ${formatFriendlyDate(g.date)}`;
+        }
+        const sessions = PlanoraCore.goalSessions(g.id);
 
         const milestoneHTML = g.milestones.map(function (m) {
             return `
                 <div class="subtask-row">
-                    <button class="subtask-check ${m.done ? "done" : ""}" onclick="toggleMilestone('${g.id}','${m.id}')">
-                        <i class="ti ti-check"></i>
+                    <button class="subtask-check ${m.done ? "done" : ""}" onclick="toggleMilestone('${g.id}','${m.id}')" aria-pressed="${m.done}" aria-label="${m.done ? "Mark not done" : "Mark done"}: ${escapeHTML(m.text)}">
+                        <i class="ti ti-check" aria-hidden="true"></i>
                     </button>
                     <span class="subtask-text ${m.done ? "done" : ""}">${escapeHTML(m.text)}</span>
-                </div>
-            `;
+                    ${m.date ? `<span class="ms-date">${formatFriendlyDate(m.date)}</span>` : ""}
+                </div>`;
         }).join("");
 
         return `
-            <div class="card">
-                <div class="goal-header">
-                    <div>
-                        <div class="goal-title">${escapeHTML(g.title)}</div>
-                        <div class="goal-date">${dateLabel}</div>
+            <article class="goal-card ${g.status === "completed" ? "achieved" : ""}">
+                <button type="button" class="goal-summary" onclick="toggleGoalOpen('${g.id}')" aria-expanded="${open}">
+                    <span class="goal-ring" style="--p:${pct}" aria-hidden="true"><span>${pct}%</span></span>
+                    <span class="goal-text">
+                        <span class="goal-title">${escapeHTML(g.title)}</span>
+                        <span class="goal-date">${dateLabel}${sessions.length ? ` · ${sessions.filter(function (t) { return t.completed; }).length}/${sessions.length} sessions` : ""}</span>
+                        ${(function () { const n = nextSessionOf(g); return n && g.status !== "completed" ? `<span class="goal-date goal-next-line">Next: ${escapeHTML(PlanoraCore.dayLabel(n.date))}${n.start ? " " + PlanoraCore.time12(n.start) : ""} · ${escapeHTML(n.title.replace(/^[^:]+:\s*/, ""))}</span>` : ""; })()}
+                    </span>
+                    <i class="ti ti-chevron-down goal-chev" aria-hidden="true"></i>
+                </button>
+                ${open ? `
+                <div class="goal-detail">
+                    ${goalSessionsHTML(g)}
+                    <div class="goal-milestones">
+                        ${milestoneHTML || '<p class="dp-task-meta">No milestones yet. Add the steps that mark real progress.</p>'}
                     </div>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span class="goal-pct">${pct}%</span>
-                        <button class="icon-btn-sm danger" onclick="deleteGoal('${g.id}')"><i class="ti ti-trash"></i></button>
+                    <div class="add-subtask-row">
+                        <input type="text" id="gt-add-${g.id}" placeholder="Add a milestone..." aria-label="Add a milestone" onkeydown="if(event.key==='Enter'){addMilestoneToGoal('${g.id}', this)}">
+                        <button class="icon-btn-sm" onclick="addMilestoneToGoal('${g.id}', document.getElementById('gt-add-${g.id}'))" aria-label="Add milestone"><i class="ti ti-plus"></i></button>
                     </div>
-                </div>
-
-                <div class="cat-track" style="margin-top:10px;">
-                    <div class="cat-fill" style="width:${pct}%; background:${barColor};"></div>
-                </div>
-
-                <div class="goal-milestones">
-                    ${milestoneHTML || '<p class="dp-task-meta">No milestones yet.</p>'}
-                </div>
-
-                <div class="add-subtask-row">
-                    <input type="text" id="gt-add-${g.id}" placeholder="Add a milestone...">
-                    <button class="icon-btn-sm" onclick="addMilestoneToGoal('${g.id}', document.getElementById('gt-add-${g.id}'))"><i class="ti ti-plus"></i></button>
-                </div>
-            </div>
+                    <div class="goal-actions">
+                        ${g.status === "completed" ? "" : `<button type="button" class="btn-secondary" onclick="planGoal('${g.id}')"><i class="ti ti-sparkles" aria-hidden="true"></i> Plan more sessions</button>`}
+                        <button type="button" class="btn-secondary" onclick="editGoal('${g.id}')"><i class="ti ti-pencil" aria-hidden="true"></i> Edit</button>
+                        <button type="button" class="btn-secondary danger" onclick="deleteGoal('${g.id}')" aria-label="Delete goal ${escapeHTML(g.title)}"><i class="ti ti-trash" aria-hidden="true"></i></button>
+                    </div>
+                </div>` : ""}
+            </article>
         `;
     }).join("");
 }
@@ -812,6 +994,8 @@ async function generateStudyPlan() {
         if (!response.ok) throw new Error("Request failed");
 
         const data = await response.json();
+        const meta = { subject: subject, examDate: examDate, hoursPerDay: hoursPerDay, topics: topics };
+        saveJSON("planora_study_plan", { sessions: data.sessions || [], source: data.source, meta: meta });
         renderStudyPlan(data.sessions || [], data.source);
 
     } catch (err) {
@@ -819,7 +1003,7 @@ async function generateStudyPlan() {
         outputEl.innerHTML = `
             <div class="ai-tip" style="margin-top:14px;">
                 <i class="ti ti-alert-triangle"></i>
-                <span>Couldn't generate a plan right now. Please try again in a moment.</span>
+                <span>Planora couldn't build your study plan right now. Your existing tasks are safe. Please try again in a moment.</span>
             </div>
         `;
     }
@@ -865,11 +1049,71 @@ function renderStudyPlan(sessions, source) {
         `;
     }).join("");
 
+    const saved = loadJSON("planora_study_plan", {}) || {};
+    const added = saved.addedGoalId && PlanoraCore.getGoal(saved.addedGoalId);
+
     outputEl.innerHTML = `
         <div class="card" style="margin-top:14px;">
             <div class="card-header"><span>Your revision schedule</span><i class="ti ti-calendar-time"></i></div>
             ${html}
             <p class="ai-source-note">${source === "openai" ? "Generated with AI" : "Generated locally"} · harder topics get more time, with revision and practice sessions built in.</p>
+            ${added
+                ? `<p class="in-plan-note"><i class="ti ti-circle-check" aria-hidden="true"></i> Added to your plan as the goal "${escapeHTML(added.title)}". Sessions are on Home and in your Calendar.</p>`
+                : `<button type="button" class="btn-primary tool-confirm" id="sp-add-plan" onclick="studyAddToPlan()"><i class="ti ti-check" aria-hidden="true"></i> Review &amp; add to my plan</button>
+                   <p class="pl-hint" style="margin-top:8px;">Creates a study goal with each topic as a milestone, and puts the sessions in your calendar.</p>`}
         </div>
     `;
+}
+
+// Study timetable -> a study goal + milestones (topics) + real sessions
+async function studyAddToPlan() {
+    const saved = loadJSON("planora_study_plan", null);
+    if (!saved || !Array.isArray(saved.sessions) || !saved.sessions.length) return;
+    const meta = saved.meta || {
+        subject: (document.getElementById("sp-subject").value || "Study").trim(),
+        examDate: document.getElementById("sp-exam-date").value || null,
+        topics: []
+    };
+    const subject = meta.subject || "Study";
+    const topics = (meta.topics || []).map(function (t) { return t.name; }).filter(Boolean);
+    const sessionTopics = Array.from(new Set(saved.sessions.map(function (s) { return s.topic; })));
+    const btn = document.getElementById("sp-add-plan");
+    if (btn) { btn.disabled = true; btn.textContent = "Checking your calendar…"; }
+
+    try {
+        const placed = await PlanoraCore.scheduleItems(saved.sessions
+            .filter(function (s) { return s.date >= todayISO(); })
+            .map(function (s) {
+                const start = s.start || "16:00";
+                const dur = s.start && s.end ? Math.max(15, timeToMinutes(s.end) - timeToMinutes(s.start)) : 45;
+                const kind = s.type && s.type !== "study" ? ` (${s.type})` : "";
+                return { title: `${subject}: ${s.topic}${kind}`, date: s.date, start: start, duration: dur, flexible: true, goalRef: "g1", deadline: meta.examDate || null };
+            }));
+
+        const goal = {
+            ref: "g1",
+            title: /exam|test/i.test(subject) ? subject : `${subject} exam`,
+            date: meta.examDate || null,
+            category: "learning",
+            milestones: (topics.length ? topics : sessionTopics).map(function (name) { return { text: `Revise ${name}` }; })
+                .concat([{ text: "Final review done", date: meta.examDate ? PlanoraCore.addDays(meta.examDate, -1) : null }])
+        };
+
+        PlanoraCore.openPlanPreview({ tasks: placed.map(function (p) { return Object.assign({}, p, { source: "study-planner" }); }), goals: [goal], updates: [] }, {
+            title: "Add your study plan",
+            intro: "This creates a study goal and puts each session in your calendar. Edit or untick sessions first if you like.",
+            source: "study-planner",
+            onDone: function (result) {
+                const s2 = loadJSON("planora_study_plan", {}) || {};
+                s2.addedGoalId = (result.goalIds || [])[0] || null;
+                saveJSON("planora_study_plan", s2);
+                renderStudyPlan(s2.sessions || [], s2.source);
+                renderGTList();
+            }
+        });
+    } catch (error) {
+        PlanoraCore.toast(error.message || "Planora couldn't plan that right now. Your tasks are safe.", "error");
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Review &amp; add to my plan'; }
+    }
 }
