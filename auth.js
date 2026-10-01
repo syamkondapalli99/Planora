@@ -129,6 +129,7 @@
         else if (/same_password|should be different/.test(t)) message = "Your new password must be different from the old one.";
         else if (/rate limit|too many|over_request_rate_limit|over_email_send_rate_limit|429/.test(t) || status === 429) message = "Too many attempts. Please wait a minute and try again.";
         else if (/provider is not enabled|unsupported provider|validation_failed.*provider/.test(t)) message = `${context || "This"} sign-in isn't switched on yet. Please use another way to sign in for now.`;
+        else if (/audience|nonce|id_token|id token/.test(t)) message = `${context || "This"} sign-in isn't fully set up yet. Please use email for now.`;
         else if (/access_denied|cancel|user denied|popup_closed/.test(t)) message = "Sign-in was cancelled.";
         else if (/redirect|not allowed|invalid_request/.test(t)) message = "Sign-in isn't set up for this web address yet.";
         else if (/jwt expired|refresh token|session.*(expired|not found|missing)|auth session missing|invalid jwt|not authenticated/.test(t)) message = "Your session has ended. Please sign in again.";

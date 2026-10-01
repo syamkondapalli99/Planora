@@ -21,6 +21,10 @@ window.PLANORA_CONFIG = {
     // the anon (legacy) or publishable ("sb_publishable_…") key
     supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndueGV2dXl4b2l5c2Flb2d1b2RiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4NTAzMTIsImV4cCI6MjEwNjQyNjMxMn0.cS7xdHypmg4DFYkqtUyTxakNQUnG5FGpLE95ue0Xe4E",
 
+    // Google OAuth Client ID (public; NOT the client secret). Used for Google's own
+    // sign-in pop-up so it says "Sign in to planoraai.net". "" = use the redirect.
+    googleClientId: "452146070808-qdo45feqsutqj93d6t80lsc2k06e736b.apps.googleusercontent.com",
+
     // The real site. Sign-in links on the live site always come back here.
     productionUrl: "https://planoraai.net",
 

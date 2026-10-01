@@ -92,7 +92,11 @@
         ["login-error", "signup-error", "forgot-error", "check-email-error"].forEach(id => showError(id, ""));
         if (next !== "sent") banner("");
         const first = { login: "login-email", signup: "signup-name", forgot: "forgot-email" }[next];
-        if (first && window.innerWidth > 700) setTimeout(() => $(first) && $(first).focus(), 20);
+        if (first && window.innerWidth > 700) setTimeout(() => {
+            const active = document.activeElement;
+            const typing = active && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName);
+            if (!typing && $(first)) $(first).focus();     // don't pull the cursor out of a box you're already in
+        }, 20);
         if (next === "forgot" && $("login-email").value) $("forgot-email").value = $("login-email").value;
     }
 
@@ -304,6 +308,94 @@
     }
 
 
+    /* ---------------- Google: official pop-up ----------------
+       With a Google Client ID in planora-config.js, Google's own button opens a
+       small pop-up that says "Sign in to planoraai.net". The ID token it returns
+       is checked by Supabase (signInWithIdToken, with a one-time nonce).
+       If Google's script can't load, the normal redirect button stays. */
+
+    let gsiNonce = null;
+    let gsiReady = false;
+
+    function randomHex(bytes) {
+        return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), b => b.toString(16).padStart(2, "0")).join("");
+    }
+    async function sha256Hex(text) {
+        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+        return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+    }
+    function waitForGoogleScript(ms) {
+        return new Promise(resolve => {
+            const start = Date.now();
+            (function poll() {
+                if (window.google && google.accounts && google.accounts.id) return resolve(true);
+                if (Date.now() - start > ms) return resolve(false);
+                setTimeout(poll, 100);
+            })();
+        });
+    }
+
+    function renderGoogleButton() {
+        if (!gsiReady) return;
+        const host = $("gsi-btn");
+        const width = Math.round($("oauth-buttons").getBoundingClientRect().width) || 360;
+        host.innerHTML = "";
+        google.accounts.id.renderButton(host, {
+            type: "standard", theme: "outline", size: "large", text: "continue_with",
+            shape: "rectangular", logo_alignment: "center", width: Math.max(220, Math.min(400, width))
+        });
+        host.hidden = false;
+        $("google-btn").hidden = true;
+    }
+
+    async function setupGooglePopup() {
+        const cfg = window.PLANORA_CONFIG || {};
+        if (!auth().configured || !cfg.googleClientId || !window.crypto || !crypto.subtle) return;
+        if (await providerEnabled("google") === false) return;   // the normal button explains it isn't on yet
+        if (!document.querySelector('script[src^="https://accounts.google.com/gsi/client"]')) {
+            const tag = document.createElement("script");
+            tag.src = "https://accounts.google.com/gsi/client";
+            tag.async = true;
+            document.head.appendChild(tag);
+        }
+        if (!(await waitForGoogleScript(6000))) return;          // blocked or offline: keep the redirect button
+        try {
+            gsiNonce = randomHex(32);
+            google.accounts.id.initialize({
+                client_id: cfg.googleClientId,
+                callback: onGoogleCredential,
+                nonce: await sha256Hex(gsiNonce),
+                ux_mode: "popup",
+                auto_select: false,
+                itp_support: true
+            });
+            gsiReady = true;
+            renderGoogleButton();
+            let t;
+            window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(renderGoogleButton, 200); });
+        } catch (error) {
+            gsiReady = false;
+            $("gsi-btn").hidden = true;
+            $("google-btn").hidden = false;
+        }
+    }
+
+    async function onGoogleCredential(response) {
+        if (busy || !response || !response.credential) return;
+        const backTo = mode === "signup" ? "signup" : "login";
+        showChecking("Signing you in…");
+        try {
+            const { error } = await sb().auth.signInWithIdToken({ provider: "google", token: response.credential, nonce: gsiNonce });
+            if (error) throw error;
+            await signedIn();
+        } catch (error) {
+            showMain();
+            showMode(backTo);
+            banner(auth().friendlyError(error, "Google").message, "error");
+        }
+    }
+
+
     /* ---------------- development only: try without an account ---------------- */
 
     function skip() {
@@ -414,6 +506,7 @@
         showMain();
         if (message) banner(message, type);
         if (!a.configured) notReady();
+        setupGooglePopup();
     }
 
     document.addEventListener("keydown", e => {

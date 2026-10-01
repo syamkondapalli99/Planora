@@ -1429,3 +1429,22 @@ body.ask-open .fab { opacity: 0; pointer-events: none; }
 #login-screen .footer-link { padding-top: 22px; margin-top: 0; text-align: center; }
 .skip-link small { color: var(--gray-400); font-weight: 400; }
 .reset-done { text-align: center; }
+
+/* Privacy · Terms links under the sign-in card */
+.auth-legal { margin: 18px 0 0; font-size: 12px; color: var(--text-muted, #6b7280); text-align: center; }
+.auth-legal a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.auth-legal a:hover { color: var(--primary, #5b4bc4); }
+
+/* Privacy / Terms pages */
+.legal-page { max-width: 720px; margin: 0 auto; padding: 40px 20px 64px; color: var(--text, #1f1d3a); line-height: 1.6; text-align: left; }
+.legal-page .legal-brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; color: var(--primary, #5b4bc4); text-decoration: none; margin-bottom: 24px; }
+.legal-page h1 { font-size: 28px; margin: 0 0 4px; }
+.legal-page .legal-updated { color: var(--text-muted, #6b7280); font-size: 14px; margin: 0 0 28px; }
+.legal-page h2 { font-size: 18px; margin: 28px 0 8px; }
+.legal-page p, .legal-page li { font-size: 15px; }
+.legal-page ul { padding-left: 20px; }
+.legal-page a { color: var(--primary, #5b4bc4); }
+
+/* Google's own "Continue with Google" button (pop-up sign-in) */
+.gsi-btn { display: flex; justify-content: center; min-height: 44px; }
+.gsi-btn[hidden] { display: none; }
