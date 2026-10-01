@@ -316,6 +316,7 @@
 
     let gsiNonce = null;
     let gsiReady = false;
+    let gsiFailed = false;
 
     function randomHex(bytes) {
         return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), b => b.toString(16).padStart(2, "0")).join("");
@@ -329,7 +330,7 @@
             const start = Date.now();
             (function poll() {
                 if (window.google && google.accounts && google.accounts.id) return resolve(true);
-                if (Date.now() - start > ms) return resolve(false);
+                if (gsiFailed || Date.now() - start > ms) return resolve(false);
                 setTimeout(poll, 100);
             })();
         });
@@ -348,14 +349,31 @@
         $("google-btn").hidden = true;
     }
 
+    // While Google's button is loading (usually under a second), the stand-in button
+    // waits instead of starting the full-page sign-in.
+    function holdGoogleButton(on) {
+        const btn = $("google-btn");
+        if (!on && busy) { btn.dataset.wasDisabled = ""; }      // another sign-in is running: re-enable when it ends
+        else btn.disabled = on;
+        btn.classList.toggle("is-loading", on);
+        if (on) btn.setAttribute("aria-busy", "true"); else btn.removeAttribute("aria-busy");
+    }
+
     async function setupGooglePopup() {
         const cfg = window.PLANORA_CONFIG || {};
         if (!auth().configured || !cfg.googleClientId || !window.crypto || !crypto.subtle) return;
+        holdGoogleButton(true);
+        try { await loadGooglePopup(cfg); }
+        finally { holdGoogleButton(false); }
+    }
+
+    async function loadGooglePopup(cfg) {
         if (await providerEnabled("google") === false) return;   // the normal button explains it isn't on yet
         if (!document.querySelector('script[src^="https://accounts.google.com/gsi/client"]')) {
             const tag = document.createElement("script");
             tag.src = "https://accounts.google.com/gsi/client";
             tag.async = true;
+            tag.onerror = () => { gsiFailed = true; };      // blocked or offline: stop waiting straight away
             document.head.appendChild(tag);
         }
         if (!(await waitForGoogleScript(6000))) return;          // blocked or offline: keep the redirect button

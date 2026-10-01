@@ -12,7 +12,7 @@
    - Account and AI requests (/api, /auth) are never cached.
    ========================================================= */
 
-const VERSION = "planora-2026-10-01-auth";
+const VERSION = "planora-2026-10-01-google";
 const SHELL = [
     "/offline.html",
     "/style.css", "/extras.css", "/devices.css",

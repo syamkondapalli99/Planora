@@ -1448,3 +1448,4 @@ body.ask-open .fab { opacity: 0; pointer-events: none; }
 /* Google's own "Continue with Google" button (pop-up sign-in) */
 .gsi-btn { display: flex; justify-content: center; min-height: 44px; }
 .gsi-btn[hidden] { display: none; }
+.oauth-btn.is-loading { opacity: .7; cursor: progress; }
