@@ -260,6 +260,21 @@
 
     /* ---------------- Google / Apple (Supabase OAuth) ---------------- */
 
+    async function providerEnabled(provider) {
+        try {
+            const cfg = window.PLANORA_CONFIG || {};
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 4000);
+            const res = await fetch(`${String(cfg.supabaseUrl).replace(/\/$/, "")}/auth/v1/settings`, {
+                headers: { apikey: cfg.supabaseAnonKey }, signal: ctrl.signal
+            });
+            clearTimeout(timer);
+            if (!res.ok) return null;
+            const settings = await res.json();
+            return settings && settings.external ? Boolean(settings.external[provider]) : null;
+        } catch { return null; }
+    }
+
     async function oauth(provider) {
         if (busy || notReady()) return;
         const label = provider === "apple" ? "Apple" : "Google";
@@ -267,12 +282,20 @@
         banner("");
         setBusy(button, true, `Opening ${label}…`);
         try {
-            const { error } = await sb().auth.signInWithOAuth({
+            // Is this provider switched on in Supabase? (public settings; if they can't be read, just try)
+            const enabled = await providerEnabled(provider);
+            if (enabled === false) {
+                setBusy(button, false);
+                banner(`${label} sign-in isn't turned on yet. Please use email for now.`, "warn");
+                return;
+            }
+            const { data, error } = await sb().auth.signInWithOAuth({
                 provider,
-                options: { redirectTo: auth().siteBase() }
+                options: { redirectTo: auth().siteBase(), skipBrowserRedirect: true }
             });
             if (error) throw error;
-            // the browser now goes to Google / Apple and comes back here
+            // go to Google / Apple; it comes back to this page
+            location.assign(data.url);
             setTimeout(() => setBusy(button, false), 8000);
         } catch (error) {
             setBusy(button, false);
