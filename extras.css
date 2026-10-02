@@ -1590,3 +1590,26 @@ body.ask-open .fab { opacity: 0; pointer-events: none; }
 .labels-foot .btn-primary, .labels-foot .btn-secondary { width: auto; padding: 10px 20px; }
 .labels-dialog .auth-error { margin: 0 24px 4px; }
 .labels-dialog button:focus-visible { outline: 3px solid var(--purple-200, #AFA9EC); outline-offset: 2px; }
+
+/* =========================================================
+   VOICE TYPING (🎤)
+   ========================================================= */
+.mic-btn {
+  position: relative; flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--purple-100, #CECBF6);
+  background: #fff; color: var(--purple-600, #534AB7); display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 19px; transition: background .15s, color .15s, border-color .15s;
+}
+.mic-btn:hover { background: var(--purple-50, #EEEDFE); border-color: var(--purple-200, #AFA9EC); }
+.mic-btn:focus-visible { outline: 3px solid var(--purple-200, #AFA9EC); outline-offset: 2px; }
+.mic-btn.listening { background: #E5484D; border-color: #E5484D; color: #fff; }
+.mic-btn .mic-pulse { position: absolute; inset: -4px; border-radius: 15px; border: 2px solid #E5484D; opacity: 0; pointer-events: none; }
+.mic-btn.listening .mic-pulse { animation: micPulse 1.3s ease-out infinite; }
+@keyframes micPulse { 0% { opacity: .7; transform: scale(.92); } 100% { opacity: 0; transform: scale(1.18); } }
+@media (prefers-reduced-motion: reduce) { .mic-btn.listening .mic-pulse { animation: none; opacity: .6; } }
+.is-listening { border-color: #E5484D !important; box-shadow: 0 0 0 3px rgba(229, 72, 77, .12) !important; }
+/* text box + mic side by side */
+.voice-field { display: flex; gap: 8px; align-items: stretch; }
+.voice-field > input { flex: 1; min-width: 0; }
+.voice-field > .mic-btn { height: auto; min-height: 44px; }
+/* Ask Planora row: textarea · mic · send */
+.sp-input-row .mic-btn { align-self: flex-end; width: 46px; height: 46px; border-radius: 13px; }

@@ -258,6 +258,12 @@
         }
 
         root.querySelector(".sp-input-row").addEventListener("submit", e => { e.preventDefault(); send(); });
+        // 🎤 speak instead of typing: when you stop talking it's sent (you still review the plan before anything changes)
+        if (PlanoraCore.attachMic) PlanoraCore.attachMic(input, {
+            label: "Speak to Planora",
+            place: btn => sendBtn.before(btn),
+            onFinal: text => { if (text && !state.busy) send(); }
+        });
         input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
         input.addEventListener("input", autoGrow);
         input.addEventListener("focus", () => document.body.classList.add("sp-typing"));

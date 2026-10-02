@@ -440,6 +440,98 @@
     const colorValue = form => { const el = form.querySelector("input[name=color]"); return el && validColor(el.value) ? el.value : null; };
 
     /* =====================================================
+       Voice typing: a 🎤 button next to a text box. Speak and the
+       words appear in the box (uses the browser's own speech
+       recognition: Chrome, Edge, Safari on iPhone/iPad/Mac).
+       Hidden where the browser can't do it (e.g. Firefox).
+       ===================================================== */
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    let activeVoice = null;
+
+    function voiceSupported() { return Boolean(SpeechRec) && window.isSecureContext !== false; }
+
+    /* Add a mic button for `input`. Options:
+         onFinal(text)  called when you stop speaking (e.g. send to Ask Planora)
+         place(btn)     where to put the button (default: right after the input) */
+    function attachMic(input, { onFinal, place, label = "Speak instead of typing" } = {}) {
+        if (!input || !voiceSupported() || input.dataset.mic) return null;
+        input.dataset.mic = "1";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "mic-btn";
+        btn.setAttribute("aria-label", label);
+        btn.setAttribute("aria-pressed", "false");
+        btn.title = label;
+        btn.innerHTML = '<i class="ti ti-microphone" aria-hidden="true"></i><span class="mic-pulse" aria-hidden="true"></span>';
+        if (place) place(btn); else input.insertAdjacentElement("afterend", btn);
+
+        let rec = null, base = "", finalText = "", stoppedByUser = false;
+        const setText = t => {
+            input.value = t;
+            input.dispatchEvent(new Event("input", { bubbles: true }));   // autosize, live preview, colour suggestion…
+        };
+        const ui = on => {
+            btn.classList.toggle("listening", on);
+            btn.setAttribute("aria-pressed", String(on));
+            btn.setAttribute("aria-label", on ? "Stop listening" : label);
+            btn.title = on ? "Listening… tap to stop" : label;
+            btn.querySelector("i").className = "ti " + (on ? "ti-player-stop-filled" : "ti-microphone");
+            input.classList.toggle("is-listening", on);
+            if (on) { input.dataset.ph = input.placeholder; input.placeholder = "Listening… say what you need to do"; }
+            else if (input.dataset.ph !== undefined) { input.placeholder = input.dataset.ph; delete input.dataset.ph; }
+        };
+        const stop = () => { stoppedByUser = true; try { rec && rec.stop(); } catch {} };
+
+        btn.addEventListener("click", () => {
+            if (rec) { stop(); return; }
+            if (activeVoice && activeVoice !== stop) activeVoice();   // only one mic at a time
+            rec = new SpeechRec();
+            rec.lang = document.documentElement.lang && document.documentElement.lang.length > 2 ? document.documentElement.lang : (navigator.language || "en-US");
+            rec.interimResults = true;
+            rec.continuous = false;
+            rec.maxAlternatives = 1;
+            base = input.value.trim(); finalText = ""; stoppedByUser = false;
+            rec.onresult = e => {
+                let interim = "";
+                for (let i = e.resultIndex; i < e.results.length; i++) {
+                    const r = e.results[i];
+                    if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript;
+                }
+                setText([base, (finalText + " " + interim).trim()].filter(Boolean).join(" "));
+            };
+            rec.onerror = e => {
+                const msg = {
+                    "not-allowed": "Planora can't use the microphone. Allow microphone access for this site in your browser settings, then try again.",
+                    "service-not-allowed": "Voice typing isn't available in this browser. Try Chrome or Safari, or type instead.",
+                    "no-speech": "Didn't catch that. Tap the mic and try again.",
+                    "audio-capture": "No microphone found.",
+                    "network": "Voice typing needs an internet connection."
+                }[e.error];
+                if (msg && e.error !== "aborted") toast(msg, e.error === "no-speech" ? undefined : "error");
+            };
+            rec.onend = () => {
+                const said = finalText.trim();
+                rec = null; activeVoice = null;
+                ui(false);
+                if (said) {
+                    setText([base, said].filter(Boolean).join(" "));
+                    input.focus();
+                    if (onFinal) onFinal(input.value.trim());
+                }
+            };
+            try {
+                rec.start();
+                activeVoice = stop;
+                ui(true);
+            } catch (error) {
+                rec = null;
+                toast("Couldn't start voice typing. Please try again.", "error");
+            }
+        });
+        return btn;
+    }
+
+    /* =====================================================
        Labels editor (like Google Calendar's): your own labels,
        each with a name and a colour. Add, rename, recolour, delete.
        Opens on top of whatever form you're in.
@@ -1613,6 +1705,7 @@
                 const days = form.querySelector(".pl-days");
                 const rep = f("repeat");
                 if (rep) rep.onchange = () => { days.hidden = rep.value !== "custom"; };
+                attachMic(f("title"), { place: btn => { const w = document.createElement("div"); w.className = "voice-field"; f("title").before(w); w.append(f("title"), btn); } });
                 mountColorChips(form.querySelector(".edit-color-field"), {
                     selected: d.category || "",
                     color: d.color || "",
@@ -1726,6 +1819,7 @@
                 });
                 form.querySelectorAll("[data-k]").forEach(b => b.onclick = () => { type = b.dataset.k; typeTouched = true; apply(); });
                 mountColorChips(form.querySelector(".edit-color-field"), { selected: "", autoFrom: f("title") });
+                attachMic(f("title"), { place: btn => { const w = document.createElement("div"); w.className = "voice-field"; f("title").before(w); w.append(f("title"), btn); } });
                 f("title").addEventListener("input", () => {
                     const t = f("title").value;
                     if (!typeTouched && t.trim().length > 2) { const g = guess(t); if (g !== "ambiguous" && g !== type) { type = g; apply(); } }
@@ -1989,6 +2083,7 @@
             onReady(panel) {
                 const form = panel.querySelector("form");
                 const f = n => form.querySelector(`[name=${n}]`);
+                attachMic(f("title"), { place: btn => { const w = document.createElement("div"); w.className = "voice-field"; f("title").before(w); w.append(f("title"), btn); } });
                 mountColorChips(form.querySelector(".edit-color-field"), {
                     selected: d.category,
                     color: editing ? editing.color : "",
@@ -2468,7 +2563,7 @@
         eventSeriesFor, editEventScoped, deleteEventScoped, openEventSheet, openEventForm, openCreateSheet, openSlotCreate,
         categoryInfo, categoryOf, categoryOptions, customCategories, addCategory,
         // colours
-        openLabelsManager, taskColor, eventColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
+        openLabelsManager, voiceSupported, attachMic, taskColor, eventColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
         // utils
         today, addDays, nowMin, nowClock, toMin, toClock, time12, durLabel, dayLabel, shortDate, esc, uid, taskDuration, loadJSON, saveJSON,
         migrate

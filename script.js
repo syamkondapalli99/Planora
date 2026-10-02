@@ -731,6 +731,14 @@ function openAddTaskModal() {
 // Category chips (each with its colour); goal tasks use their goal's colour
 // ======================================================
 
+// 🎤 on the task name in the Add / Edit box
+document.addEventListener("DOMContentLoaded", () => {
+    const title = document.getElementById("edit-title");
+    if (title && window.PlanoraCore && PlanoraCore.attachMic) {
+        PlanoraCore.attachMic(title, { place: btn => { const w = document.createElement("div"); w.className = "voice-field"; title.before(w); w.append(title, btn); } });
+    }
+});
+
 function renderEditColor(task) {
 
     const core = window.PlanoraCore;
