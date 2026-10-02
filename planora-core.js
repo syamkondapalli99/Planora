@@ -302,6 +302,75 @@
         return c;
     }
 
+    // the chosen category (never the "+ New category…" placeholder)
+    function catValue(sel) {
+        if (!sel) return "";
+        if (sel.value && sel.value !== "__new") return sel.value;
+        return sel.dataset.prev && sel.dataset.prev !== "__new" ? sel.dataset.prev : "";
+    }
+
+    /* Colour chips for a task form.
+       field = an element containing .edit-color-chips, select[name=category]
+       and .edit-goal-color. Goal tasks show the goal's colour instead. */
+    function mountColorChips(field, { selected = "", goal = null, onChangeGoalColor } = {}) {
+        if (!field) return () => {};
+        const chips = field.querySelector(".edit-color-chips");
+        const select = field.querySelector("select[name=category]");
+        const goalBox = field.querySelector(".edit-goal-color");
+        const valid = selected && categoryInfo(selected) ? selected : "";
+        select.innerHTML = categoryOptions(valid, { allowNone: true });
+        select.value = valid;
+        select.dataset.prev = valid;
+
+        if (goal && goalBox) {
+            const gc = goalColor(goal);
+            goalBox.hidden = false;
+            goalBox.innerHTML = `<p><span class="cat-dot" style="background:${gc.color}" aria-hidden="true"></span>Part of the goal <strong>\u201C${esc(goal.title)}\u201D</strong>, so it uses the goal's colour.</p>
+                <button type="button" class="btn-secondary" data-goal-color><i class="ti ti-palette" aria-hidden="true"></i> Change goal colour</button>`;
+            goalBox.querySelector("[data-goal-color]").onclick = () => {
+                if (onChangeGoalColor) onChangeGoalColor(goal);
+                else { closeSheet(); openGoalSheet({ id: goal.id }); }
+            };
+            chips.hidden = true;
+            return () => {};
+        }
+        if (goalBox) { goalBox.hidden = true; goalBox.innerHTML = ""; }
+        chips.hidden = false;
+
+        const draw = () => {
+            const current = select.value === "__new" ? (select.dataset.prev || "") : select.value;
+            const opts = Array.from(select.options).filter(o => o.value !== "__new");
+            chips.innerHTML = opts.map(o => {
+                const info = o.value ? categoryInfo(o.value) : null;
+                const on = o.value === current;
+                return `<button type="button" class="color-chip${on ? " on" : ""}" role="radio" aria-checked="${on}" data-cat="${esc(o.value)}" style="--chip:${info ? info.color : DEFAULT_COLOR.color}"><span class="dot" aria-hidden="true"></span>${esc(o.value ? o.textContent : "None")}</button>`;
+            }).join("") + `<button type="button" class="color-chip add" data-new="1"><i class="ti ti-plus" aria-hidden="true"></i>New</button>`;
+            chips.querySelectorAll(".color-chip").forEach(chip => {
+                chip.onclick = () => {
+                    if (chip.dataset.new) {
+                        select.dataset.prev = select.value;
+                        select.value = "__new";
+                        select.dispatchEvent(new Event("change", { bubbles: true }));   // opens "New category" right here
+                        return;
+                    }
+                    select.value = chip.dataset.cat;
+                    select.dataset.prev = select.value;
+                    select.dispatchEvent(new Event("change", { bubbles: true }));
+                };
+            });
+        };
+        select.addEventListener("change", () => { if (select.value !== "__new") draw(); });
+        draw();
+        return draw;     // call after changing select.value in code
+    }
+    const COLOR_FIELD_HTML = `
+        <div class="sp-lbl edit-color-field">
+            <span class="edit-color-title">Colour</span>
+            <div class="edit-color-chips" role="radiogroup" aria-label="Colour"></div>
+            <select name="category" class="edit-category-select" tabindex="-1" aria-hidden="true"></select>
+            <div class="edit-goal-color" hidden></div>
+        </div>`;
+
     /* Your own categories (name + colour), saved with your account */
     const CAT_KEY = "planora_categories";
     function customCategories() {
@@ -1368,7 +1437,7 @@
                 form.onsubmit = async e => {
                     e.preventDefault();
                     const err = form.querySelector(".auth-error");
-                    const v = { title: f("title").value.trim(), date: f("date").value || today(), start: f("start").value, end: f("end").value, category: f("category").value, location: f("location").value.trim(), notes: f("notes").value.trim() };
+                    const v = { title: f("title").value.trim(), date: f("date").value || today(), start: f("start").value, end: f("end").value, category: catValue(f("category")), location: f("location").value.trim(), notes: f("notes").value.trim() };
                     if (!v.title) { err.textContent = "Please give the event a name."; err.hidden = false; f("title").focus(); return; }
                     if (toMin(v.start) === null) { err.textContent = "Please choose a start time."; err.hidden = false; return; }
                     if (toMin(v.end) === null || toMin(v.end) <= toMin(v.start)) v.end = toClock(Math.min(24 * 60 - 1, toMin(v.start) + 60));
@@ -1488,12 +1557,12 @@
                     if (!title) { err.textContent = `Please give the ${type} a name.`; err.hidden = false; f("title").focus(); return; }
                     const date2 = f("date").value || date, start2 = f("start").value || start;
                     if (type === "event") {
-                        const [ev] = addEvents([{ title, date: date2, start: start2, end: f("end").value, category: f("category").value, location: f("location").value.trim(), notes: f("notes").value.trim(), source: "calendar" }]);
+                        const [ev] = addEvents([{ title, date: date2, start: start2, end: f("end").value, category: catValue(f("category")), location: f("location").value.trim(), notes: f("notes").value.trim(), source: "calendar" }]);
                         closeSheet();
                         toastUndo(`Added "${ev.title}" · ${dayLabel(ev.date)} ${time12(ev.start)}–${time12(ev.end)}.`, () => removeEvent(ev.id));
                     } else {
                         const dur = Number(f("duration").value) || 30;
-                        const [t] = addTasks([{ title, date: date2, start: start2, end: toClock(toMin(start2) + dur), duration: dur, priority: f("priority").value, category: f("category").value, source: "calendar", fixed: true }]);
+                        const [t] = addTasks([{ title, date: date2, start: start2, end: toClock(toMin(start2) + dur), duration: dur, priority: f("priority").value, category: catValue(f("category")), source: "calendar", fixed: true }]);
                         closeSheet();
                         toastUndo(`Added "${t.title}" · ${dayLabel(t.date)} ${time12(t.start)}.`, () => removeTask(t.id));
                     }
@@ -1713,8 +1782,8 @@
                             <option value="normal" ${d.priority !== "high" && d.priority !== "low" ? "selected" : ""}>Normal</option>
                             <option value="high" ${d.priority === "high" ? "selected" : ""}>High</option>
                             <option value="low" ${d.priority === "low" ? "selected" : ""}>Low</option></select></label>
-                        <label>Category<select name="category">${categoryOptions(d.category, { allowNone: true })}</select></label>
                     </div>
+                    ${COLOR_FIELD_HTML}
                     ${editing ? "" : `
                     <label class="sp-lbl">Repeats
                         <select name="repeat">
@@ -1735,6 +1804,21 @@
             onReady(panel) {
                 const form = panel.querySelector("form");
                 const f = n => form.querySelector(`[name=${n}]`);
+                const redrawColor = mountColorChips(form.querySelector(".edit-color-field"), {
+                    selected: d.category,
+                    goal: editing && editing.goalId ? getGoal(editing.goalId) : null,
+                    onChangeGoalColor: g => { closeSheet(); openGoalSheet({ id: g.id }); }
+                });
+                // New task: suggest a colour from the words you type, until you pick one yourself
+                let colorPicked = Boolean(editing);
+                form.querySelector(".edit-color-chips").addEventListener("click", () => { colorPicked = true; });
+                f("title").addEventListener("input", () => {
+                    if (colorPicked) return;
+                    const words = f("title").value.trim();
+                    const guess = words.length > 2 && window.PlanoraPriority ? PlanoraPriority.guessCategory(words) : "";
+                    f("category").value = guess && guess !== "other" && categoryInfo(guess) ? guess : "";
+                    redrawColor();
+                });
                 const said = form.querySelector(".pl-understood");
                 const days = form.querySelector(".pl-days");
                 const touched = new Set();
@@ -1747,7 +1831,7 @@
                 let parsedTitle = null, timer = null, seq = 0;
                 const current = () => {
                     const rep = repeatSel && repeatSel.value ? { type: repeatSel.value, days: Array.from(days.querySelectorAll("input:checked")).map(i => Number(i.value)) } : null;
-                    return { title: parsedTitle || f("title").value.trim(), date: f("date").value, start: f("start").value, duration: Number(f("duration").value), priority: f("priority").value, category: f("category").value || null, repeat: rep };
+                    return { title: parsedTitle || f("title").value.trim(), date: f("date").value, start: f("start").value, duration: Number(f("duration").value), priority: f("priority").value, category: catValue(f("category")) || null, repeat: rep };
                 };
                 const setSelect = (el, value) => {
                     if (!el || value == null) return;
@@ -2207,7 +2291,7 @@
         eventSeriesFor, editEventScoped, deleteEventScoped, openEventSheet, openEventForm, openCreateSheet, openSlotCreate,
         categoryInfo, categoryOf, categoryOptions, customCategories, addCategory,
         // colours
-        taskColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES,
+        taskColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
         // utils
         today, addDays, nowMin, nowClock, toMin, toClock, time12, durLabel, dayLabel, shortDate, esc, uid, taskDuration, loadJSON, saveJSON,
         migrate

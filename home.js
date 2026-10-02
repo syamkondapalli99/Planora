@@ -562,7 +562,8 @@
         wireFirstDay();
 
         document.addEventListener("click", e => {
-            const start = e.target.closest("[data-start]");
+            // only real Start buttons (task boxes also carry data-start = their start time)
+            const start = e.target.closest("button[data-start]");
             if (start && window.PlanoraFocus) { PlanoraFocus.start(start.dataset.start, Number(start.dataset.minutes) || undefined); return; }
             const openT = e.target.closest("[data-open]");
             if (openT) { C().openTaskSheet(openT.dataset.open); return; }

@@ -706,6 +706,9 @@ function openAddTaskModal() {
     closeDropdowns();
 
 
+    renderEditColor(null);
+
+
     const modal =
         document.getElementById("edit-modal");
 
@@ -721,6 +724,43 @@ function openAddTaskModal() {
     }, 100);
 }
 
+
+
+// ======================================================
+// COLOUR in the Add / Edit task box
+// Category chips (each with its colour); goal tasks use their goal's colour
+// ======================================================
+
+function renderEditColor(task) {
+
+    const core = window.PlanoraCore;
+    if (!core || !core.mountColorChips) return;
+    const goal = task && task.goalId && core.getGoal ? core.getGoal(task.goalId) : null;
+    core.mountColorChips(document.getElementById("edit-color-field"), {
+        selected: task && task.category ? task.category : "",
+        goal,
+        onChangeGoalColor: g => {
+            closeEditModal();
+            core.openGoalSheet({ id: g.id }, { onSaved: refreshAfterColorChange });
+        }
+    });
+}
+
+function refreshAfterColorChange() {
+    try {
+        renderStoreTasksToDOM();
+        generateWeekCalendar();
+        showTasksForDate(selectedDate);
+        renderHomeOverview();
+    } catch (error) { /* page without these parts */ }
+}
+
+function chosenCategory() {
+    const select = document.getElementById("edit-category");
+    if (!select) return undefined;
+    const v = select.value;
+    return v && v !== "__new" ? v : null;
+}
 
 // ======================================================
 // EDIT TASK
@@ -806,6 +846,11 @@ function openEditModal(button) {
         endInput.value =
             currentTask.dataset.end || "";
     }
+
+
+    renderEditColor(
+        loadTaskStore().find(t => String(t.id) === String(currentTask.dataset.taskId)) || null
+    );
 
 
     const dateDisplay =
@@ -937,7 +982,9 @@ function saveEditModal() {
 
             end,
 
-            completed: false
+            completed: false,
+
+            category: chosenCategory() || null
 
         };
 
@@ -1019,6 +1066,12 @@ function saveEditModal() {
         completed
 
     };
+
+    // Colour / category chosen in the box (goal tasks keep their goal's colour)
+    const pickedCategory = chosenCategory();
+    if (pickedCategory !== undefined && !(existingTask && existingTask.goalId)) {
+        updatedTask.category = pickedCategory;
+    }
 
 
     upsertTaskInStore(

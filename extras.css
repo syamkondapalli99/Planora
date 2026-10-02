@@ -1498,3 +1498,25 @@ body.ask-open .fab { opacity: 0; pointer-events: none; }
 .cat-new .color-swatches { margin-top: 0; }
 .cat-new-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .cat-new-actions .btn-primary, .cat-new-actions .btn-secondary { width: auto; padding: 8px 14px; }
+
+/* Colour chips in the Add / Edit task box (Home) */
+.edit-color-field { display: flex; flex-direction: column; gap: 8px; }
+.edit-category-select { display: none; }
+.edit-color-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.edit-color-chips[hidden] { display: none; }
+.color-chip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 999px;
+  border: 1px solid var(--purple-100, #CECBF6); background: #fff; color: var(--purple-900, #26215C);
+  font: inherit; font-size: 13px; cursor: pointer; transition: border-color .12s, background .12s, box-shadow .12s;
+}
+.color-chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--chip); flex-shrink: 0; }
+.color-chip:hover { border-color: var(--chip, var(--purple-400)); }
+.color-chip.on { border-color: var(--chip); background: color-mix(in srgb, var(--chip) 12%, #fff); box-shadow: 0 0 0 1px var(--chip) inset; font-weight: 600; }
+.color-chip.add { border-style: dashed; color: var(--purple-600, #534AB7); }
+.color-chip.add i { font-size: 14px; }
+.color-chip:focus-visible { outline: 3px solid var(--purple-200, #AFA9EC); outline-offset: 2px; }
+.edit-goal-color { background: var(--purple-50, #EEEDFE); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--purple-900, #26215C); }
+.edit-goal-color[hidden] { display: none; }
+.edit-goal-color p { margin: 0; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.edit-goal-color .btn-secondary { width: auto; align-self: flex-start; padding: 8px 12px; font-size: 13px; }
+.edit-color-field .cat-new { margin: 0; }
