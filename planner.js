@@ -889,7 +889,7 @@ function renderGTList() {
         }).join("");
 
         return `
-            <article class="goal-card ${g.status === "completed" ? "achieved" : ""}">
+            <article class="goal-card ${g.status === "completed" ? "achieved" : ""}" style="--goal-c:${PlanoraCore.goalColor(g).color};--goal-s:${PlanoraCore.goalColor(g).soft}">
                 <button type="button" class="goal-summary" onclick="toggleGoalOpen('${g.id}')" aria-expanded="${open}">
                     <span class="goal-ring" style="--p:${pct}" aria-hidden="true"><span>${pct}%</span></span>
                     <span class="goal-text">

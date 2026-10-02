@@ -4211,6 +4211,7 @@
             const item = document.createElement("button");
             item.type = "button";
             item.className = "goal-item";
+            if (PlanoraCore.goalColor) { const gc = PlanoraCore.goalColor(goal); item.style.setProperty("--goal-c", gc.color); item.style.setProperty("--goal-s", gc.soft); }
             item.setAttribute("aria-label", `${goal.title}, ${pct}% done. Open goal`);
             item.innerHTML = `
                 <div>

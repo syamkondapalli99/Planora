@@ -563,6 +563,9 @@ function createTaskElement(task) {
         }
     }
 
+    // Colour: the goal's colour for goal tasks, otherwise the category's
+    if (window.PlanoraCore && PlanoraCore.decorateTaskItem) PlanoraCore.decorateTaskItem(item, task);
+
     const timeElement =
         item.querySelector(".t-time");
 

@@ -358,6 +358,8 @@ function showDayTasks(dateKey, day, month, year, tasksByDate) {
 
         item.querySelector(".t-time").textContent = getTaskTimeText(task);
 
+        if (window.PlanoraCore && PlanoraCore.decorateTaskItem) PlanoraCore.decorateTaskItem(item, task);
+
         item.querySelector(".task-edit-btn")
             .addEventListener("click", function () {
                 openEditTaskModal(task.id);

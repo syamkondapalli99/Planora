@@ -205,6 +205,127 @@
        Goals (the one goal model)
        ===================================================== */
 
+    /* =====================================================
+       Colours
+       - each goal has its own colour; all of a goal's tasks use it
+       - other tasks use their category's colour
+       - no category: Planora purple
+       ===================================================== */
+
+    const DEFAULT_COLOR = { color: "#7F77DD", soft: "#EEEDFE" };
+    const GOAL_COLORS = [
+        { color: "#F07A54", soft: "#FDEEE8" },   // coral
+        { color: "#14A3A3", soft: "#E0F5F5" },   // teal
+        { color: "#E09A1A", soft: "#FCF3DF" },   // amber
+        { color: "#C2489B", soft: "#F9E8F3" },   // magenta
+        { color: "#4F5BD5", soft: "#E9EBFB" },   // indigo
+        { color: "#5E9E2F", soft: "#EBF5E1" },   // leaf
+        { color: "#D64545", soft: "#FBE9E9" },   // red
+        { color: "#2B9ED8", soft: "#E3F3FB" }    // sky
+    ];
+    // Colours to choose from for goals and for your own categories
+    const SWATCHES = [
+        "#7F77DD", "#3B6FD4", "#2B9ED8", "#14A3A3", "#1D9E75", "#5E9E2F",
+        "#E09A1A", "#F07A54", "#D64545", "#D4537E", "#C2489B", "#4F5BD5"
+    ];
+
+    function validColor(c) { return typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c); }
+    function softOf(hex) {
+        const known = GOAL_COLORS.find(x => x.color.toLowerCase() === String(hex).toLowerCase());
+        if (known) return known.soft;
+        const n = parseInt(String(hex).slice(1), 16);
+        const mix = v => Math.round(v + (255 - v) * 0.87);
+        return "#" + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => mix(v).toString(16).padStart(2, "0")).join("");
+    }
+    function nextGoalColor(used) {
+        const taken = (used || []).filter(validColor).map(c => c.toLowerCase());
+        const free = GOAL_COLORS.find(x => !taken.includes(x.color.toLowerCase()));
+        return (free || GOAL_COLORS[taken.length % GOAL_COLORS.length]).color;
+    }
+    function goalColor(goal) {
+        const color = goal && validColor(goal.color) ? goal.color : DEFAULT_COLOR.color;
+        return { color, soft: softOf(color) };
+    }
+
+    // Goal colours, read once per change of the saved goals (tasks are drawn often)
+    let goalColorCache = { raw: null, map: new Map() };
+    function goalColorMap() {
+        const raw = localStorage.getItem(GOAL_KEY);
+        if (raw !== goalColorCache.raw || !goalColorCache.map.size) {
+            const map = new Map();
+            getGoals({ includeArchived: true }).forEach(g => map.set(g.id, g));
+            goalColorCache = { raw: localStorage.getItem(GOAL_KEY), map };
+        }
+        return goalColorCache.map;
+    }
+
+    /* The colour of a task: { color, soft, label, kind: "goal" | "category" | "none" } */
+    function taskColor(task) {
+        if (task && task.goalId) {
+            const goal = goalColorMap().get(String(task.goalId));
+            if (goal) return { ...goalColor(goal), label: goal.title, kind: "goal" };
+        }
+        const cat = task && task.category ? categoryInfo(task.category) : null;
+        if (cat) return { color: cat.color, soft: cat.soft || softOf(cat.color), label: cat.label, kind: "category" };
+        return { ...DEFAULT_COLOR, label: "", kind: "none" };
+    }
+
+    /* Give a task's element its colour (--task-c / --task-s) */
+    function paintTask(el, task) {
+        if (!el) return;
+        const c = taskColor(task);
+        el.style.setProperty("--task-c", c.color);
+        el.style.setProperty("--task-s", c.soft);
+        el.dataset.colorKind = c.kind;
+        return c;
+    }
+
+    /* Task card: colour stripe + a small label (goal name or category) under the time */
+    function decorateTaskItem(item, task) {
+        const c = paintTask(item, task);
+        if (!c || c.kind === "none") return c;
+        const time = item.querySelector(".t-time");
+        if (!time) return c;
+        if (c.kind === "goal" && !item.querySelector(".t-goal")) {
+            const tag = document.createElement("p");
+            tag.className = "t-goal";
+            tag.innerHTML = '<i class="ti ti-target-arrow" aria-hidden="true"></i>';
+            tag.appendChild(document.createTextNode(c.label));
+            time.after(tag);
+        } else if (c.kind === "category" && !item.querySelector(".t-cat")) {
+            const tag = document.createElement("p");
+            tag.className = "t-cat";
+            tag.innerHTML = '<span class="cat-dot" aria-hidden="true"></span>';
+            tag.appendChild(document.createTextNode(c.label));
+            time.after(tag);
+        }
+        return c;
+    }
+
+    /* Your own categories (name + colour), saved with your account */
+    const CAT_KEY = "planora_categories";
+    function customCategories() {
+        const list = loadJSON(CAT_KEY, []);
+        return (Array.isArray(list) ? list : [])
+            .filter(c => c && c.id && c.label && validColor(c.color))
+            .map(c => ({ id: String(c.id), label: String(c.label).slice(0, 24), color: c.color, soft: softOf(c.color), custom: true }));
+    }
+    function addCategory(label, color) {
+        const name = String(label || "").trim().slice(0, 24);
+        if (!name) throw new Error("Please name the category.");
+        const existing = CATS().find(c => c.label.toLowerCase() === name.toLowerCase());
+        if (existing) return existing;
+        const cat = { id: "c-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 16) + "-" + Math.random().toString(36).slice(2, 6), label: name, color: validColor(color) ? color : SWATCHES[0] };
+        const list = loadJSON(CAT_KEY, []);
+        saveJSON(CAT_KEY, (Array.isArray(list) ? list : []).concat(cat));
+        notifyChange();
+        return { ...cat, soft: softOf(cat.color), custom: true };
+    }
+    function swatchesHTML(name, selected) {
+        return `<div class="color-swatches" role="radiogroup" aria-label="Colour">${SWATCHES.map(c =>
+            `<label class="color-swatch" style="--sw:${c}"><input type="radio" name="${name}" value="${c}" ${String(selected).toLowerCase() === c.toLowerCase() ? "checked" : ""} aria-label="Colour ${c}"><span></span></label>`).join("")}</div>`;
+    }
+
     function normaliseGoal(g) {
         if (!g || typeof g !== "object") return null;
         const legacyProgress = typeof g.progress === "number" && !Array.isArray(g.milestones);
@@ -228,6 +349,7 @@
             updatedAt: g.updatedAt || g.createdAt || new Date().toISOString(),
             status: ["active", "completed", "archived"].includes(g.status) ? g.status : "active",
             category: g.category || guessCategory(g.title || ""),
+            color: validColor(g.color) ? g.color : null,
             source: g.source || (legacyProgress ? "journal" : "manual"),
             milestones,
             manualProgress: typeof g.manualProgress === "number" ? g.manualProgress : (legacyProgress ? g.progress : null)
@@ -245,7 +367,16 @@
 
     function getGoals(opts = {}) {
         const raw = loadJSON(GOAL_KEY, []);
-        const list = (Array.isArray(raw) ? raw : []).map(normaliseGoal).filter(Boolean);
+        const arr = Array.isArray(raw) ? raw : [];
+        // Every goal gets its own colour once, and keeps it (its sessions share it)
+        const missing = arr.filter(g => g && typeof g === "object" && !validColor(g.color));
+        if (missing.length) {
+            const used = arr.map(g => g && g.color).filter(validColor);
+            missing.sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
+                .forEach(g => { g.color = nextGoalColor(used); used.push(g.color); });
+            try { saveJSON(GOAL_KEY, arr); } catch {}
+        }
+        const list = arr.map(normaliseGoal).filter(Boolean);
         return opts.includeArchived ? list : list.filter(g => g.status !== "archived");
     }
 
@@ -286,6 +417,7 @@
         const goal = normaliseGoal({
             ...data,
             id: data.id || uid("goal"),
+            color: validColor(data.color) ? data.color : nextGoalColor(goals.map(g => g.color)),
             createdAt: new Date().toISOString(),
             milestones: (data.milestones || []).map(m => (typeof m === "string" ? { text: m } : m))
         });
@@ -473,7 +605,8 @@
                 date: g.date || null,
                 milestones: (g.milestones || []).map(m => ({ text: m.text, date: m.date || null })),
                 source: g.source || source,
-                category: g.category
+                category: g.category,
+                color: g.color || null          // the colour shown in the preview
             });
             goalIds[g.ref] = goal.id;
             createdGoals++;
@@ -575,6 +708,18 @@
                 : `${esc(time12(item.start))} – ${esc(time12(item.end))}${item.type === "event" ? "" : " · " + durLabel(item.duration)}`;
             const cat = kind === "task" ? categoryInfo(item.category || categoryOf(item)) : null;
             const isEvent = item.type === "event";
+            // Colour of the row: the goal's colour for goal tasks, otherwise the category's
+            let rowColor = null;
+            if (kind === "task" && !isEvent) {
+                const pg = item.goalRef ? (plan.goals || []).find(g => g.ref === item.goalRef) : null;
+                if (pg && !pg.existingId && !validColor(pg.color)) {
+                    const taken = getGoals({ includeArchived: true }).map(g => g.color).concat((plan.goals || []).map(g => g.color));
+                    pg.color = nextGoalColor(taken);
+                }
+                if (pg) rowColor = pg.existingId ? taskColor({ goalId: pg.existingId }).color : pg.color;
+                else if (item.goalId) rowColor = taskColor({ goalId: item.goalId }).color;
+            }
+            if (!rowColor && cat) rowColor = cat.color;
             const extras = kind === "task" ? [
                 cat ? `<span class="cat-dot" style="background:${cat.color}"></span>${esc(cat.label)}` : "",
                 !isEvent && item.priority === "high" ? "High priority" : "",
@@ -582,7 +727,7 @@
                 isEvent && item.location ? esc(item.location) : ""
             ].filter(Boolean) : [];
             return `
-            <div class="sp-task ${item.include ? "" : "off"} ${goalName ? "goal" : ""} ${kind === "update" ? "update" : ""}" data-key="${esc(key)}">
+            <div class="sp-task ${item.include ? "" : "off"} ${goalName ? "goal" : ""} ${kind === "update" ? "update" : ""}" data-key="${esc(key)}"${rowColor ? ` style="--task-c:${rowColor}"` : ""}>
                 <label class="sp-check"><input type="checkbox" data-act="toggle" data-key="${esc(key)}" ${item.include ? "checked" : ""} aria-label="Include ${esc(item.title)}"><span></span></label>
                 <div class="sp-task-body">
                     ${kind === "task" ? `<span class="item-kind ${isEvent ? "is-event" : "is-task"}"><i class="ti ${isEvent ? "ti-calendar-event" : "ti-checkbox"}" aria-hidden="true"></i>${isEvent ? "Event" : "Task"}</span>` : ""}
@@ -937,7 +1082,7 @@
        ===================================================== */
 
     const EVENT_KEY = "planora_events";
-    const CATS = () => (window.PlanoraPriority && PlanoraPriority.CATEGORIES) || [];
+    const CATS = () => ((window.PlanoraPriority && PlanoraPriority.CATEGORIES) || []).concat(customCategories());
 
     function categoryInfo(id) {
         return CATS().find(c => c.id === id) || null;
@@ -948,7 +1093,8 @@
     }
     function categoryOptions(selected, { allowNone } = {}) {
         return (allowNone ? `<option value="" ${!selected ? "selected" : ""}>None</option>` : "") +
-            CATS().map(c => `<option value="${c.id}" ${c.id === selected ? "selected" : ""}>${esc(c.label)}</option>`).join("");
+            CATS().map(c => `<option value="${esc(c.id)}" ${c.id === selected ? "selected" : ""}>${esc(c.label)}</option>`).join("") +
+            `<option value="__new">+ New category…</option>`;
     }
 
     function getEvents() {
@@ -1465,7 +1611,7 @@
                     <div><dt>Priority</dt><dd>${task.priority === "high" ? "High" : task.priority === "low" ? "Low" : "Normal"}</dd></div>
                     <div><dt>Category</dt><dd>${cat ? `<span class="cat-dot" style="background:${cat.color}"></span>${esc(cat.label)}` : "None"}</dd></div>
                 </dl>
-                ${goal ? `<p class="pl-hint"><i class="ti ti-target-arrow" aria-hidden="true"></i> Goal: ${esc(goal.title)}</p>` : ""}
+                ${goal ? `<p class="pl-hint"><i class="ti ti-target-arrow" aria-hidden="true" style="color:${goalColor(goal).color}"></i> Goal: ${esc(goal.title)} <span class="cat-dot" style="background:${goalColor(goal).color}" title="Goal colour"></span></p>` : ""}
                 ${task.completed ? "" : `<button type="button" class="btn-primary" data-a="start"><i class="ti ti-player-play" aria-hidden="true"></i> Start (${durLabel(taskDuration(task))})</button>`}
                 <div class="pl-row-actions">
                     <button type="button" class="btn-secondary" data-a="done"><i class="ti ${task.completed ? "ti-arrow-back-up" : "ti-check"}" aria-hidden="true"></i> ${task.completed ? "Mark not done" : "Complete"}</button>
@@ -1882,6 +2028,9 @@
                     <label class="sp-lbl">Target date (optional)
                         <input type="date" name="date" value="${esc(goal && goal.date ? goal.date : "")}">
                     </label>
+                    <div class="sp-lbl goal-color-field">Colour <span class="pl-hint-inline">All of this goal's tasks use it</span>
+                        ${swatchesHTML("color", goal ? goalColor(goal).color : nextGoalColor(getGoals({ includeArchived: true }).map(g => g.color)))}
+                    </div>
                     ${goal ? "" : `<label class="sp-lbl">Milestones (optional, one per line)
                         <textarea name="milestones" rows="3" placeholder="Finish the basics&#10;Build a small project"></textarea>
                     </label>
@@ -1917,6 +2066,7 @@
                     let saved;
                     if (goal) {
                         const patch = { title, date: f.get("date") || null };
+                        if (validColor(f.get("color"))) patch.color = f.get("color");
                         if (range) patch.manualProgress = Number(range.value);
                         saved = updateGoal(goal.id, patch);
                         closeSheet();
@@ -1925,6 +2075,7 @@
                         saved = createGoal({
                             title,
                             date: f.get("date") || null,
+                            color: f.get("color") || null,
                             milestones: String(f.get("milestones") || "").split("\n").map(s => s.trim()).filter(Boolean),
                             source: onPlanora ? "manual" : (document.getElementById("journal-screen") ? "journal" : "manual")
                         });
@@ -2054,7 +2205,9 @@
         // events (not tasks)
         getEvents, getEvent, addEvents, updateEvent, removeEvent, saveEvents, eventDuration, createEventSeries, extendEventSeries,
         eventSeriesFor, editEventScoped, deleteEventScoped, openEventSheet, openEventForm, openCreateSheet, openSlotCreate,
-        categoryInfo, categoryOf, categoryOptions,
+        categoryInfo, categoryOf, categoryOptions, customCategories, addCategory,
+        // colours
+        taskColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES,
         // utils
         today, addDays, nowMin, nowClock, toMin, toClock, time12, durLabel, dayLabel, shortDate, esc, uid, taskDuration, loadJSON, saveJSON,
         migrate
@@ -2063,6 +2216,57 @@
     try { migrate(); } catch (error) { console.error("Planora migration failed (data left unchanged):", error); }
     try { extendRecurring(); } catch (error) { console.error("Planora could not extend repeating tasks:", error); }
     try { extendEventSeries(); } catch (error) { console.error("Planora could not extend repeating events:", error); }
+
+    /* "+ New category…" in any category list: name it and pick a colour, right there */
+    document.addEventListener("focusin", e => {
+        const sel = e.target;
+        if (sel && sel.tagName === "SELECT" && sel.name === "category" && sel.value !== "__new") sel.dataset.prev = sel.value;
+    });
+    document.addEventListener("change", e => {
+        const sel = e.target;
+        if (!sel || sel.tagName !== "SELECT" || sel.name !== "category") return;
+        if (sel.value !== "__new") { sel.dataset.prev = sel.value; return; }
+        e.stopImmediatePropagation();
+        const host = sel.closest("label") || sel;
+        if (host.nextElementSibling && host.nextElementSibling.classList.contains("cat-new")) { host.nextElementSibling.querySelector("input[type=text]").focus(); return; }
+        const box = document.createElement("div");
+        box.className = "cat-new";
+        box.innerHTML = `
+            <input type="text" maxlength="24" placeholder="New category name (e.g. Uni, Side hustle)" aria-label="New category name">
+            ${swatchesHTML("cat-new-color", SWATCHES[(customCategories().length + 6) % SWATCHES.length])}
+            <p class="auth-error" hidden></p>
+            <div class="cat-new-actions">
+                <button type="button" class="btn-secondary" data-cat="cancel">Cancel</button>
+                <button type="button" class="btn-primary" data-cat="add">Add category</button>
+            </div>`;
+        host.after(box);
+        const input = box.querySelector("input[type=text]");
+        input.focus();
+        const close = () => box.remove();
+        const cancel = () => { sel.value = sel.dataset.prev !== undefined ? sel.dataset.prev : (sel.options[0] ? sel.options[0].value : ""); close(); };
+        const add = () => {
+            try {
+                const color = (box.querySelector("input[name=cat-new-color]:checked") || {}).value;
+                const cat = addCategory(input.value, color);
+                const hasNone = Array.from(sel.options).some(o => o.value === "");
+                sel.innerHTML = categoryOptions(cat.id, { allowNone: hasNone });
+                sel.value = cat.id;
+                sel.dataset.prev = cat.id;
+                close();
+                sel.dispatchEvent(new Event("change", { bubbles: true }));
+                toast(`Category "${cat.label}" added.`, "success");
+            } catch (error) {
+                const err = box.querySelector(".auth-error");
+                err.textContent = error.message; err.hidden = false;
+            }
+        };
+        box.querySelector("[data-cat=cancel]").onclick = cancel;
+        box.querySelector("[data-cat=add]").onclick = add;
+        input.addEventListener("keydown", ev => {
+            if (ev.key === "Enter") { ev.preventDefault(); add(); }
+            if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); cancel(); }
+        });
+    }, true);
 
     // "/" or Ctrl/Cmd+K opens search (not while typing)
     document.addEventListener("keydown", e => {
