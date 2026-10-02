@@ -443,7 +443,7 @@
        Voice typing: a 🎤 button next to a text box. Speak and the
        words appear in the box (uses the browser's own speech
        recognition: Chrome, Edge, Safari on iPhone/iPad/Mac).
-       Hidden where the browser can't do it (e.g. Firefox).
+       Where the browser can't do it (e.g. Firefox), tapping it says so.
        ===================================================== */
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition || null;
     let activeVoice = null;
@@ -454,7 +454,7 @@
          onFinal(text)  called when you stop speaking (e.g. send to Ask Planora)
          place(btn)     where to put the button (default: right after the input) */
     function attachMic(input, { onFinal, place, label = "Speak instead of typing" } = {}) {
-        if (!input || !voiceSupported() || input.dataset.mic) return null;
+        if (!input || input.dataset.mic) return null;
         input.dataset.mic = "1";
         const btn = document.createElement("button");
         btn.type = "button";
@@ -484,6 +484,12 @@
 
         btn.addEventListener("click", () => {
             if (rec) { stop(); return; }
+            if (!voiceSupported()) {
+                toast(window.isSecureContext === false
+                    ? "Voice typing only works on the secure (https) site."
+                    : "This browser can't do voice typing yet. Try Chrome, Edge or Safari, or use your keyboard's mic button.", "error");
+                return;
+            }
             if (activeVoice && activeVoice !== stop) activeVoice();   // only one mic at a time
             rec = new SpeechRec();
             rec.lang = document.documentElement.lang && document.documentElement.lang.length > 2 ? document.documentElement.lang : (navigator.language || "en-US");
