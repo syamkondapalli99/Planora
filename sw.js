@@ -12,7 +12,7 @@
    - Account and AI requests (/api, /auth) are never cached.
    ========================================================= */
 
-const VERSION = "planora-2026-10-01-google";
+const VERSION = "planora-2026-10-02-logo";
 const SHELL = [
     "/offline.html",
     "/style.css", "/extras.css", "/devices.css",
@@ -20,7 +20,7 @@ const SHELL = [
     "/focus.js", "/smart-planner.js", "/script.js", "/home.js", "/app-extras.js",
     "/calendar.js", "/calendar-views.js", "/planner.js", "/journal-link.js", "/ai-assistant.js", "/login.js",
     "/manifest.webmanifest",
-    "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png", "/icons/favicon-32.png"
+    "/icons/logo-128.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png", "/icons/favicon-32.png"
 ];
 
 self.addEventListener("install", event => {

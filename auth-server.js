@@ -119,7 +119,9 @@ function install(app) {
     if (SUPA.prod) { allowed.add(SUPA.prod.replace(/\/$/, "")); allowed.add(SUPA.prod.replace(/\/$/, "").replace("://", "://www.")); }
     app.use("/api", (req, res, next) => {
         const origin = req.headers.origin;
-        if (origin && (allowed.has(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin))) {
+        // planoraai.net, extra ALLOWED_ORIGINS, local development, and the phone apps
+        // (Capacitor: capacitor://localhost on iPhone, https://localhost on Android)
+        if (origin && (allowed.has(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || /^(capacitor:\/\/localhost|https:\/\/localhost)$/.test(origin))) {
             res.setHeader("Access-Control-Allow-Origin", origin);
             res.setHeader("Vary", "Origin");
             res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Planora-Prefs");

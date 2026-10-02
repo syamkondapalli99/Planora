@@ -2008,7 +2008,7 @@
             rail.setAttribute("role", "navigation");
             rail.setAttribute("aria-label", "Main");
             rail.innerHTML = `
-                <a class="logo-mark" href="home.html" aria-label="Planora home"><i class="ti ti-calendar-star" aria-hidden="true"></i></a>
+                <a class="logo-mark has-logo" href="home.html" aria-label="Planora home"><img class="logo-img" src="icons/logo-128.png" alt="" width="64" height="64"></a>
                 <button type="button" class="nav-item nav-search" data-search aria-label="Search Planora (press /)"><i class="ti ti-search" aria-hidden="true"></i><span>Search</span></button>
                 ${NAV.map(item => navLink(item, page)).join("")}`;
         });

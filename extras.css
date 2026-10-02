@@ -1454,3 +1454,10 @@ body.ask-open .fab { opacity: 0; pointer-events: none; }
 .google-wrap.has-gsi:active .oauth-btn.google { transform: scale(.985); }
 .google-wrap.has-gsi:focus-within .oauth-btn.google { outline: 3px solid var(--purple-200, #AFA9EC); outline-offset: 2px; }
 .oauth-btn.is-loading { opacity: .7; cursor: progress; }
+
+/* Planora logo (round "P" with a clock) wherever the logo mark appears */
+.logo-mark.has-logo { background: transparent !important; border-radius: 50% !important; padding: 0; overflow: visible; }
+#journal-screen .side-rail .logo-mark.has-logo { background: transparent !important; }
+.logo-mark .logo-img { width: 100%; height: 100%; display: block; border-radius: 50%; }
+.auth-card .logo-mark.has-logo { width: 76px; height: 76px; filter: drop-shadow(0 6px 14px rgba(83, 74, 183, .28)); }
+.legal-page .legal-brand img { width: 32px; height: 32px; border-radius: 50%; }

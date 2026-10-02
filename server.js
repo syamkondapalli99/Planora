@@ -5,6 +5,9 @@ const path = require("path");
 const rateLimit = require("express-rate-limit");
 
 const app = express();
+// On a hosting service (Render, Railway, Fly…) requests arrive through its proxy:
+// trust it so rate limits count each visitor, not the proxy. Render sets RENDER=true.
+if (process.env.TRUST_PROXY || process.env.RENDER) app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3000;
 
 // Accounts (email/password, Google, Apple), sessions, per-user data
