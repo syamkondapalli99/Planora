@@ -62,6 +62,7 @@
     function colorOf(it) {
         const core = C();
         if (it.kind === "task") return core.taskColor ? core.taskColor(it.raw) : { color: "#7F77DD", soft: "#EEEDFE", label: "" };
+        if (it.kind === "event" && core.eventColor) return core.eventColor(it.raw);
         const c = core.categoryInfo(it.kind === "event" ? (it.raw.category || core.categoryOf(it.raw)) : it.raw.category);
         return c || { color: "#7F77DD", soft: "#EEEDFE", label: "" };
     }

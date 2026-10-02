@@ -1520,3 +1520,27 @@ body.ask-open .fab { opacity: 0; pointer-events: none; }
 .edit-goal-color p { margin: 0; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
 .edit-goal-color .btn-secondary { width: auto; align-self: flex-start; padding: 8px 12px; font-size: 13px; }
 .edit-color-field .cat-new { margin: 0; }
+
+/* Colour picker: plain colours for one task / event, and Default (like Google Calendar) */
+.edit-color-dots { display: flex; flex-direction: column; gap: 10px; }
+.edit-color-dots[hidden] { display: none; }
+.color-dot-row { display: flex; flex-wrap: wrap; gap: 9px; }
+.color-dot {
+  width: 26px; height: 26px; border-radius: 50%; border: none; padding: 0; cursor: pointer;
+  background: var(--sw); color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.color-dot i { font-size: 14px; opacity: 0; }
+.color-dot:hover { transform: scale(1.1); }
+.color-dot.on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--sw); }
+.color-dot.on i { opacity: 1; }
+.color-dot:focus-visible { outline: 3px solid var(--purple-200, #AFA9EC); outline-offset: 3px; }
+.color-default {
+  width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 12px; border-radius: 10px; border: 1px solid transparent; background: var(--gray-50, #F4F3F8);
+  font: inherit; font-size: 13px; color: var(--purple-900, #26215C); cursor: pointer;
+}
+.color-default:hover { background: var(--purple-50, #EEEDFE); }
+.color-default.on { background: var(--purple-50, #EEEDFE); border-color: var(--purple-200, #AFA9EC); font-weight: 600; }
+.color-default.on i { color: var(--purple-600, #534AB7); }
+.edit-color-title { font-size: 12px; font-weight: 500; color: var(--purple-800, #3C3489); }

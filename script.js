@@ -738,6 +738,8 @@ function renderEditColor(task) {
     const goal = task && task.goalId && core.getGoal ? core.getGoal(task.goalId) : null;
     core.mountColorChips(document.getElementById("edit-color-field"), {
         selected: task && task.category ? task.category : "",
+        color: task && task.color ? task.color : "",
+        autoFrom: task ? null : document.getElementById("edit-title"),
         goal,
         onChangeGoalColor: g => {
             closeEditModal();
@@ -753,6 +755,12 @@ function refreshAfterColorChange() {
         showTasksForDate(selectedDate);
         renderHomeOverview();
     } catch (error) { /* page without these parts */ }
+}
+
+function chosenColor() {
+    const el = document.getElementById("edit-color");
+    if (!el) return undefined;
+    return /^#[0-9a-f]{6}$/i.test(el.value) ? el.value : null;
 }
 
 function chosenCategory() {
@@ -984,7 +992,9 @@ function saveEditModal() {
 
             completed: false,
 
-            category: chosenCategory() || null
+            category: chosenCategory() || null,
+
+            color: chosenColor() || null
 
         };
 
@@ -1071,6 +1081,7 @@ function saveEditModal() {
     const pickedCategory = chosenCategory();
     if (pickedCategory !== undefined && !(existingTask && existingTask.goalId)) {
         updatedTask.category = pickedCategory;
+        updatedTask.color = chosenColor() || null;
     }
 
 

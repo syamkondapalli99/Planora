@@ -164,6 +164,7 @@
         if (t.fixed) task.fixed = true;
         if (t.seriesId) task.seriesId = t.seriesId;
         if (t.category) task.category = t.category;
+        if (validColor(t.color)) task.color = t.color;
         return task;
     }
 
@@ -265,9 +266,17 @@
             const goal = goalColorMap().get(String(task.goalId));
             if (goal) return { ...goalColor(goal), label: goal.title, kind: "goal" };
         }
+        if (task && validColor(task.color)) return { color: task.color, soft: softOf(task.color), label: "", kind: "custom" };
         const cat = task && task.category ? categoryInfo(task.category) : null;
         if (cat) return { color: cat.color, soft: cat.soft || softOf(cat.color), label: cat.label, kind: "category" };
         return { ...DEFAULT_COLOR, label: "", kind: "none" };
+    }
+
+    /* The colour of an event: its own colour, otherwise its category's */
+    function eventColor(ev) {
+        if (ev && validColor(ev.color)) return { color: ev.color, soft: softOf(ev.color), label: "" };
+        const cat = categoryInfo(ev && ev.category && categoryInfo(ev.category) ? ev.category : categoryOf(ev || {})) || categoryInfo("other");
+        return cat ? { color: cat.color, soft: cat.soft || softOf(cat.color), label: cat.label } : { ...DEFAULT_COLOR, label: "" };
     }
 
     /* Give a task's element its colour (--task-c / --task-s) */
@@ -309,18 +318,24 @@
         return sel.dataset.prev && sel.dataset.prev !== "__new" ? sel.dataset.prev : "";
     }
 
-    /* Colour chips for a task form.
-       field = an element containing .edit-color-chips, select[name=category]
-       and .edit-goal-color. Goal tasks show the goal's colour instead. */
-    function mountColorChips(field, { selected = "", goal = null, onChangeGoalColor } = {}) {
+    /* Colour picker for task and event forms (like Google Calendar):
+       - category chips (Work, Study… and your own), each with its colour
+       - a row of plain colours for just this task / event, and "Default"
+       - goal tasks show their goal's colour instead (all of a goal's tasks match)
+       The form gets select[name=category] and input[name=color]. */
+    function mountColorChips(field, { selected = "", color = "", goal = null, allowNone = true, autoFrom = null, onChangeGoalColor } = {}) {
         if (!field) return () => {};
         const chips = field.querySelector(".edit-color-chips");
+        const dots = field.querySelector(".edit-color-dots");
         const select = field.querySelector("select[name=category]");
+        const colorInput = field.querySelector("input[name=color]");
         const goalBox = field.querySelector(".edit-goal-color");
         const valid = selected && categoryInfo(selected) ? selected : "";
-        select.innerHTML = categoryOptions(valid, { allowNone: true });
-        select.value = valid;
-        select.dataset.prev = valid;
+        select.innerHTML = categoryOptions(valid, { allowNone });
+        select.value = valid || (allowNone ? "" : (select.options[0] ? select.options[0].value : ""));
+        select.dataset.prev = select.value;
+        if (colorInput) colorInput.value = validColor(color) ? color : "";
+        let touched = Boolean(valid || (colorInput && colorInput.value));
 
         if (goal && goalBox) {
             const gc = goalColor(goal);
@@ -332,44 +347,81 @@
                 else { closeSheet(); openGoalSheet({ id: goal.id }); }
             };
             chips.hidden = true;
+            if (dots) dots.hidden = true;
             return () => {};
         }
         if (goalBox) { goalBox.hidden = true; goalBox.innerHTML = ""; }
         chips.hidden = false;
+        if (dots) dots.hidden = false;
+
+        const guessFor = () => {
+            const words = autoFrom ? autoFrom.value.trim() : "";
+            const g = words.length > 2 ? categoryOf({ title: words }) : "";
+            if (allowNone) return g && g !== "other" ? g : "";
+            return g || "other";
+        };
+        const custom = () => (colorInput && validColor(colorInput.value) ? colorInput.value : "");
+        const cat = () => (select.value === "__new" ? (select.dataset.prev || "") : select.value);
 
         const draw = () => {
-            const current = select.value === "__new" ? (select.dataset.prev || "") : select.value;
-            const opts = Array.from(select.options).filter(o => o.value !== "__new");
+            const c = custom(), current = cat();
+            const opts = Array.from(select.options).filter(o => o.value !== "__new" && o.value !== "");
             chips.innerHTML = opts.map(o => {
-                const info = o.value ? categoryInfo(o.value) : null;
-                const on = o.value === current;
-                return `<button type="button" class="color-chip${on ? " on" : ""}" role="radio" aria-checked="${on}" data-cat="${esc(o.value)}" style="--chip:${info ? info.color : DEFAULT_COLOR.color}"><span class="dot" aria-hidden="true"></span>${esc(o.value ? o.textContent : "None")}</button>`;
+                const info = categoryInfo(o.value);
+                const on = !c && o.value === current;
+                return `<button type="button" class="color-chip${on ? " on" : ""}" role="radio" aria-checked="${on}" data-cat="${esc(o.value)}" style="--chip:${info ? info.color : DEFAULT_COLOR.color}"><span class="dot" aria-hidden="true"></span>${esc(o.textContent)}</button>`;
             }).join("") + `<button type="button" class="color-chip add" data-new="1"><i class="ti ti-plus" aria-hidden="true"></i>New</button>`;
-            chips.querySelectorAll(".color-chip").forEach(chip => {
-                chip.onclick = () => {
-                    if (chip.dataset.new) {
+            if (dots) {
+                const isDefault = !c && (allowNone ? !current : current === guessFor());
+                dots.innerHTML = `<div class="color-dot-row" role="radiogroup" aria-label="Colour for this item">${SWATCHES.map(hex => {
+                    const on = c.toLowerCase() === hex.toLowerCase();
+                    return `<button type="button" class="color-dot${on ? " on" : ""}" role="radio" aria-checked="${on}" data-color="${hex}" style="--sw:${hex}" aria-label="Colour ${hex}" title="Just this colour"><i class="ti ti-check" aria-hidden="true"></i></button>`;
+                }).join("")}</div>
+                    <button type="button" class="color-default${isDefault ? " on" : ""}" data-default="1" aria-pressed="${isDefault}"><i class="ti ti-${isDefault ? "circle-check-filled" : "circle"}" aria-hidden="true"></i> Default</button>`;
+            }
+            field.querySelectorAll(".color-chip, .color-dot, .color-default").forEach(btn => {
+                btn.onclick = () => {
+                    touched = true;
+                    if (btn.dataset.new) {
                         select.dataset.prev = select.value;
                         select.value = "__new";
                         select.dispatchEvent(new Event("change", { bubbles: true }));   // opens "New category" right here
                         return;
                     }
-                    select.value = chip.dataset.cat;
+                    if (btn.dataset.cat !== undefined) { select.value = btn.dataset.cat; if (colorInput) colorInput.value = ""; }
+                    else if (btn.dataset.color) { if (colorInput) colorInput.value = btn.dataset.color; if (allowNone) select.value = ""; keepColor = true; }
+                    else if (btn.dataset.default) { if (colorInput) colorInput.value = ""; select.value = guessFor(); touched = false; }
                     select.dataset.prev = select.value;
                     select.dispatchEvent(new Event("change", { bubbles: true }));
                 };
             });
         };
-        select.addEventListener("change", () => { if (select.value !== "__new") draw(); });
+        let keepColor = false;   // set when a plain colour was just picked
+        select.addEventListener("change", () => {
+            if (select.value === "__new") return;
+            if (!keepColor && colorInput && select.value) colorInput.value = "";   // a category was chosen
+            keepColor = false;
+            draw();
+        });
+        if (autoFrom) autoFrom.addEventListener("input", () => {
+            if (touched) return;
+            select.value = guessFor();
+            select.dataset.prev = select.value;
+            draw();
+        });
         draw();
-        return draw;     // call after changing select.value in code
+        return draw;
     }
     const COLOR_FIELD_HTML = `
         <div class="sp-lbl edit-color-field">
             <span class="edit-color-title">Colour</span>
-            <div class="edit-color-chips" role="radiogroup" aria-label="Colour"></div>
+            <div class="edit-color-chips" role="radiogroup" aria-label="Category"></div>
+            <div class="edit-color-dots"></div>
             <select name="category" class="edit-category-select" tabindex="-1" aria-hidden="true"></select>
+            <input type="hidden" name="color" value="">
             <div class="edit-goal-color" hidden></div>
         </div>`;
+    const colorValue = form => { const el = form.querySelector("input[name=color]"); return el && validColor(el.value) ? el.value : null; };
 
     /* Your own categories (name + colour), saved with your account */
     const CAT_KEY = "planora_categories";
@@ -1070,6 +1122,7 @@
             duration: Number(data.duration) || 30,
             priority: data.priority && data.priority !== "normal" ? data.priority : null,
             ...(data.category ? { category: data.category } : {}),
+            ...(validColor(data.color) ? { color: data.color } : {}),
             repeat: data.repeat,
             startDate: data.date || today(),
             skipped: [],
@@ -1110,6 +1163,7 @@
                     seriesId: s.id,
                     ...(s.priority ? { priority: s.priority } : {}),
                     ...(s.category ? { category: s.category } : {}),
+                    ...(validColor(s.color) ? { color: s.color } : {}),
                     source: "recurring"
                 });
             }
@@ -1190,6 +1244,7 @@
         if (e.seriesId) ev.seriesId = e.seriesId;
         if (e.detached) ev.detached = true;
         if (e.source) ev.source = e.source;
+        if (validColor(e.color)) ev.color = e.color;
         return ev;
     }
 
@@ -1224,7 +1279,7 @@
         const ev = normaliseEvent(data);
         const s = {
             id: uid("eseries"), kind: "event",
-            title: ev.title, start: ev.start, end: ev.end, category: ev.category,
+            title: ev.title, start: ev.start, end: ev.end, category: ev.category, color: ev.color || null,
             location: ev.location || "", notes: ev.notes || "",
             repeat: data.repeat, startDate: ev.date, skipped: [], endAfter: null,
             createdAt: new Date().toISOString()
@@ -1253,7 +1308,7 @@
                 const id = s.id + "-" + d;
                 if (have.has(s.id + "|" + d) || ids.has(id)) continue;
                 have.add(s.id + "|" + d);
-                add.push(normaliseEvent({ id, title: s.title, date: d, start: s.start, end: s.end, category: s.category, location: s.location, notes: s.notes, seriesId: s.id, source: "recurring" }));
+                add.push(normaliseEvent({ id, title: s.title, date: d, start: s.start, end: s.end, category: s.category, color: s.color, location: s.location, notes: s.notes, seriesId: s.id, source: "recurring" }));
             }
         });
         if (add.length) { saveEvents(events.concat(add)); notifyChange(); }
@@ -1270,7 +1325,7 @@
         if (!s || scope === "one") return updateEvent(ev.id, { ...patch, ...(s ? { detached: true } : {}) });
         const series = getSeries();
         const si = series.findIndex(x => x.id === s.id);
-        const fields = ["title", "start", "end", "category", "location", "notes"];
+        const fields = ["title", "start", "end", "category", "color", "location", "notes"];
         if (scope === "all") {
             fields.forEach(f => { if (patch[f] !== undefined) series[si][f] = patch[f]; });
             if (patch.repeat) series[si].repeat = patch.repeat;
@@ -1351,7 +1406,7 @@
                     <div><dt>Location</dt><dd>${ev.location ? esc(ev.location) : "<span class='muted'>None</span>"}</dd></div>
                     <div><dt>Notes</dt><dd>${ev.notes ? esc(ev.notes) : "<span class='muted'>None</span>"}</dd></div>
                     <div><dt>Repeat</dt><dd>${s ? esc(repeatLabel(s.repeat, s.startDate)) : "None"}</dd></div>
-                    <div><dt>Color</dt><dd><span class="cat-dot" style="background:${cat ? cat.color : "#999"}"></span>${esc(cat ? cat.label : "Other")}</dd></div>
+                    <div><dt>Colour</dt><dd><span class="cat-dot" style="background:${eventColor(ev).color}"></span>${esc(validColor(ev.color) ? "Custom colour" : (cat ? cat.label : "Other"))}</dd></div>
                 </dl>
                 <div class="pl-row-actions">
                     <button type="button" class="btn-secondary" data-a="edit"><i class="ti ti-pencil" aria-hidden="true"></i> Edit</button>
@@ -1401,8 +1456,8 @@
                         <label>Day<input type="date" name="date" value="${esc(d.date)}"></label>
                         <label>Start<input type="time" name="start" value="${esc(d.start)}"></label>
                         <label>End<input type="time" name="end" value="${esc(d.end)}"></label>
-                        <label>Color<select name="category">${categoryOptions(d.category || categoryOf(d))}</select></label>
                     </div>
+                    ${COLOR_FIELD_HTML}
                     <label class="sp-lbl">Location (optional)<input type="text" name="location" autocomplete="off" value="${esc(d.location || "")}"></label>
                     <label class="sp-lbl">Notes (optional)<textarea name="notes" rows="2">${esc(d.notes || "")}</textarea></label>
                     ${editing ? "" : `
@@ -1427,9 +1482,12 @@
                 const days = form.querySelector(".pl-days");
                 const rep = f("repeat");
                 if (rep) rep.onchange = () => { days.hidden = rep.value !== "custom"; };
-                let catTouched = Boolean(editing);
-                f("category").onchange = () => { catTouched = true; };
-                f("title").addEventListener("input", () => { if (!catTouched) f("category").value = categoryOf({ title: f("title").value }); });
+                mountColorChips(form.querySelector(".edit-color-field"), {
+                    selected: editing ? (d.category || categoryOf(d)) : (d.category || ""),
+                    color: d.color || "",
+                    allowNone: false,
+                    autoFrom: editing ? null : f("title")
+                });
                 // keep the length when the start moves
                 let len = toMin(d.end) - toMin(d.start);
                 f("start").addEventListener("change", () => { if (toMin(f("start").value) !== null) f("end").value = toClock(Math.min(24 * 60 - 1, toMin(f("start").value) + Math.max(15, len))); });
@@ -1437,7 +1495,7 @@
                 form.onsubmit = async e => {
                     e.preventDefault();
                     const err = form.querySelector(".auth-error");
-                    const v = { title: f("title").value.trim(), date: f("date").value || today(), start: f("start").value, end: f("end").value, category: catValue(f("category")), location: f("location").value.trim(), notes: f("notes").value.trim() };
+                    const v = { title: f("title").value.trim(), date: f("date").value || today(), start: f("start").value, end: f("end").value, category: catValue(f("category")), color: colorValue(form), location: f("location").value.trim(), notes: f("notes").value.trim() };
                     if (!v.title) { err.textContent = "Please give the event a name."; err.hidden = false; f("title").focus(); return; }
                     if (toMin(v.start) === null) { err.textContent = "Please choose a start time."; err.hidden = false; return; }
                     if (toMin(v.end) === null || toMin(v.end) <= toMin(v.start)) v.end = toClock(Math.min(24 * 60 - 1, toMin(v.start) + 60));
@@ -1513,8 +1571,8 @@
                         <label data-only="task">Duration<select name="duration">${DURATIONS.map(x => `<option value="${x}" ${x === 30 ? "selected" : ""}>${durLabel(x)}</option>`).join("")}</select></label>
                         <label data-only="event">End<input type="time" name="end" value="${esc(endDefault)}"></label>
                         <label data-only="task">Priority<select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></label>
-                        <label>Category<select name="category">${categoryOptions("")}</select></label>
                     </div>
+                    ${COLOR_FIELD_HTML}
                     <details data-only="event" class="slot-more"><summary>Location and notes</summary>
                         <label class="sp-lbl">Location<input type="text" name="location" autocomplete="off"></label>
                         <label class="sp-lbl">Notes<textarea name="notes" rows="2"></textarea></label>
@@ -1525,7 +1583,6 @@
             onReady(panel) {
                 const form = panel.querySelector("form");
                 const f = n => form.querySelector(`[name=${n}]`);
-                let catTouched = false;
                 const apply = () => {
                     form.querySelectorAll("[data-k]").forEach(b => b.setAttribute("aria-selected", b.dataset.k === type ? "true" : "false"));
                     form.querySelectorAll("[data-only]").forEach(el => { el.hidden = el.dataset.only !== type; });
@@ -1538,18 +1595,16 @@
                     end: type === "event" ? f("end").value : toClock(Math.min(24 * 60 - 1, toMin(f("start").value) + Number(f("duration").value)))
                 });
                 form.querySelectorAll("[data-k]").forEach(b => b.onclick = () => { type = b.dataset.k; typeTouched = true; apply(); });
-                f("category").onchange = () => { catTouched = true; };
+                mountColorChips(form.querySelector(".edit-color-field"), { selected: "", autoFrom: f("title") });
                 f("title").addEventListener("input", () => {
                     const t = f("title").value;
                     if (!typeTouched && t.trim().length > 2) { const g = guess(t); if (g !== "ambiguous" && g !== type) { type = g; apply(); } }
-                    if (!catTouched) f("category").value = t.trim().length > 2 ? categoryOf({ title: t }) : "study";
                     document.dispatchEvent(new CustomEvent("planora:slot-preview", { detail: preview() }));
                 });
                 ["date", "start", "end", "duration"].forEach(n => f(n).addEventListener("change", () => {
                     if (n === "start" && toMin(f("start").value) !== null) f("end").value = toClock(Math.min(24 * 60 - 1, toMin(f("start").value) + 60));
                     document.dispatchEvent(new CustomEvent("planora:slot-preview", { detail: preview() }));
                 }));
-                f("category").value = "study";
                 form.onsubmit = e => {
                     e.preventDefault();
                     const title = f("title").value.trim();
@@ -1557,12 +1612,12 @@
                     if (!title) { err.textContent = `Please give the ${type} a name.`; err.hidden = false; f("title").focus(); return; }
                     const date2 = f("date").value || date, start2 = f("start").value || start;
                     if (type === "event") {
-                        const [ev] = addEvents([{ title, date: date2, start: start2, end: f("end").value, category: catValue(f("category")), location: f("location").value.trim(), notes: f("notes").value.trim(), source: "calendar" }]);
+                        const [ev] = addEvents([{ title, date: date2, start: start2, end: f("end").value, category: catValue(f("category")), color: colorValue(form), location: f("location").value.trim(), notes: f("notes").value.trim(), source: "calendar" }]);
                         closeSheet();
                         toastUndo(`Added "${ev.title}" · ${dayLabel(ev.date)} ${time12(ev.start)}–${time12(ev.end)}.`, () => removeEvent(ev.id));
                     } else {
                         const dur = Number(f("duration").value) || 30;
-                        const [t] = addTasks([{ title, date: date2, start: start2, end: toClock(toMin(start2) + dur), duration: dur, priority: f("priority").value, category: catValue(f("category")), source: "calendar", fixed: true }]);
+                        const [t] = addTasks([{ title, date: date2, start: start2, end: toClock(toMin(start2) + dur), duration: dur, priority: f("priority").value, category: catValue(f("category")), color: colorValue(form), source: "calendar", fixed: true }]);
                         closeSheet();
                         toastUndo(`Added "${t.title}" · ${dayLabel(t.date)} ${time12(t.start)}.`, () => removeTask(t.id));
                     }
@@ -1678,7 +1733,7 @@
                 <p class="pl-hint">${meta.map(esc).join(" · ")}</p>
                 <dl class="ev-details">
                     <div><dt>Priority</dt><dd>${task.priority === "high" ? "High" : task.priority === "low" ? "Low" : "Normal"}</dd></div>
-                    <div><dt>Category</dt><dd>${cat ? `<span class="cat-dot" style="background:${cat.color}"></span>${esc(cat.label)}` : "None"}</dd></div>
+                    <div><dt>Colour</dt><dd><span class="cat-dot" style="background:${taskColor(task).color}"></span>${esc(taskColor(task).kind === "goal" ? "Goal colour" : taskColor(task).kind === "custom" ? "Custom colour" : (cat && task.category ? cat.label : "Default"))}</dd></div>
                 </dl>
                 ${goal ? `<p class="pl-hint"><i class="ti ti-target-arrow" aria-hidden="true" style="color:${goalColor(goal).color}"></i> Goal: ${esc(goal.title)} <span class="cat-dot" style="background:${goalColor(goal).color}" title="Goal colour"></span></p>` : ""}
                 ${task.completed ? "" : `<button type="button" class="btn-primary" data-a="start"><i class="ti ti-player-play" aria-hidden="true"></i> Start (${durLabel(taskDuration(task))})</button>`}
@@ -1804,20 +1859,12 @@
             onReady(panel) {
                 const form = panel.querySelector("form");
                 const f = n => form.querySelector(`[name=${n}]`);
-                const redrawColor = mountColorChips(form.querySelector(".edit-color-field"), {
+                mountColorChips(form.querySelector(".edit-color-field"), {
                     selected: d.category,
+                    color: editing ? editing.color : "",
                     goal: editing && editing.goalId ? getGoal(editing.goalId) : null,
+                    autoFrom: editing ? null : f("title"),
                     onChangeGoalColor: g => { closeSheet(); openGoalSheet({ id: g.id }); }
-                });
-                // New task: suggest a colour from the words you type, until you pick one yourself
-                let colorPicked = Boolean(editing);
-                form.querySelector(".edit-color-chips").addEventListener("click", () => { colorPicked = true; });
-                f("title").addEventListener("input", () => {
-                    if (colorPicked) return;
-                    const words = f("title").value.trim();
-                    const guess = words.length > 2 && window.PlanoraPriority ? PlanoraPriority.guessCategory(words) : "";
-                    f("category").value = guess && guess !== "other" && categoryInfo(guess) ? guess : "";
-                    redrawColor();
                 });
                 const said = form.querySelector(".pl-understood");
                 const days = form.querySelector(".pl-days");
@@ -1831,7 +1878,7 @@
                 let parsedTitle = null, timer = null, seq = 0;
                 const current = () => {
                     const rep = repeatSel && repeatSel.value ? { type: repeatSel.value, days: Array.from(days.querySelectorAll("input:checked")).map(i => Number(i.value)) } : null;
-                    return { title: parsedTitle || f("title").value.trim(), date: f("date").value, start: f("start").value, duration: Number(f("duration").value), priority: f("priority").value, category: catValue(f("category")) || null, repeat: rep };
+                    return { title: parsedTitle || f("title").value.trim(), date: f("date").value, start: f("start").value, duration: Number(f("duration").value), priority: f("priority").value, category: catValue(f("category")) || null, color: colorValue(form), repeat: rep };
                 };
                 const setSelect = (el, value) => {
                     if (!el || value == null) return;
@@ -1882,7 +1929,7 @@
                         return;
                     }
                     if (editing) {
-                        const patch = { title: f("title").value.trim() || editing.title, date: v.date || editing.date, start: v.start || "", duration: v.duration, priority: v.priority === "normal" ? null : v.priority, category: v.category };
+                        const patch = { title: f("title").value.trim() || editing.title, date: v.date || editing.date, start: v.start || "", duration: v.duration, priority: v.priority === "normal" ? null : v.priority, category: v.category, color: editing.goalId ? editing.color || null : v.color };
                         patch.end = patch.start ? toClock(toMin(patch.start) + v.duration) : "";
                         updateTask(editing.id, patch);
                         closeSheet();
@@ -1896,14 +1943,14 @@
                             err.hidden = false;
                             return;
                         }
-                        const r = createRecurring({ title: v.title, date: v.date, start: v.start, duration: v.duration, priority: v.priority, category: v.category, repeat: v.repeat });
+                        const r = createRecurring({ title: v.title, date: v.date, start: v.start, duration: v.duration, priority: v.priority, category: v.category, color: v.color, repeat: v.repeat });
                         closeSheet();
                         toast(`Added "${v.title}" · ${repeatLabel(v.repeat, v.date).toLowerCase()}.`, "success");
                         return r;
                     }
                     addTasks([{
                         title: v.title, date: v.date || today(), start: v.start || "", duration: v.duration,
-                        priority: v.priority, category: v.category, source: "quick-add", fixed: Boolean(v.start)
+                        priority: v.priority, category: v.category, color: v.color, source: "quick-add", fixed: Boolean(v.start)
                     }]);
                     closeSheet();
                     toast(`Added "${v.title}".`, "success");
@@ -2291,7 +2338,7 @@
         eventSeriesFor, editEventScoped, deleteEventScoped, openEventSheet, openEventForm, openCreateSheet, openSlotCreate,
         categoryInfo, categoryOf, categoryOptions, customCategories, addCategory,
         // colours
-        taskColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
+        taskColor, eventColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
         // utils
         today, addDays, nowMin, nowClock, toMin, toClock, time12, durLabel, dayLabel, shortDate, esc, uid, taskDuration, loadJSON, saveJSON,
         migrate

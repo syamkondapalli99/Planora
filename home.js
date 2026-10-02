@@ -392,7 +392,7 @@
         list.querySelectorAll(".event-item").forEach(el => el.remove());
         const day = forDay || (typeof selectedDate !== "undefined" && selectedDate) || core.today();
         core.getEvents().filter(e => e.date === day).forEach(ev => {
-            const cat = core.categoryInfo(ev.category) || core.categoryInfo("other");
+            const cat = core.eventColor ? core.eventColor(ev) : (core.categoryInfo(ev.category) || core.categoryInfo("other"));
             const item = document.createElement("div");
             item.className = "task-item event-item";
             item.dataset.date = ev.date;
