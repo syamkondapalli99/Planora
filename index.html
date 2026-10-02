@@ -22,6 +22,7 @@
 <script src="vendor/supabase.js"></script>
 <script src="auth.js"></script>
 <link rel="stylesheet" href="devices.css">
+<link rel="stylesheet" href="desktop.css">
 </head>
 <body class="page-login">
 
@@ -29,6 +30,16 @@
 
   <!-- ============ SIGN IN / CREATE ACCOUNT (Supabase Auth, login.js) ============ -->
   <div class="screen active" id="login-screen">
+    <!-- Laptops only: Planora on the left, sign-in on the right -->
+    <aside class="auth-aside" aria-hidden="true">
+      <img class="auth-aside-logo" src="icons/logo-128.png" alt="" width="56" height="56">
+      <p class="auth-aside-title">Plan your day.<br>Get more done.</p>
+      <ul class="auth-aside-points">
+        <li><i class="ti ti-microphone"></i>Say or type what you need to do</li>
+        <li><i class="ti ti-calendar-check"></i>Planora finds the time and shows you the plan first</li>
+        <li><i class="ti ti-devices"></i>Your tasks, goals and journal on every device</li>
+      </ul>
+    </aside>
     <div class="auth-card">
       <div class="logo-mark has-logo" aria-hidden="true"><img class="logo-img" src="icons/logo-128.png" alt="" width="64" height="64"></div>
       <p class="auth-brand">Planora</p>

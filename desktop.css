@@ -1,0 +1,324 @@
+/* =========================================================
+   PLANORA — LAPTOP / DESKTOP LAYOUT  (desktop.css)
+
+   Only for the website on laptops and desktops (html.web-mode,
+   set by device.js). Phones and tablets are not affected.
+
+   - Planora fills the window like a web app (no floating box)
+   - A real sidebar: logo + name, readable menu, "New task", you
+   - Headings in Bricolage Grotesque, text in Figtree
+     (bundled in /fonts; only downloaded on laptops, where they're used)
+   - Calm surfaces: white cards with a hairline edge on a soft
+     lavender canvas; the page titles carry the personality
+   ========================================================= */
+
+/* ---------- fonts (SIL Open Font License, see /fonts) ---------- */
+@font-face {
+  font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url(fonts/bricolage-grotesque-latin-wght-normal.woff2) format("woff2-variations"), url(fonts/bricolage-grotesque-latin-wght-normal.woff2) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url(fonts/bricolage-grotesque-latin-ext-wght-normal.woff2) format("woff2-variations"), url(fonts/bricolage-grotesque-latin-ext-wght-normal.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Figtree"; font-style: normal; font-weight: 300 900; font-display: swap;
+  src: url(fonts/figtree-latin-wght-normal.woff2) format("woff2-variations"), url(fonts/figtree-latin-wght-normal.woff2) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Figtree"; font-style: normal; font-weight: 300 900; font-display: swap;
+  src: url(fonts/figtree-latin-ext-wght-normal.woff2) format("woff2-variations"), url(fonts/figtree-latin-ext-wght-normal.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ---------- tokens ---------- */
+html.web-mode {
+  --d-ink: #26215C;          /* text, headings */
+  --d-ink-2: #5B5677;        /* secondary text */
+  --d-muted: #8A86A3;        /* hints */
+  --d-canvas: #F5F4FB;       /* page background */
+  --d-surface: #FFFFFF;      /* cards */
+  --d-line: #E6E3F3;         /* hairlines */
+  --d-accent: #534AB7;       /* active, links */
+  --d-accent-soft: #EEEDFE;  /* active backgrounds */
+  --d-display: "Bricolage Grotesque", "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --d-text: "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Parts that only appear on laptops */
+.rail-word, .rail-foot, .nav-kbd, .auth-aside { display: none; }
+
+@media (min-width: 700px) {
+
+  /* ---------- the whole window ---------- */
+  html.web-mode body:not(.page-login):not(.legal) {
+    padding: 0; background: var(--d-canvas); font-family: var(--d-text);
+    color: var(--d-ink); -webkit-font-smoothing: antialiased;
+  }
+  html.web-mode body:not(.page-login):not(.legal) #app {
+    max-width: none; width: 100%; height: 100vh; height: 100dvh; min-height: 0;
+    border-radius: 0; box-shadow: none; background: var(--d-canvas);
+  }
+  html.web-mode #dashboard-screen.active,
+  html.web-mode #calendar-screen.active,
+  html.web-mode #profile-screen.active,
+  html.web-mode #streak-screen.active,
+  html.web-mode #planner-screen.active,
+  html.web-mode #journal-screen.active {
+    grid-template-columns: 92px minmax(0, 1fr) !important;
+    background: var(--d-canvas);
+  }
+
+  /* ---------- sidebar (compact on narrower windows) ---------- */
+  html.web-mode .screen.active > .side-rail {
+    background: var(--d-surface) !important;
+    border-right: 1px solid var(--d-line);
+    padding: 22px 12px 18px !important;
+    gap: 4px !important;
+    align-items: stretch !important;
+  }
+  html.web-mode .side-rail .logo-mark.has-logo {
+    width: auto !important; height: auto !important; margin: 0 0 18px !important;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    border-radius: 14px !important; background: transparent !important; text-decoration: none;
+  }
+  html.web-mode .side-rail .logo-mark .logo-img { width: 40px; height: 40px; flex-shrink: 0; }
+  html.web-mode .side-rail .nav-item {
+    color: var(--d-ink-2) !important; background: transparent !important;
+    min-width: 0 !important; border-radius: 12px !important;
+    padding: 9px 6px !important; font-size: 11px; font-family: var(--d-text); font-weight: 500;
+    transition: background .15s ease, color .15s ease;
+  }
+  html.web-mode .side-rail .nav-item i { font-size: 21px; }
+  html.web-mode .side-rail .nav-item:hover { background: var(--d-canvas) !important; color: var(--d-ink) !important; }
+  html.web-mode .side-rail .nav-item.active {
+    background: var(--d-accent-soft) !important; color: var(--d-accent) !important; font-weight: 600;
+  }
+  html.web-mode .side-rail .nav-item:focus-visible { outline: 3px solid #AFA9EC !important; outline-offset: 1px; }
+
+  /* ---------- main area ---------- */
+  html.web-mode .screen.active > .dash-main {
+    padding: 40px 48px 56px !important;
+    background: var(--d-canvas);
+  }
+
+  /* ---------- type ---------- */
+  html.web-mode body:not(.page-login):not(.legal) button,
+  html.web-mode body:not(.page-login):not(.legal) input,
+  html.web-mode body:not(.page-login):not(.legal) select,
+  html.web-mode body:not(.page-login):not(.legal) textarea { font-family: var(--d-text); }
+  html.web-mode .side-rail .nav-item span { font-size: inherit; }
+  html.web-mode .home-links-title { text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--d-muted); font-weight: 500; }
+  html.web-mode .dash-main h1,
+  html.web-mode .dash-main h2,
+  html.web-mode .home-greeting,
+  html.web-mode .dash-header h2,
+  html.web-mode .journal-header h2 {
+    font-family: var(--d-display); color: var(--d-ink); letter-spacing: -0.02em;
+  }
+  html.web-mode .dash-header .date,
+  html.web-mode .home-header .date,
+  html.web-mode .journal-header .date {
+    font-family: var(--d-text); font-size: 14px; font-weight: 500; color: var(--d-muted);
+    text-transform: none; letter-spacing: 0; margin-bottom: 4px;
+  }
+  html.web-mode .home-greeting,
+  html.web-mode .dash-header h2,
+  html.web-mode .journal-header h2,
+  html.web-mode .planora-main .dash-header h1,
+  html.web-mode .profile-main .home-greeting {
+    font-size: 40px; line-height: 1.08; font-weight: 600; margin: 0;
+  }
+  html.web-mode .ai-greeting-msg, html.web-mode .dash-header .subtitle, html.web-mode .home-header .subtitle {
+    font-size: 16px; color: var(--d-ink-2); margin-top: 8px;
+  }
+  html.web-mode .card-title, html.web-mode .card h2, html.web-mode .card h3,
+  html.web-mode .section-title, html.web-mode .home-section-title {
+    font-family: var(--d-display); font-weight: 600; letter-spacing: -0.01em; color: var(--d-ink);
+  }
+
+  /* ---------- surfaces ---------- */
+  html.web-mode .dash-main .card,
+  html.web-mode .goal-card,
+  html.web-mode .journal-card,
+  html.web-mode .home-status,
+  html.web-mode .sp-root {
+    border-color: var(--d-line);
+    box-shadow: 0 1px 2px rgba(38, 33, 92, .04);
+  }
+  html.web-mode .dash-main .card { border-radius: 20px; }
+
+  /* Planora (Ask) — the one bright thing on Home */
+  html.web-mode .planora-btn {
+    font-family: var(--d-text); font-weight: 600; border-radius: 14px; padding: 12px 20px;
+    box-shadow: 0 8px 20px rgba(83, 74, 183, .25);
+  }
+}
+
+/* =========================================================
+   Wide windows: the full sidebar with names
+   ========================================================= */
+@media (min-width: 1100px) {
+  html.web-mode #dashboard-screen.active,
+  html.web-mode #calendar-screen.active,
+  html.web-mode #profile-screen.active,
+  html.web-mode #streak-screen.active,
+  html.web-mode #planner-screen.active,
+  html.web-mode #journal-screen.active {
+    grid-template-columns: 248px minmax(0, 1fr) !important;
+  }
+  html.web-mode .screen.active > .side-rail { padding: 24px 16px 20px !important; }
+
+  html.web-mode .side-rail .logo-mark.has-logo { justify-content: flex-start; padding: 2px 8px !important; margin-bottom: 22px !important; }
+  html.web-mode .rail-word {
+    display: inline; font-family: var(--d-display); font-size: 22px; font-weight: 700;
+    letter-spacing: -0.02em; color: var(--d-ink);
+  }
+  html.web-mode .side-rail .nav-item {
+    flex-direction: row !important; justify-content: flex-start !important; gap: 12px !important;
+    padding: 10px 12px !important; font-size: 15px !important; min-height: 44px;
+  }
+  html.web-mode .side-rail .nav-item i { font-size: 20px; width: 22px; text-align: center; }
+  html.web-mode .side-rail .nav-search { margin-bottom: 10px; border: 1px solid var(--d-line) !important; }
+  html.web-mode .nav-kbd {
+    display: inline-flex; margin-left: auto; font-size: 12px; color: var(--d-muted);
+    border: 1px solid var(--d-line); border-radius: 6px; padding: 0 6px; line-height: 18px;
+  }
+
+  /* bottom of the sidebar: New task + you */
+  html.web-mode .rail-foot { display: flex; flex-direction: column; gap: 12px; margin-top: auto; padding-top: 16px; }
+  html.web-mode .rail-add {
+    display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+    padding: 12px; border-radius: 14px; border: none; cursor: pointer;
+    background: var(--d-accent); color: #fff; font: 600 15px/1 var(--d-text);
+  }
+  html.web-mode .rail-add:hover { background: #4A41A8; }
+  html.web-mode .rail-add:focus-visible { outline: 3px solid #AFA9EC; outline-offset: 2px; }
+  html.web-mode .rail-user {
+    display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px;
+    text-decoration: none; color: var(--d-ink);
+  }
+  html.web-mode .rail-user:hover { background: var(--d-canvas); }
+  html.web-mode .rail-avatar {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--d-accent-soft); color: var(--d-accent); font: 700 13px/1 var(--d-text);
+  }
+  html.web-mode .rail-name { display: flex; flex-direction: column; min-width: 0; font-size: 14px; font-weight: 600; }
+  html.web-mode .rail-name small { font-size: 12px; font-weight: 400; color: var(--d-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* the + button isn't needed when the sidebar has "New task" */
+  html.web-mode body:not(.page-login) .fab { display: none !important; }
+
+  /* ---------- page content widths ---------- */
+  html.web-mode .screen.active > .dash-main { padding: 44px 56px 64px !important; }
+  html.web-mode .home-main > *,
+  html.web-mode .planora-main > *,
+  html.web-mode .profile-main > *,
+  html.web-mode #streak-page > * { max-width: 1180px; }
+  html.web-mode #journal-screen .journal-main { max-width: 880px; margin: 0 auto; }
+
+  /* Home: schedule gets the room, the side column stays slim */
+  html.web-mode .home-grid { grid-template-columns: minmax(0, 1.75fr) minmax(300px, 1fr) !important; gap: 24px !important; }
+  html.web-mode .home-right { position: sticky; top: 0; }
+  html.web-mode .home-header { margin-bottom: 28px; }
+
+  /* Profile: two columns (you + progress | settings) */
+  html.web-mode .profile-main {
+    display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 24px; align-content: start;
+  }
+  html.web-mode .profile-main > .dash-header { grid-column: 1 / -1; }
+  html.web-mode .profile-main > section.card { margin-top: 0 !important; margin-bottom: 24px !important; max-width: none; }
+  html.web-mode .profile-main > section[aria-labelledby="settings-title"] { grid-column: 2; grid-row: 2 / span 2; }
+}
+
+/* Very wide screens: a little more breathing room */
+@media (min-width: 1600px) {
+  html.web-mode .screen.active > .dash-main { padding-left: 72px !important; padding-right: 72px !important; }
+}
+
+/* ---------- Journal page has its own older sidebar rules: match the others ---------- */
+@media (min-width: 700px) {
+  html.web-mode #journal-screen .side-rail {
+    background: var(--d-surface) !important; border-right: 1px solid var(--d-line);
+    padding: 22px 12px 18px !important; gap: 4px !important; align-items: stretch !important;
+  }
+  html.web-mode #journal-screen .side-rail .logo-mark.has-logo {
+    width: auto !important; height: auto !important; background: transparent !important;
+    margin: 0 0 18px !important; border-radius: 14px !important;
+  }
+  html.web-mode #journal-screen .side-rail .nav-item { color: var(--d-ink-2) !important; background: transparent !important; }
+  html.web-mode #journal-screen .side-rail .nav-item:hover { background: var(--d-canvas) !important; color: var(--d-ink) !important; }
+  html.web-mode #journal-screen .side-rail .nav-item.active { background: var(--d-accent-soft) !important; color: var(--d-accent) !important; }
+}
+@media (min-width: 1100px) {
+  html.web-mode #journal-screen .side-rail { padding: 24px 16px 20px !important; }
+  html.web-mode #journal-screen .side-rail .logo-mark.has-logo { justify-content: flex-start; padding: 2px 8px !important; margin-bottom: 22px !important; }
+  html.web-mode #journal-screen .side-rail .nav-item { flex-direction: row !important; justify-content: flex-start !important; gap: 12px !important; padding: 10px 12px !important; font-size: 15px !important; }
+
+  /* Profile: wider, two even columns */
+  html.web-mode #profile-screen .profile-main { max-width: 1040px !important; }
+  html.web-mode .profile-main > * { max-width: none !important; }
+
+  /* Home: the sidebar already has Search; bigger day strip text */
+  html.web-mode .home-header .home-search { display: none; }
+  html.web-mode .day-cell .dow { font-size: 12px; }
+  html.web-mode .journal-header h2 { font-size: 36px; }
+}
+
+/* =========================================================
+   Sign in (laptops): Planora on the left, the form on the right
+   ========================================================= */
+@media (min-width: 1000px) {
+  html.web-mode body.page-login { padding: 0; background: var(--d-canvas); font-family: var(--d-text); }
+  html.web-mode body.page-login button, html.web-mode body.page-login input { font-family: var(--d-text); }
+  html.web-mode body.page-login #app {
+    max-width: none !important; width: 100%; height: 100vh !important; height: 100dvh !important; min-height: 0 !important;
+    border-radius: 0; box-shadow: none; background: var(--d-surface);
+  }
+  html.web-mode body.page-login #login-screen.active {
+    display: grid !important; grid-template-columns: minmax(380px, 44%) minmax(0, 1fr);
+    height: 100% !important; min-height: 0 !important; padding: 0 !important; overflow: hidden;
+    align-items: stretch !important;
+  }
+  html.web-mode .auth-aside {
+    display: flex; flex-direction: column; justify-content: center; gap: 28px;
+    padding: 64px clamp(40px, 6vw, 96px); color: #fff; position: relative; overflow: hidden;
+    background: linear-gradient(160deg, #7F77DD 0%, #534AB7 55%, #3C3489 100%);
+    align-self: stretch; text-align: left; align-items: flex-start;
+  }
+  html.web-mode .auth-aside::after {          /* a soft ring, echoing the logo's clock */
+    content: ""; position: absolute; width: 520px; height: 520px; right: -180px; bottom: -200px;
+    border-radius: 50%; border: 56px solid rgba(255, 255, 255, .07); pointer-events: none;
+  }
+  html.web-mode .auth-aside-logo { width: 56px; height: 56px; border-radius: 50%; box-shadow: 0 10px 30px rgba(20, 14, 70, .35); }
+  html.web-mode .auth-aside-title {
+    margin: 0; font-family: var(--d-display); font-weight: 700; letter-spacing: -0.03em;
+    font-size: clamp(44px, 4.6vw, 68px); line-height: 1.02;
+  }
+  html.web-mode .auth-aside-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; max-width: 420px; }
+  html.web-mode .auth-aside-points li { display: flex; gap: 12px; align-items: flex-start; font-size: 16px; line-height: 1.45; color: rgba(255, 255, 255, .9); }
+  html.web-mode .auth-aside-points i { font-size: 20px; color: #CECBF6; margin-top: 1px; }
+
+  html.web-mode body.page-login #login-screen .auth-card {
+    align-self: stretch; justify-content: safe center; overflow-y: auto; max-width: none; margin: 0; height: 100%; box-sizing: border-box;
+    padding: 48px max(32px, calc((100% - 400px) / 2));
+  }
+  /* the logo and name are on the left panel already */
+  html.web-mode body.page-login #login-screen .auth-card > .logo-mark,
+  html.web-mode body.page-login #login-screen .auth-card > .auth-brand { display: none; }
+  html.web-mode body.page-login .auth-title { font-family: var(--d-display); font-size: 34px; letter-spacing: -0.02em; }
+
+  /* onboarding: full window, centred */
+  html.web-mode body.page-login #onboarding-screen.active { height: 100% !important; justify-content: center; align-items: center; }
+}
+
+/* keep each goal's colour stripe (the hairline border above must not cover it) */
+@media (min-width: 700px) {
+  html.web-mode .goal-card[style*="--goal-c"],
+  html.web-mode .goal-item[style*="--goal-c"] { border-left-color: var(--goal-c); }
+}

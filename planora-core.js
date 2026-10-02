@@ -2515,16 +2515,35 @@
         return `<a class="nav-item${active ? " active" : ""}" href="${item.href}" ${active ? 'aria-current="page"' : ""} data-nav="${item.key}"><i class="ti ${item.icon}" aria-hidden="true"></i><span>${item.label}</span></a>`;
     }
 
+    // Sidebar (laptops): your initials, name and email at the bottom
+    function fillRailUser(user) {
+        const u = user || (window.PlanoraAuth && PlanoraAuth.user) || null;
+        document.querySelectorAll(".rail-user").forEach(el => {
+            const name = u ? (u.name || (u.email ? u.email.split("@")[0] : "") || "You") : "You";
+            let ini = "";
+            try { ini = window.PlanoraAuth && PlanoraAuth.initials ? PlanoraAuth.initials() : ""; } catch {}
+            el.querySelector(".rail-avatar").textContent = (ini || name.slice(0, 1) || "P").toUpperCase();
+            el.querySelector(".rail-name-text").textContent = name;
+            el.querySelector(".rail-email").textContent = u && u.email ? u.email : (u && u.guest ? "Guest" : "");
+        });
+    }
+    document.addEventListener("planora:user", e => fillRailUser(e.detail));
+
     function renderNav() {
         const page = currentPage();
         document.querySelectorAll(".side-rail").forEach(rail => {
             rail.setAttribute("role", "navigation");
             rail.setAttribute("aria-label", "Main");
             rail.innerHTML = `
-                <a class="logo-mark has-logo" href="home.html" aria-label="Planora home"><img class="logo-img" src="icons/logo-128.png" alt="" width="64" height="64"></a>
-                <button type="button" class="nav-item nav-search" data-search aria-label="Search Planora (press /)"><i class="ti ti-search" aria-hidden="true"></i><span>Search</span></button>
-                ${NAV.map(item => navLink(item, page)).join("")}`;
+                <a class="logo-mark has-logo" href="home.html" aria-label="Planora home"><img class="logo-img" src="icons/logo-128.png" alt="" width="64" height="64"><span class="rail-word" aria-hidden="true">Planora</span></a>
+                <button type="button" class="nav-item nav-search" data-search aria-label="Search Planora (press /)"><i class="ti ti-search" aria-hidden="true"></i><span>Search</span><kbd class="nav-kbd" aria-hidden="true">/</kbd></button>
+                ${NAV.map(item => navLink(item, page)).join("")}
+                <div class="rail-foot">
+                    <button type="button" class="rail-add" data-quick-add><i class="ti ti-plus" aria-hidden="true"></i> New task</button>
+                    <a class="rail-user" href="profile.html" aria-label="Your profile"><span class="rail-avatar" aria-hidden="true"></span><span class="rail-name"><span class="rail-name-text"></span><small class="rail-email"></small></span></a>
+                </div>`;
         });
+        fillRailUser();
         document.querySelectorAll(".bottom-nav").forEach(bar => {
             bar.setAttribute("role", "navigation");
             bar.setAttribute("aria-label", "Main");
