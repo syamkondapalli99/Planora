@@ -275,7 +275,7 @@
     /* The colour of an event: its own colour, otherwise its category's */
     function eventColor(ev) {
         if (ev && validColor(ev.color)) return { color: ev.color, soft: softOf(ev.color), label: "" };
-        const cat = categoryInfo(ev && ev.category && categoryInfo(ev.category) ? ev.category : categoryOf(ev || {})) || categoryInfo("other");
+        const cat = ev && ev.category ? categoryInfo(ev.category) : null;
         return cat ? { color: cat.color, soft: cat.soft || softOf(cat.color), label: cat.label } : { ...DEFAULT_COLOR, label: "" };
     }
 
@@ -330,7 +330,7 @@
         const select = field.querySelector("select[name=category]");
         const colorInput = field.querySelector("input[name=color]");
         const goalBox = field.querySelector(".edit-goal-color");
-        const valid = selected && categoryInfo(selected) ? selected : "";
+        const valid = selected && categoryInfo(selected) ? categoryInfo(selected).id : "";
         select.innerHTML = categoryOptions(valid, { allowNone });
         select.value = valid || (allowNone ? "" : (select.options[0] ? select.options[0].value : ""));
         select.dataset.prev = select.value;
@@ -370,7 +370,9 @@
                 const info = categoryInfo(o.value);
                 const on = !c && o.value === current;
                 return `<button type="button" class="color-chip${on ? " on" : ""}" role="radio" aria-checked="${on}" data-cat="${esc(o.value)}" style="--chip:${info ? info.color : DEFAULT_COLOR.color}"><span class="dot" aria-hidden="true"></span>${esc(o.textContent)}</button>`;
-            }).join("") + `<button type="button" class="color-chip add" data-new="1"><i class="ti ti-plus" aria-hidden="true"></i>New</button>`;
+            }).join("") + (opts.length
+                ? `<button type="button" class="color-chip edit-labels" data-labels="1" aria-label="Edit labels" title="Edit labels"><i class="ti ti-pencil" aria-hidden="true"></i></button>`
+                : `<button type="button" class="color-chip add" data-labels="1"><i class="ti ti-plus" aria-hidden="true"></i>Create a label</button>`);
             if (dots) {
                 const isDefault = !c && (allowNone ? !current : current === guessFor());
                 dots.innerHTML = `<div class="color-dot-row" role="radiogroup" aria-label="Colour for this item">${SWATCHES.map(hex => {
@@ -381,6 +383,20 @@
             }
             field.querySelectorAll(".color-chip, .color-dot, .color-default").forEach(btn => {
                 btn.onclick = () => {
+                    if (btn.dataset.labels) {
+                        // Edit labels (rename, colour, delete, add) without leaving this form
+                        openLabelsManager({
+                            addFirst: !opts.length,
+                            onSaved: () => {
+                                const keep = categoryInfo(cat()) ? categoryInfo(cat()).id : "";
+                                select.innerHTML = categoryOptions(keep, { allowNone });
+                                select.value = keep;
+                                select.dataset.prev = keep;
+                                draw();
+                            }
+                        });
+                        return;
+                    }
                     touched = true;
                     if (btn.dataset.new) {
                         select.dataset.prev = select.value;
@@ -422,6 +438,113 @@
             <div class="edit-goal-color" hidden></div>
         </div>`;
     const colorValue = form => { const el = form.querySelector("input[name=color]"); return el && validColor(el.value) ? el.value : null; };
+
+    /* =====================================================
+       Labels editor (like Google Calendar's): your own labels,
+       each with a name and a colour. Add, rename, recolour, delete.
+       Opens on top of whatever form you're in.
+       ===================================================== */
+    function openLabelsManager({ onSaved, addFirst } = {}) {
+        document.querySelectorAll(".labels-overlay").forEach(x => x.remove());
+        let rows = customCategories().map(c => ({ id: c.id, label: c.label, color: c.color }));
+        const startIds = new Set(rows.map(r => r.id));
+        const lastFocus = document.activeElement;
+        const overlay = document.createElement("div");
+        overlay.className = "labels-overlay";
+        overlay.innerHTML = `
+            <div class="labels-dialog" role="dialog" aria-modal="true" aria-labelledby="labels-title">
+                <h2 id="labels-title">Labels</h2>
+                <p class="labels-hint">Make your own labels and give each one a colour. Use them on tasks and events.</p>
+                <div class="labels-list"></div>
+                <p class="auth-error" hidden></p>
+                <div class="labels-foot">
+                    <button type="button" class="labels-add" data-l="add" aria-label="Add a label" title="Add a label"><i class="ti ti-plus" aria-hidden="true"></i></button>
+                    <span class="labels-spacer"></span>
+                    <button type="button" class="btn-secondary" data-l="cancel">Cancel</button>
+                    <button type="button" class="btn-primary" data-l="save">Save</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        const list = overlay.querySelector(".labels-list");
+        const err = overlay.querySelector(".auth-error");
+        const freeColor = () => SWATCHES.find(c => !rows.some(r => r.color.toLowerCase() === c.toLowerCase())) || SWATCHES[rows.length % SWATCHES.length];
+
+        const render = focusIndex => {
+            list.innerHTML = rows.length ? rows.map((r, i) => `
+                <div class="label-row" data-i="${i}">
+                    <button type="button" class="label-color" data-act="palette" aria-haspopup="true" aria-expanded="false" aria-label="Colour for ${esc(r.label || "new label")}">
+                        <span class="dot" style="background:${r.color}"></span><i class="ti ti-chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="label-name">
+                        <input type="text" maxlength="24" value="${esc(r.label)}" placeholder="Label name" aria-label="Label name">
+                        <button type="button" class="label-clear" data-act="clear" aria-label="Clear name"><i class="ti ti-x" aria-hidden="true"></i></button>
+                    </div>
+                    <button type="button" class="label-del" data-act="delete" aria-label="Delete label ${esc(r.label)}" title="Delete label"><i class="ti ti-trash" aria-hidden="true"></i></button>
+                    <div class="label-palette" hidden>${SWATCHES.map(c => `<button type="button" class="color-dot${c.toLowerCase() === r.color.toLowerCase() ? " on" : ""}" data-pick="${c}" style="--sw:${c}" aria-label="Colour ${c}"><i class="ti ti-check" aria-hidden="true"></i></button>`).join("")}</div>
+                </div>`).join("")
+                : `<p class="labels-empty">No labels yet. Tap <strong>+</strong> to make your first one, like "Uni", "Work" or "Gym".</p>`;
+            list.querySelectorAll(".label-row").forEach(row => {
+                const i = Number(row.dataset.i);
+                const input = row.querySelector("input");
+                input.oninput = () => { rows[i].label = input.value; err.hidden = true; };
+                input.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); save(); } };
+                row.querySelector("[data-act=clear]").onclick = () => { rows[i].label = ""; input.value = ""; input.focus(); };
+                row.querySelector("[data-act=delete]").onclick = () => { rows.splice(i, 1); render(); };
+                const pal = row.querySelector(".label-palette"), btn = row.querySelector("[data-act=palette]");
+                btn.onclick = () => {
+                    const open = pal.hidden;
+                    list.querySelectorAll(".label-palette").forEach(p => { p.hidden = true; });
+                    list.querySelectorAll("[data-act=palette]").forEach(b => b.setAttribute("aria-expanded", "false"));
+                    pal.hidden = !open; btn.setAttribute("aria-expanded", String(open));
+                };
+                pal.querySelectorAll("[data-pick]").forEach(d => d.onclick = () => { rows[i].color = d.dataset.pick; render(); });
+            });
+            if (focusIndex !== undefined) { const el = list.querySelectorAll(".label-row input")[focusIndex]; if (el) el.focus(); }
+        };
+        const close = () => { overlay.remove(); document.removeEventListener("keydown", onKey, true); if (lastFocus && lastFocus.focus) lastFocus.focus(); };
+        const add = () => { rows.push({ id: "c-" + Math.random().toString(36).slice(2, 10), label: "", color: freeColor() }); render(rows.length - 1); };
+        const save = () => {
+            const clean = rows.map(r => ({ ...r, label: String(r.label || "").trim().slice(0, 24) }));
+            if (clean.some(r => !r.label)) { err.textContent = "Give every label a name, or delete it."; err.hidden = false; return; }
+            const names = clean.map(r => r.label.toLowerCase());
+            if (names.some((n, i) => names.indexOf(n) !== i)) { err.textContent = "Two labels have the same name."; err.hidden = false; return; }
+            saveJSON(CAT_KEY, clean.map(r => ({ id: r.id, label: r.label, color: r.color })));
+            // tasks and events that used a deleted label go back to no label
+            const gone = new Set([...startIds].filter(id => !clean.some(r => r.id === id)));
+            if (gone.size) {
+                const tasks = getTasks(); let t = false;
+                tasks.forEach(x => { if (gone.has(x.category)) { delete x.category; t = true; } });
+                if (t) saveTasks(tasks);
+                const evs = getEvents(); let e = false;
+                evs.forEach(x => { if (gone.has(x.category)) { x.category = ""; e = true; } });
+                if (e) saveEvents(evs);
+                const series = getSeries(); let r = false;
+                series.forEach(x => { if (gone.has(x.category)) { delete x.category; r = true; } });
+                if (r) saveSeries(series);
+            }
+            notifyChange();
+            close();
+            toast("Labels saved.", "success");
+            onSaved && onSaved();
+        };
+        const onKey = e => {
+            if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
+            if (e.key === "Tab") {   // keep focus inside the dialog
+                const f = Array.from(overlay.querySelectorAll("button, input")).filter(x => x.offsetParent !== null);
+                if (!f.length) return;
+                if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+                else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+            }
+        };
+        document.addEventListener("keydown", onKey, true);
+        overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+        overlay.querySelector("[data-l=add]").onclick = add;
+        overlay.querySelector("[data-l=cancel]").onclick = close;
+        overlay.querySelector("[data-l=save]").onclick = save;
+        render();
+        if (addFirst && !rows.length) add();
+        else { const first = overlay.querySelector("input, [data-l=add]"); if (first) first.focus(); }
+    }
 
     /* Your own categories (name + colour), saved with your account */
     const CAT_KEY = "planora_categories";
@@ -1205,19 +1328,27 @@
        ===================================================== */
 
     const EVENT_KEY = "planora_events";
-    const CATS = () => ((window.PlanoraPriority && PlanoraPriority.CATEGORIES) || []).concat(customCategories());
+    // Labels are the user's own (name + colour). Planora doesn't ship ready-made ones.
+    const CATS = () => customCategories();
 
     function categoryInfo(id) {
-        return CATS().find(c => c.id === id) || null;
+        if (!id) return null;
+        const list = CATS();
+        // by id, or by name (Planora's suggestions say "study", "work"…: they match a label you named that way)
+        return list.find(c => c.id === id) || list.find(c => c.label.toLowerCase() === String(id).toLowerCase()) || null;
     }
+    // The label for an item: its own, or one of your labels that fits its name (e.g. "gym" → your "Health" label)
     function categoryOf(item) {
-        if (item && item.category && categoryInfo(item.category)) return item.category;
-        return window.PlanoraPriority ? PlanoraPriority.guessCategory(item && item.title) : "other";
+        const own = item && item.category ? categoryInfo(item.category) : null;
+        if (own) return own.id;
+        const guess = window.PlanoraPriority ? PlanoraPriority.guessCategory(item && item.title) : "";
+        const fit = guess && guess !== "other" ? categoryInfo(guess) : null;
+        return fit ? fit.id : "";
     }
     function categoryOptions(selected, { allowNone } = {}) {
-        return (allowNone ? `<option value="" ${!selected ? "selected" : ""}>None</option>` : "") +
-            CATS().map(c => `<option value="${esc(c.id)}" ${c.id === selected ? "selected" : ""}>${esc(c.label)}</option>`).join("") +
-            `<option value="__new">+ New category…</option>`;
+        const sel = categoryInfo(selected);
+        return (allowNone !== false ? `<option value="" ${!sel ? "selected" : ""}>None</option>` : "") +
+            CATS().map(c => `<option value="${esc(c.id)}" ${sel && c.id === sel.id ? "selected" : ""}>${esc(c.label)}</option>`).join("");
     }
 
     function getEvents() {
@@ -1236,7 +1367,7 @@
             title: String(e.title || "Event").trim().slice(0, 140),
             date: e.date || today(),
             start, end,
-            category: e.category && categoryInfo(e.category) ? e.category : categoryOf(e),
+            category: e.category && categoryInfo(e.category) ? categoryInfo(e.category).id : (e.category || ""),
             createdAt: e.createdAt || new Date().toISOString()
         };
         if (e.location) ev.location = String(e.location).slice(0, 140);
@@ -1483,9 +1614,8 @@
                 const rep = f("repeat");
                 if (rep) rep.onchange = () => { days.hidden = rep.value !== "custom"; };
                 mountColorChips(form.querySelector(".edit-color-field"), {
-                    selected: editing ? (d.category || categoryOf(d)) : (d.category || ""),
+                    selected: d.category || "",
                     color: d.color || "",
-                    allowNone: false,
                     autoFrom: editing ? null : f("title")
                 });
                 // keep the length when the start moves
@@ -2338,7 +2468,7 @@
         eventSeriesFor, editEventScoped, deleteEventScoped, openEventSheet, openEventForm, openCreateSheet, openSlotCreate,
         categoryInfo, categoryOf, categoryOptions, customCategories, addCategory,
         // colours
-        taskColor, eventColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
+        openLabelsManager, taskColor, eventColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
         // utils
         today, addDays, nowMin, nowClock, toMin, toClock, time12, durLabel, dayLabel, shortDate, esc, uid, taskDuration, loadJSON, saveJSON,
         migrate

@@ -531,6 +531,7 @@
             "Account": openEditInfo,
             "Notifications": openNotifications,
             "Appearance": openAppearance,
+            "Labels": () => window.PlanoraCore && PlanoraCore.openLabelsManager(),
             "Privacy and data": openPrivacy,
             "Help and support": openHelp,
             "Log out": () => PlanoraAuth.logout()
