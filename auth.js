@@ -176,7 +176,10 @@
     /* ---------------- Planora's own server (Ask Planora AI) ---------------- */
     // Every call to "/api/..." carries the Supabase access token, so the
     // server knows who is asking. apiBase lets the live site use a hosted server.
-    const API_BASE = String(CFG.apiBase || "").replace(/\/$/, "");
+    // On your computer (http://localhost with `npm start`) the local server is used;
+    // the live site and the phone apps use the hosted server in planora-config.js.
+    const LOCAL_SERVER = IS_DEV && location.protocol === "http:";
+    const API_BASE = LOCAL_SERVER ? "" : String(CFG.apiBase || "").replace(/\/$/, "");
     async function accessToken() {
         if (!sb) return null;
         try { const { data } = await sb.auth.getSession(); return data.session ? data.session.access_token : null; } catch { return null; }

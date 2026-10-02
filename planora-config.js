@@ -32,5 +32,5 @@ window.PLANORA_CONFIG = {
     // "" = the same site (localhost while developing with `npm start`).
     // GitHub Pages can't run Node, so for planoraai.net set this to the
     // address of a hosted copy of server.js (e.g. "https://api.planoraai.net").
-    apiBase: ""
+    apiBase: "https://planora-api-otbi.onrender.com"
 };
