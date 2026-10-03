@@ -602,6 +602,17 @@ function schedule(items, { today, now, existing }) {
         return null;
     };
 
+    // the free start time closest to `pref` (before or after), or null
+    const findNear = (date, pref, d) => {
+        const lo = earliest(date), p0 = Math.round(pref / STEP) * STEP;
+        for (let k = 0; k * STEP <= DAY_END - DAY_START; k++) {
+            for (const s of [p0 + k * STEP, p0 - k * STEP]) {
+                if (s >= lo && fits(date, s, d)) return s;
+            }
+        }
+        return null;
+    };
+
     const out = [];
     // fixed-time items first so flexible ones flow around them
     const order = items
@@ -623,8 +634,13 @@ function schedule(items, { today, now, existing }) {
                 placed = findSlot(date, nowMin, duration);
             } else {
                 placed = pref;
-                if (!fits(date, pref, duration) && pref >= DAY_START && pref + duration <= DAY_END) {
-                    const clash = (busy[date] || []).some(([bs, be]) => pref < be && pref + duration > bs);
+                const clash = (busy[date] || []).some(([bs, be]) => pref < be && pref + duration > bs);
+                if (clash && t.goalRef) {
+                    // goal sessions repeat: never stack them on other tasks — take the nearest free time that day
+                    const near = findNear(date, pref, duration);
+                    if (near !== null) { placed = near; note = note || `Moved to ${clock12(toClock(near))} so it doesn't overlap with something already planned.`; }
+                    else note = note || "Overlaps with something already planned — edit if needed.";
+                } else if (!fits(date, pref, duration) && pref >= DAY_START && pref + duration <= DAY_END) {
                     if (clash) note = note || "Overlaps with something already planned — edit if needed.";
                 }
             }
@@ -1309,7 +1325,9 @@ function sanitiseContext(body, today) {
     const existing = tasks.filter(t => !t.completed && t.start && daysBetween(today, t.date) >= 0)
         .map(t => ({ id: t.id, date: t.date, start: t.start, end: t.end, title: t.title }))
         .concat(events.filter(e => daysBetween(today, e.date) >= 0).map(e => ({ id: e.id, date: e.date, start: e.start, end: e.end, title: e.title, kind: "event" })))
-        .concat((Array.isArray(body.existing) ? body.existing : []).slice(0, 300));
+        .concat((Array.isArray(body.existing) ? body.existing : []).slice(0, 600)
+            .filter(e => e && isDate(e.date) && /^\d{1,2}:\d{2}$/.test(e.start || ""))
+            .map(e => ({ date: e.date, start: e.start, end: /^\d{1,2}:\d{2}$/.test(e.end || "") ? e.end : "", title: String(e.title || "").slice(0, 80) })));
     return { ctx: { tasks, goals, events }, existing };
 }
 
@@ -1606,6 +1624,13 @@ function install(app, requireAuth) {
             }
 
             const goals = sanitiseGoals(understood.goals, today);
+            if (source === "openai") {
+                // The AI's times are suggestions. A task keeps a fixed time only when the user
+                // actually said one ("gym at 6pm"); everything else is fitted around the calendar,
+                // so new goal sessions never land on top of existing tasks or other goals.
+                const userGaveTime = Boolean(findTime(message)) || /\b\d{1,2}(:\d{2})?\s*(-|–|to)\s*\d{1,2}(:\d{2})?\s*(am|pm)?\b/i.test(message);
+                understood.tasks.forEach(t => { if (t && typeof t === "object") t.flexible = !(userGaveTime && t.flexible === false); });
+            }
             const tasks = schedule(understood.tasks.slice(0, 30), { today, now, existing });
             const updates = resolveUpdates(understood.updates, ctx, today, now, existing);
             let reply = understood.reply || summarise(tasks, goals, today);

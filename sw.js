@@ -12,13 +12,13 @@
    - Account and AI requests (/api, /auth) are never cached.
    ========================================================= */
 
-const VERSION = "planora-2026-10-02-darkrail";
+const VERSION = "planora-2026-10-02-gcal";
 const SHELL = [
     "/offline.html",
     "/style.css", "/extras.css", "/devices.css", "/desktop.css", "/fonts/figtree-latin-wght-normal.woff2", "/fonts/bricolage-grotesque-latin-wght-normal.woff2",
     "/device.js", "/pwa.js", "/planora-config.js", "/vendor/supabase.js", "/auth.js", "/planora-core.js", "/planora-priority.js",
     "/focus.js", "/smart-planner.js", "/script.js", "/home.js", "/app-extras.js",
-    "/calendar.js", "/calendar-views.js", "/planner.js", "/journal-link.js", "/ai-assistant.js", "/login.js",
+    "/calendar.js", "/calendar-views.js", "/gcal.js", "/planner.js", "/journal-link.js", "/ai-assistant.js", "/login.js",
     "/manifest.webmanifest",
     "/icons/logo-128.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png", "/icons/favicon-32.png"
 ];

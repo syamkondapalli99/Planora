@@ -145,7 +145,21 @@ PORT=3000
 SUPABASE_URL=...          # optional: defaults to the value in planora-config.js
 SUPABASE_ANON_KEY=...     # optional: defaults to the value in planora-config.js
 ALLOWED_ORIGINS=...       # optional: extra sites allowed to call this server (planoraai.net is allowed already)
+GOOGLE_CLIENT_SECRET=...  # Google Calendar link: the Web client's secret (Google Cloud → Clients)
+GCAL_TOKEN_KEY=...        # Google Calendar link: any long random text, used to encrypt Google's permission
 ```
+
+### Google Calendar (read-only)
+
+Calendar → **Google** (or Profile → Google Calendar) links a Google account. Google events show in
+Month / Week / Day with Google's colours, open read-only with "Open in Google Calendar", and Ask Planora
+and free-time checks plan around them. Planora never changes anything in Google.
+
+Google's popup gives the browser a one-time code; `gcal-server.js` swaps it (with the client secret) for
+Google's long-lived permission, encrypts it (AES-256-GCM, `GCAL_TOKEN_KEY`) and stores it in
+`planora_google_calendar` (RLS, own row only; `supabase/google-calendar.sql`). Tokens never reach the
+page or localStorage. Needs: Google Calendar API enabled, the `calendar.readonly` scope on the consent
+screen, the two settings above on the server, and the SQL run once.
 
 ## What's where
 
@@ -155,6 +169,8 @@ ALLOWED_ORIGINS=...       # optional: extra sites allowed to call this server (p
 | `auth-server.js` | Checks Supabase sign-in on the AI endpoints, blocks private files, CORS for planoraai.net |
 | `planora-config.js` | Public settings: Supabase URL + anon key, production URL, `apiBase` |
 | `supabase/schema.sql` | The one table + Row Level Security + delete-my-account function |
+| `supabase/google-calendar.sql` | Google Calendar link table + Row Level Security |
+| `gcal-server.js` + `gcal.js` | Google Calendar link: server (code swap, encrypted permission, events) and app (panel, events in the calendar) |
 | `vendor/supabase.js` | Supabase JS SDK (v2.117.2, MIT) |
 | `reset-password.html` | Choose a new password from the email link |
 | `index.html` + `login.js` | Sign in / create account / Google / Apple / forgot password + onboarding |

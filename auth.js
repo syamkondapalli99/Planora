@@ -353,6 +353,7 @@
             if (key && key.startsWith("planora_") && key !== GUEST_KEY) keys.push(key);
         }
         keys.forEach(key => rawRemove.call(store, key));
+        rawRemove.call(store, "planora-gcal-cache");      // Google Calendar events shown on this device
     }
 
     /*
@@ -519,6 +520,8 @@
     async function deleteAccount() {
         const user = currentUser();
         if (user && user.guest) { clearLocalAccountData(); rawRemove.call(store, GUEST_KEY); return; }
+        // Ask Google to forget Planora's calendar access (best effort; the link itself is deleted with the account)
+        try { await Promise.race([fetch("/api/gcal/disconnect", { method: "POST" }), new Promise(r => setTimeout(r, 4000))]); } catch {}
         const { error } = await sb.rpc("delete_my_account");
         if (error) throw friendlyError(error);
         leaving = true;

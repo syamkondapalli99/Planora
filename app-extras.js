@@ -532,6 +532,7 @@
             "Notifications": openNotifications,
             "Appearance": openAppearance,
             "Labels": () => window.PlanoraCore && PlanoraCore.openLabelsManager(),
+            "Google Calendar": () => window.PlanoraGCal ? PlanoraGCal.openPanel() : (location.href = "calendar.html?gcal=1"),
             "Privacy and data": openPrivacy,
             "Help and support": openHelp,
             "Log out": () => PlanoraAuth.logout()

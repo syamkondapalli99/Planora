@@ -57,10 +57,12 @@
         const core = C();
         const tasks = core.getTasks().filter(t => t.date && t.date >= from && t.date <= to).map(t => ({ kind: "task", id: String(t.id), raw: t, date: t.date, start: t.start || "", dur: core.taskDuration(t), title: t.title }));
         const events = core.getEvents().filter(e => e.date >= from && e.date <= to).map(e => ({ kind: "event", id: String(e.id), raw: e, date: e.date, start: e.start, dur: core.eventDuration(e), title: e.title }));
-        return tasks.concat(events);
+        const google = window.PlanoraGCal ? PlanoraGCal.itemsFor(from, to) : [];     // Google Calendar (read-only)
+        return tasks.concat(events, google);
     }
     function colorOf(it) {
         const core = C();
+        if (it.kind === "gevent") return { color: it.raw.color || "#039BE5", soft: core.softOf ? core.softOf(it.raw.color || "#039BE5") : "#E1F3FC", label: it.raw.calName || "Google Calendar" };
         if (it.kind === "task") return core.taskColor ? core.taskColor(it.raw) : { color: "#7F77DD", soft: "#EEEDFE", label: "" };
         if (it.kind === "event" && core.eventColor) return core.eventColor(it.raw);
         const c = core.categoryInfo(it.kind === "event" ? (it.raw.category || core.categoryOf(it.raw)) : it.raw.category);
@@ -81,6 +83,7 @@
             <button type="button" class="cv-range" data-picker aria-haspopup="dialog" aria-expanded="false" title="Jump to a date">
                 <span id="cv-range-label">${C().esc(rangeLabel())}</span><i class="ti ti-chevron-down" aria-hidden="true"></i>
             </button>
+            ${window.PlanoraGCal ? PlanoraGCal.buttonHTML() : ""}
             <div class="cv-switch" role="tablist" aria-label="Calendar view">
                 ${views.map(([v, l]) => `<button type="button" role="tab" data-view="${v}" aria-selected="${state.view === v}" id="cv-tab-${v}">${l}</button>`).join("")}
             </div>`;
@@ -205,14 +208,14 @@
                 <div class="mv-dow" role="row">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(x => `<span role="columnheader">${phone ? x[0] : x}</span>`).join("")}</div>
                 <div class="mv-grid" style="--weeks:${weeks}">
                     ${days.map(d => {
-                        const list = all.filter(x => x.date === d).sort((a, b) => (a.start || "99").localeCompare(b.start || "99") || (a.kind === "event" ? -1 : 1));
+                        const list = all.filter(x => x.date === d).sort((a, b) => (a.start || "99").localeCompare(b.start || "99") || (a.kind !== "task" ? -1 : 1));
                         const shown = list.slice(0, max);
                         const more = list.length - shown.length;
                         const cls = ["mv-day", d.slice(0, 7) !== m.slice(0, 7) ? "is-out" : "", d === t ? "is-today" : "", d === state.date ? "is-selected" : ""].filter(Boolean).join(" ");
                         return `
                         <div class="${cls}" role="gridcell" data-day="${d}">
                             <button type="button" class="mv-num" data-open-day="${d}" aria-label="${core.esc(fmt(d, { weekday: "long", month: "long", day: "numeric" }))}${list.length ? `, ${list.length} item${list.length === 1 ? "" : "s"}` : ""}">${Number(d.slice(8))}</button>
-                            ${phone ? (list.length ? `<div class="mv-dots" aria-hidden="true">${list.slice(0, 4).map(x => `<i class="${x.kind === "event" ? "is-event" : "is-task"}${x.raw.completed ? " is-done" : ""}" style="--c:${colorOf(x).color}"></i>`).join("")}${list.length > 4 ? `<b>+${list.length - 4}</b>` : ""}</div>` : "") :
+                            ${phone ? (list.length ? `<div class="mv-dots" aria-hidden="true">${list.slice(0, 4).map(x => `<i class="${x.kind !== "task" ? "is-event" : "is-task"}${x.raw.completed ? " is-done" : ""}" style="--c:${colorOf(x).color}"></i>`).join("")}${list.length > 4 ? `<b>+${list.length - 4}</b>` : ""}</div>` : "") :
                             shown.map(x => chip(x)).join("") + (more > 0 ? `<button type="button" class="mv-more" data-open-day="${d}">+${more} more</button>` : "")}
                         </div>`;
                     }).join("")}
@@ -223,6 +226,9 @@
         const core = C();
         const c = colorOf(x);
         const time = x.start ? core.time12(x.start).replace(":00", "").replace(" ", "").toLowerCase() : "";
+        if (x.kind === "gevent") {
+            return `<button type="button" class="mv-item is-event is-google" data-open-gevent="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft}" title="Google Calendar: ${core.esc(x.title)}"><i class="ti ti-brand-google" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (Google Calendar event)</span></button>`;
+        }
         if (x.kind === "event") {
             return `<button type="button" class="mv-item is-event" data-open-event="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft}" title="Event: ${core.esc(x.title)}"><i class="ti ti-calendar-event" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (event)</span></button>`;
         }
@@ -316,6 +322,7 @@
     function allDayChip(x) {
         const core = C();
         const c = colorOf(x);
+        if (x.kind === "gevent") return `<button type="button" class="ad-item is-event is-google" data-open-gevent="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft}"><i class="ti ti-brand-google" aria-hidden="true"></i><span>${core.esc(x.title)}</span><span class="sr-only"> (Google Calendar, all day)</span></button>`;
         if (x.kind === "event") return `<button type="button" class="ad-item is-event" data-open-event="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft}"><i class="ti ti-calendar-event" aria-hidden="true"></i><span>${core.esc(x.title)}</span></button>`;
         return `<div class="ad-item is-task${x.raw.completed ? " is-done" : ""}" data-drag="task" data-id="${core.esc(x.id)}" data-dur="${x.dur}" style="--c:${c.color}">
             <button type="button" class="blk-check" data-check="${core.esc(x.id)}" aria-label="${x.raw.completed ? "Mark not done" : "Complete"}: ${core.esc(x.title)}"><i class="ti ti-check" aria-hidden="true"></i></button>
@@ -337,6 +344,17 @@
         const series = it.raw.seriesId;
         const g = goalLabel(it);
         const extra = [g ? g.text : "", single ? c.label : "", single && it.kind === "event" && it.raw.location ? it.raw.location : "", single && it.kind === "task" && it.raw.priority === "high" ? "High priority" : ""].filter(Boolean).join(" · ");
+        if (it.kind === "gevent") {
+            const gEnd = it.raw.end ? core.time12(it.raw.end) : core.time12(endClock);
+            const gExtra = [single ? (it.raw.calName || "") : "", single && it.raw.location ? it.raw.location : ""].filter(Boolean).join(" · ");
+            return `
+            <div class="blk is-event is-google${short ? " is-short" : ""}" style="${style}">
+                <button type="button" class="blk-body" data-open-gevent="${core.esc(it.id)}" aria-label="Google Calendar: ${core.esc(it.title)}, ${core.esc(core.time12(it.start))} – ${core.esc(gEnd)}">
+                    <span class="blk-title"><i class="ti ti-brand-google" aria-hidden="true"></i>${core.esc(it.title)}</span>
+                    <span class="blk-time">${core.esc(core.time12(it.start))} – ${core.esc(gEnd)}${gExtra ? " · " + core.esc(gExtra) : ""}</span>
+                </button>
+            </div>`;
+        }
         if (it.kind === "event") {
             return `
             <div class="blk is-event${short ? " is-short" : ""}" data-drag="event" data-id="${core.esc(it.id)}" data-dur="${it.dur}" style="${style}">

@@ -136,6 +136,7 @@
                         today: PlanoraCore.today(),
                         now: PlanoraCore.nowClock(),
                         context: PlanoraCore.aiContext(),
+                        existing: PlanoraCore.busySlots ? PlanoraCore.busySlots() : [],
                         history: state.history.slice(-6),
                         draft: draftForServer(),
                         recent: state.recent,

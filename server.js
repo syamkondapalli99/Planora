@@ -17,6 +17,7 @@ auth.install(app);
 
 // One-box AI planner: tasks, deadlines, repeats and goals -> a scheduled plan
 require("./smart-plan-server").install(app, auth.requireAuth);
+require("./gcal-server").install(app, auth.requireAuth, auth.config);   // Google Calendar (read-only)
 
 app.use(express.json());
 

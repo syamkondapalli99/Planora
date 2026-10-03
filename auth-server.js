@@ -23,7 +23,7 @@ const path = require("path");
 const crypto = require("crypto");
 
 // Files that must never be sent to the browser.
-const PRIVATE_PATHS = /^\/(data(\/|$)|node_modules(\/|$)|\.git(\/|$)|\.env|server\.js$|auth-server\.js$|smart-plan-server\.js$|package(-lock)?\.json$|.*\.code-workspace$|supabase(\/|$))/i;
+const PRIVATE_PATHS = /^\/(data(\/|$)|node_modules(\/|$)|\.git(\/|$)|\.env|server\.js$|auth-server\.js$|smart-plan-server\.js$|gcal-server\.js$|package(-lock)?\.json$|.*\.code-workspace$|supabase(\/|$))/i;
 
 /* ---------------- Supabase project (public values) ---------------- */
 // .env (SUPABASE_URL / SUPABASE_ANON_KEY) wins; otherwise the same public

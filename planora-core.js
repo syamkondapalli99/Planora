@@ -861,6 +861,23 @@
         return window.PlanoraPriority ? PlanoraPriority.reason(task, priorityCtx()) : "";
     }
 
+
+    // Google Calendar events last synced on this device (gcal.js) — read-only,
+    // so plans and free-time checks work around them. Never includes tokens.
+    function googleBusy(from, to) {
+        try {
+            const c = JSON.parse(localStorage.getItem("planora-gcal-cache") || "null");
+            const u = window.PlanoraAuth && PlanoraAuth.user;
+            if (!c || !c.connected || !u || u.guest || String(c.uid) !== String(u.id)) return [];
+            const out = [];
+            Object.keys(c.events || {}).forEach(d => {
+                if (d < from || d > to) return;
+                (c.events[d] || []).forEach(e => { if (!e.allDay && e.start) out.push({ id: "g:" + e.id, title: e.title, date: d, start: e.start, end: e.end || e.start, category: "", google: true }); });
+            });
+            return out;
+        } catch { return []; }
+    }
+
     // What the AI is allowed to know about the user's plan
     function aiContext() {
         const t = today();
@@ -880,8 +897,20 @@
         const events = getEvents()
             .filter(x => x.date >= addDays(t, -1) && x.date <= to)
             .slice(0, 300)
-            .map(x => ({ id: String(x.id), title: x.title, date: x.date, start: x.start, end: x.end, category: x.category || "" }));
+            .map(x => ({ id: String(x.id), title: x.title, date: x.date, start: x.start, end: x.end, category: x.category || "" }))
+            .concat(googleBusy(addDays(t, -1), to).slice(0, 200).map(({ google, ...x }) => x));
         return { tasks, goals, events };
+    }
+
+    // Timed tasks and events further ahead than aiContext() covers (days 31-120), so long goal
+    // plans are fitted around them too. Times only — this isn't sent to the AI model.
+    function busySlots() {
+        const t = today(), from = addDays(t, 31), to = addDays(t, 120);
+        return getTasks().filter(x => !x.completed && x.date >= from && x.date <= to && toMin(x.start) !== null)
+            .map(x => ({ date: x.date, start: x.start, end: x.end || toClock(toMin(x.start) + taskDuration(x)) }))
+            .concat(getEvents().filter(e => e.date >= from && e.date <= to && toMin(e.start) !== null).map(e => ({ date: e.date, start: e.start, end: e.end })))
+            .concat(googleBusy(from, to).map(e => ({ date: e.date, start: e.start, end: e.end })))
+            .slice(0, 600);
     }
 
     // Free windows on a date (minutes), after `fromMin`
@@ -890,6 +919,7 @@
             .filter(t => t.date === date && toMin(t.start) !== null)
             .map(t => [toMin(t.start), toMin(t.end) !== null && toMin(t.end) > toMin(t.start) ? toMin(t.end) : toMin(t.start) + 30])
             .concat(getEvents().filter(e => e.date === date && toMin(e.start) !== null).map(e => [toMin(e.start), toMin(e.start) + eventDuration(e)]))
+            .concat(googleBusy(date, date).filter(e => toMin(e.end) > toMin(e.start)).map(e => [toMin(e.start), toMin(e.end)]))
             .sort((a, b) => a[0] - b[0]);
         const gaps = [];
         let cursor = Math.max(fromMin, 7 * 60);
@@ -912,7 +942,8 @@
         const existing = getTasks()
             .filter(t => !t.completed && t.date && t.date >= today() && t.start && !exclude.has(String(t.id)))
             .map(t => ({ date: t.date, start: t.start, end: t.end, title: t.title }))
-            .concat(getEvents().filter(e => e.date >= today()).map(e => ({ date: e.date, start: e.start, end: e.end, title: e.title, kind: "event" })));
+            .concat(getEvents().filter(e => e.date >= today()).map(e => ({ date: e.date, start: e.start, end: e.end, title: e.title, kind: "event" })))
+            .concat(googleBusy(today(), addDays(today(), 60)).map(e => ({ date: e.date, start: e.start, end: e.end, title: e.title, kind: "event" })));
         const response = await fetch("/api/schedule", {
             method: "POST",
             credentials: "same-origin",
@@ -2584,7 +2615,7 @@
         // recurring
         getSeries, createRecurring, extendRecurring, deleteOccurrence, repeatLabel, seriesFor,
         // events (not tasks)
-        getEvents, getEvent, addEvents, updateEvent, removeEvent, saveEvents, eventDuration, createEventSeries, extendEventSeries,
+        busySlots, getEvents, getEvent, addEvents, updateEvent, removeEvent, saveEvents, eventDuration, createEventSeries, extendEventSeries,
         eventSeriesFor, editEventScoped, deleteEventScoped, openEventSheet, openEventForm, openCreateSheet, openSlotCreate,
         categoryInfo, categoryOf, categoryOptions, customCategories, addCategory,
         // colours
