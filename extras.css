@@ -1683,3 +1683,53 @@ body.ask-open .fab { opacity: 0; pointer-events: none; }
 .gcal-row i { color: var(--pl-muted, #6b6880); font-size: 18px; margin-top: 1px; flex-shrink: 0; }
 .gcal-event .gcal-actions { margin-top: 8px; }
 .gcal-err:empty { display: none; }
+
+/* =========================================================
+   CALENDAR — BOLDER (stronger lines, darker text, heavier items)
+   ========================================================= */
+.cal-view { --cal-line: #DCD8EF; --cal-edge: #C9C4E6; --cal-ink: #26215C; --cal-ink-2: #3F3A66; --cal-muted: #5B5677; }
+/* frame + grid lines */
+.mv, .tg-scroll { border-color: var(--cal-edge); }
+.mv-dow, .tg-corner, .tg-head { border-bottom-color: var(--cal-edge); }
+.mv-day { border-right-color: var(--cal-line); border-bottom-color: var(--cal-line); }
+.tg-head { border-left-color: var(--cal-line); }
+.tg-col {
+  border-left-color: var(--cal-line);
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--hour) - 1px), var(--cal-line) calc(var(--hour) - 1px), var(--cal-line) var(--hour));
+}
+.tg-col.is-today { background-color: #F8F6FF; }
+/* labels */
+.mv-dow span { font-size: 12.5px; font-weight: 600; color: var(--cal-ink-2); }
+.mv-num { font-size: 13.5px; font-weight: 600; color: var(--cal-ink); }
+.mv-day.is-out .mv-num { color: #A3A0B5; font-weight: 500; }
+.tg-date .dow { font-size: 12px; font-weight: 600; color: var(--cal-ink-2); }
+.tg-date .num { font-size: 22px; font-weight: 600; color: var(--cal-ink); }
+.tg-head.is-today .dow { color: var(--purple-600, #534AB7); }
+.tg-head.is-today .num { background: var(--purple-600, #534AB7); }
+.mv-day.is-today .mv-num { background: var(--purple-600, #534AB7); }
+.tg-gutter span { font-size: 11.5px; font-weight: 500; color: var(--cal-muted); }
+.tg-corner { font-size: 11px; font-weight: 500; color: var(--cal-muted); }
+.tg-empty { color: var(--cal-muted); }
+/* items in the week / day grid */
+.blk.is-task { border-color: var(--cal-edge); border-left-color: var(--c); border-left-width: 5px; box-shadow: 0 1px 4px rgba(38,33,92,.12); }
+.blk.is-event { border-left-width: 5px; }
+.blk-title { font-weight: 600; font-size: 13px; color: var(--cal-ink); }
+.blk-time { font-size: 11.5px; font-weight: 500; color: var(--cal-ink-2); }
+.blk-check { border-width: 2px; }
+.tg.is-day .blk-title { font-size: 14.5px; }
+.tg.is-day .blk-time { font-size: 12.5px; }
+.ad-item { font-size: 12px; font-weight: 600; color: var(--cal-ink); }
+.ad-item.is-event { font-size: 12px; font-weight: 600; }
+.ad-item.is-task { border-color: var(--cal-edge); border-left-color: var(--c); }
+/* items in the month grid */
+.mv-item { font-size: 12px; font-weight: 600; color: var(--cal-ink); min-height: 22px; }
+.mv-item b { font-weight: 700; color: var(--cal-ink-2); }
+.mv-item.is-task { border-color: var(--cal-edge); border-left: 3px solid var(--c); }
+.mv-item.is-done .t { font-weight: 500; }
+.mv-more { font-weight: 600; color: var(--purple-700, #4A41A8); }
+.mv-dots i { width: 8px; height: 8px; }
+.mv-dots i.is-task { width: 8px; height: 8px; border-width: 2px; }
+.cv-range { font-weight: 600; color: var(--purple-900, #26215C); }
+.cv-switch button { color: #4A4566; }
+.cv-switch button[aria-selected="true"] { font-weight: 600; }
+.cv-today { font-weight: 600; }
