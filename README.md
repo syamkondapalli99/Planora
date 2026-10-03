@@ -149,11 +149,14 @@ GOOGLE_CLIENT_SECRET=...  # Google Calendar link: the Web client's secret (Googl
 GCAL_TOKEN_KEY=...        # Google Calendar link: any long random text, used to encrypt Google's permission
 ```
 
-### Google Calendar (read-only)
+### Google Calendar
 
 Calendar → **Google** (or Profile → Google Calendar) links a Google account. Google events show in
 Month / Week / Day with Google's colours, open read-only with "Open in Google Calendar", and Ask Planora
-and free-time checks plan around them. Planora never changes anything in Google.
+and free-time checks plan around them. Planora never changes the person's own Google events.
+Optional **Planora → Google**: timed tasks and events (a week back to 3 months ahead) are copied into one
+"Planora" calendar Planora makes in their Google account (scope `calendar.app.created`), and kept up to date
+(add / move / rename / tick / delete). **Fix clashes** on the Calendar moves overlapping tasks (preview first).
 
 Google's popup gives the browser a one-time code; `gcal-server.js` swaps it (with the client secret) for
 Google's long-lived permission, encrypts it (AES-256-GCM, `GCAL_TOKEN_KEY`) and stores it in

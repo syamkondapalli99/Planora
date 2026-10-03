@@ -2272,6 +2272,60 @@
         return updates;
     }
 
+    /* Clashes: timed, unfinished tasks (today on) that overlap an event, a Google
+       Calendar event or another task. Events never move. Between tasks, the one you
+       placed yourself stays; Planora-planned and goal tasks are the ones that move. */
+    function findClashes(from, to) {
+        const t = today(), nm = nowMin();
+        if (from < t) from = t;
+        if (to < from) return [];
+        const span = (s, e, d) => { const a = toMin(s); let b = toMin(e); if (b === null || b <= a) b = a + (d || 30); return [a, b]; };
+        const out = [];
+        const tasks = getTasks().filter(x => !x.completed && x.date >= from && x.date <= to && toMin(x.start) !== null);
+        const fixedByDate = {};
+        getEvents().filter(e => e.date >= from && e.date <= to && toMin(e.start) !== null)
+            .forEach(e => (fixedByDate[e.date] = fixedByDate[e.date] || []).push({ r: span(e.start, e.end, eventDuration(e)), title: e.title }));
+        googleBusy(from, to).forEach(e => (fixedByDate[e.date] = fixedByDate[e.date] || []).push({ r: span(e.start, e.end, 30), title: e.title }));
+        const dates = [...new Set(tasks.map(x => x.date))];
+        dates.forEach(d => {
+            const list = tasks.filter(x => x.date === d).map(x => ({ x, r: span(x.start, x.end, taskDuration(x)), mov: !x.seriesId && !x.fixed, own: !isMovable(x) }))
+                .filter(o => !(d === t && o.r[1] <= nm));                       // already over today
+            // tasks you placed yourself first, then by start time
+            list.sort((a, b) => (a.own === b.own ? 0 : a.own ? -1 : 1) || a.r[0] - b.r[0]);
+            const kept = (fixedByDate[d] || []).slice();
+            const hit = (r, k) => r[0] < k.r[1] && k.r[0] < r[1];
+            list.forEach(o => {
+                const with_ = kept.find(k => hit(o.r, k));
+                if (with_ && o.mov) out.push({ task: o.x, with: with_.title });
+                else kept.push({ r: o.r, title: o.x.title });
+            });
+        });
+        return out;
+    }
+
+    async function fixClashes(from, to) {
+        const clashes = findClashes(from, to);
+        if (!clashes.length) { toast("No clashes: nothing overlaps.", "success"); return null; }
+        const ids = clashes.map(c => String(c.task.id));
+        const placed = await scheduleItems(clashes.map(c => ({
+            title: c.task.title, date: c.task.date, start: c.task.start, duration: taskDuration(c.task), flexible: true,
+            sourceId: c.task.id, deadline: c.task.deadline || null
+        })), { excludeIds: ids });
+        const byId = {};
+        clashes.forEach(c => { byId[String(c.task.id)] = c; });
+        const updates = placed.filter(p => byId[p.sourceId]).map(p => {
+            const c = byId[p.sourceId], o = c.task;
+            return { id: p.sourceId, title: p.title, date: p.date, start: p.start, end: p.end, duration: p.duration,
+                notes: p.notes || `Was overlapping "${c.with}".`, from: { date: o.date, start: o.start, end: o.end } };
+        }).filter(u => u.start !== u.from.start || u.date !== u.from.date);
+        if (!updates.length) { toast("Planora couldn't find free time to move these. Try moving one by hand.", "error"); return null; }
+        openPlanPreview({ tasks: [], goals: [], updates }, {
+            title: "Fix clashes",
+            intro: `${updates.length} task${updates.length === 1 ? "" : "s"} overlap${updates.length === 1 ? "s" : ""} with something else. Here's the nearest free time for each. Events and Google Calendar events don't move. Nothing changes until you apply.`
+        });
+        return updates;
+    }
+
     async function organizeTomorrow(list) {
         const t = today();
         const tomorrow = addDays(t, 1);
@@ -2610,7 +2664,7 @@
         // ui
         openSheet, closeSheet, confirm: confirmDialog, choose: chooseDialog, quickAdd, openQuickAddSheet, openGoalSheet, toast, toastUndo,
         // doing the work
-        openTaskSheet, openRescheduleSheet, moveTask, optimizeDay, organizeTomorrow, isMovable,
+        openTaskSheet, openRescheduleSheet, moveTask, optimizeDay, organizeTomorrow, findClashes, fixClashes, isMovable,
         openDailyReview, reviewStats, openSearch,
         // recurring
         getSeries, createRecurring, extendRecurring, deleteOccurrence, repeatLabel, seriesFor,

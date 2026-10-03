@@ -1733,3 +1733,37 @@ body.ask-open .fab { opacity: 0; pointer-events: none; }
 .cv-switch button { color: #4A4566; }
 .cv-switch button[aria-selected="true"] { font-weight: 600; }
 .cv-today { font-weight: 600; }
+
+/* Fix clashes bar (calendar) */
+.cal-clash {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 10px; padding: 10px 12px 10px 14px; border-radius: 14px;
+  background: #FFF4E5; border: 1px solid #F5C98A; color: #5C3B00; font-size: 14px; line-height: 1.35;
+}
+.cal-clash > i { font-size: 18px; color: #B86E00; flex-shrink: 0; }
+.cal-clash > span { flex: 1; min-width: 0; }
+.cal-clash-btn {
+  flex-shrink: 0; border: none; border-radius: 10px; padding: 9px 14px; min-height: 38px; cursor: pointer;
+  background: #26215C; color: #fff; font: inherit; font-size: 14px; font-weight: 600;
+}
+.cal-clash-btn:hover { background: #3C3489; }
+.cal-clash-btn:focus-visible { outline: 3px solid #AFA9EC; outline-offset: 2px; }
+.cal-clash-btn[disabled] { opacity: .6; cursor: progress; }
+@media (max-width: 699px) { .cal-clash { font-size: 13px; padding: 8px 8px 8px 12px; } }
+
+/* Google Calendar: link option + Planora → Google section */
+.gcal-opt { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; border-radius: 12px; background: var(--gray-50, #F7F6FB); cursor: pointer; font-size: 14.5px; line-height: 1.4; color: var(--purple-900, #26215C); position: relative; }
+.gcal-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.gcal-opt .gcal-box { margin-top: 1px; }
+.gcal-opt input:checked + .gcal-box { background: var(--c); }
+.gcal-opt input:checked + .gcal-box i { visibility: visible; }
+.gcal-opt input:focus-visible + .gcal-box { outline: 3px solid var(--purple-200, #AFA9EC); outline-offset: 2px; }
+.gcal-opt small { color: var(--pl-muted, #6b6880); }
+.gcal-sync { border: 1px solid var(--purple-100, #CECBF6); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.gcal-sync.is-on { background: #F3FBF7; border-color: #BFE6D3; }
+.gcal-sync-t { margin: 0; display: flex; gap: 10px; font-size: 14px; line-height: 1.45; color: var(--purple-900, #26215C); }
+.gcal-sync-t i { font-size: 19px; color: var(--purple-600, #534AB7); margin-top: 1px; flex-shrink: 0; }
+.gcal-sync.is-on .gcal-sync-t i { color: #1D9E75; }
+.gcal-sync .gcal-sub { margin: -4px 0 0 29px; }
+.gcal-sync-on { margin-left: 29px; width: auto; padding: 9px 16px; }
+.gcal-linkbtn { margin-left: 29px; border: none; background: none; padding: 6px 0; font: inherit; font-size: 13.5px; font-weight: 500; color: var(--purple-700, #4A41A8); text-decoration: underline; cursor: pointer; }
+.gcal-warn { color: #B42318; }

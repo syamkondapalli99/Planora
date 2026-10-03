@@ -33,7 +33,8 @@
         inflight: new Map(),
         lastSync: 0,
         syncing: 0,
-        error: ""
+        error: "",
+        push: { busy: false, last: 0, error: "", count: 0 }
     };
 
     /* ---------------- who ---------------- */
@@ -176,7 +177,7 @@
     }
 
     /* ---------------- Google's popup (one-time code) ---------------- */
-    let gisPromise = null, codeClient = null;
+    let gisPromise = null, codeClient = null, syncClient = null, linkWithSync = true;
     function loadGis() {
         if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
         if (gisPromise) return gisPromise;
@@ -188,25 +189,40 @@
         });
         return gisPromise;
     }
-    function makeCodeClient() {
+    // withSync: also ask for permission to keep a "Planora" calendar in Google
+    function makeCodeClient(withSync) {
         const s = st.status || {};
         if (!(window.google && google.accounts && google.accounts.oauth2) || !s.clientId) return null;
         const u = user() || {};
         return google.accounts.oauth2.initCodeClient({
             client_id: s.clientId,
-            scope: s.scope || "openid email https://www.googleapis.com/auth/calendar.readonly",
+            scope: (withSync && s.scopeSync) || s.scope || "openid email https://www.googleapis.com/auth/calendar.readonly",
+            include_granted_scopes: true,
             ux_mode: "popup",
             select_account: true,
             ...(u.email ? { login_hint: u.email } : {}),
             callback: async resp => {
                 if (!resp || resp.error || !resp.code) { showError(resp && resp.error === "access_denied" ? "Google Calendar wasn't linked." : "Google didn't finish linking. Please try again."); return; }
-                busy("Linking…");
+                const wasLinked = st.connected;
+                busy(wasLinked ? "Turning on…" : "Linking…");
                 try {
-                    const r = await call("/connect", { method: "POST", body: JSON.stringify({ code: resp.code }) });
-                    st.connected = true; st.email = r.email || ""; st.fetched = []; st.events = {};
-                    st.status = { ...(st.status || {}), connected: true, email: st.email };
+                    let r;
+                    try { r = await call("/connect", { method: "POST", body: JSON.stringify({ code: resp.code, sync: Boolean(withSync) }) }); }
+                    catch (e) {
+                        if (e.code !== "scope_write") throw e;
+                        // linked, but the "add to Google" box wasn't ticked
+                        st.connected = true; st.status = { ...(st.status || {}), connected: true, canWrite: false, sync: false };
+                        st.syncNote = e.message;
+                        saveCache(); paintButton(); redraw(); paintPanel(); return;
+                    }
+                    if (!wasLinked) { st.fetched = []; st.events = {}; }
+                    st.connected = true; st.email = r.email || st.email;
+                    st.status = { ...(st.status || {}), connected: true, email: st.email, canWrite: Boolean(r.canWrite) || Boolean(st.status && st.status.canWrite), sync: Boolean(r.sync) };
                     saveCache();
-                    if (C()) C().toast("Google Calendar linked ✅", "success");
+                    st.syncNote = r.syncNote || "";
+                    if (r.sync) { resetSnapshot(); schedulePush(0); }
+                    if (C() && !r.syncNote) C().toast(r.sync ? (wasLinked ? "Your Planora tasks will now show in Google Calendar ✅" : "Google Calendar linked, and your Planora tasks will show there too ✅") : "Google Calendar linked ✅", "success");
+                    if (C() && r.syncNote) C().toast("Google Calendar linked ✅", "success");
                     paintButton(); paintPanel(); redraw();
                     const cal = window.PlanoraCalendar;
                     if (!cal) fetchRange(C().today(), C().addDays(C().today(), 6)).then(paintPanel);
@@ -217,6 +233,87 @@
                 showError(err && err.type === "popup_failed_to_open" ? "Your browser blocked Google's window. Allow pop-ups for Planora and try again." : "Google didn't finish linking. Please try again.");
             }
         });
+    }
+
+    /* ---------------- Planora → Google Calendar ----------------
+       Timed tasks and events from a week ago to 3 months ahead are copied into the
+       "Planora" calendar in Google. This device remembers what it last sent (no tokens,
+       just a fingerprint per item), so only changes go up. Deleting in Planora deletes
+       the copy in Google. */
+    const SNAP_KEY = "planora-gcal-sync";
+    const syncOn = () => Boolean(st.connected && signedIn() && st.status && st.status.sync);
+    function loadSnap() {
+        try { const s = JSON.parse(localStorage.getItem(SNAP_KEY) || "null"); if (s && s.uid === st.uid) return s.items || {}; } catch {}
+        return {};
+    }
+    function saveSnap(items) { try { localStorage.setItem(SNAP_KEY, JSON.stringify({ uid: st.uid, items })); } catch {} }
+    function resetSnapshot() { try { localStorage.removeItem(SNAP_KEY); } catch {} }
+    function currentItems() {
+        const core = C(); if (!core) return {};
+        const t = core.today(), lo = core.addDays(t, -7), hi = core.addDays(t, 90);
+        const out = {};
+        const endOf = (start, end, dur) => (core.toMin(end) !== null && core.toMin(end) > core.toMin(start)) ? end : core.toClock(core.toMin(start) + Math.max(15, dur || 30));
+        core.getTasks().forEach(x => {
+            if (!x.date || x.date < lo || x.date > hi || core.toMin(x.start) === null) return;
+            out["t:" + x.id] = { key: "t:" + x.id, title: String(x.title || "Task"), date: x.date, start: x.start, end: endOf(x.start, x.end, core.taskDuration(x)), done: Boolean(x.completed) };
+        });
+        core.getEvents().forEach(e => {
+            if (!e.date || e.date < lo || e.date > hi || core.toMin(e.start) === null) return;
+            out["e:" + e.id] = { key: "e:" + e.id, title: String(e.title || "Event"), date: e.date, start: e.start, end: endOf(e.start, e.end, core.eventDuration(e)), done: false };
+        });
+        return out;
+    }
+    let pushTimer = null;
+    function schedulePush(ms) { clearTimeout(pushTimer); pushTimer = setTimeout(pushChanges, ms == null ? 1500 : ms); }
+    async function pushChanges() {
+        if (!syncOn() || st.push.busy || !C()) return;
+        const core = C();
+        const cur = currentItems(), snap = loadSnap();
+        const fp = it => [it.title, it.date, it.start, it.end, it.done ? 1 : 0].join("|");
+        const allIds = new Set(core.getTasks().map(x => "t:" + x.id).concat(core.getEvents().map(e => "e:" + e.id)));
+        const upserts = Object.values(cur).filter(it => snap[it.key] !== fp(it));
+        // removed in Planora (not just moved out of the 3-month window) → remove from Google
+        const deletes = Object.keys(snap).filter(k => !cur[k] && !allIds.has(k));
+        // forget very old fingerprints without touching Google
+        const old = core.addDays(core.today(), -30);
+        Object.keys(snap).forEach(k => { if (!cur[k] && allIds.has(k) && snap[k].split("|")[1] < old) delete snap[k]; });
+        if (!upserts.length && !deletes.length) return;
+        st.push.busy = true;
+        try {
+            for (let i = 0; i < Math.max(upserts.length, deletes.length); i += 100) {
+                const u = upserts.slice(i, i + 100), d = deletes.slice(i, i + 100);
+                if (!u.length && !d.length) break;
+                const r = await call("/push", { method: "POST", body: JSON.stringify({ tz: tz(), upserts: u, deletes: d }) });
+                (r.done || []).forEach(k => { if (cur[k]) snap[k] = fp(cur[k]); else delete snap[k]; });
+                saveSnap(snap);
+                st.push.count += (r.done || []).length;
+            }
+            st.push.last = Date.now(); st.push.error = "";
+        } catch (e) {
+            st.push.error = e.message;
+            if (e.code === "scope_write") st.syncNote = e.message;
+            if (e.code === "sync_off" || e.code === "scope_write" || e.code === "needs_update") st.status = { ...(st.status || {}), sync: false, canWrite: e.code === "sync_off" ? (st.status || {}).canWrite : false };
+            if (e.code === "reconnect" || e.code === "not_connected") { clearAll(); saveCache(); paintButton(); redraw(); }
+        } finally {
+            st.push.busy = false;
+            paintPanel();
+        }
+    }
+    function syncSection() {
+        const s = st.status || {};
+        if (!s.scopeSync) return "";
+        if (s.needsUpdate) return `<div class="gcal-sync"><p class="gcal-note"><i class="ti ti-info-circle" aria-hidden="true"></i> Adding Planora tasks to Google Calendar isn't switched on yet.</p></div>`;
+        if (s.sync) return `<div class="gcal-sync is-on">
+                <p class="gcal-sync-t"><i class="ti ti-arrows-exchange" aria-hidden="true"></i><span><strong>Planora tasks → Google Calendar is on.</strong> They're in the "Planora" calendar in Google, and update when you change them here.</span></p>
+                <p class="gcal-sub">${st.push.busy ? "Updating Google…" : st.push.last ? "Updated " + esc(ago(st.push.last)) : "Up to date"}${st.push.error ? ` · <span class="gcal-warn">${esc(st.push.error)}</span>` : ""}</p>
+                <button type="button" class="gcal-linkbtn" data-g="sync-off">Stop adding tasks to Google</button>
+            </div>`;
+        const ready = Boolean(s.canWrite || syncClient);
+        return `<div class="gcal-sync">
+                <p class="gcal-sync-t"><i class="ti ti-arrows-exchange" aria-hidden="true"></i><span><strong>Add your Planora tasks to Google Calendar</strong> — they go in a separate "Planora" calendar and update when you change them here. Your own Google events aren't touched.</span></p>
+                ${st.syncNote ? `<p class="gcal-sub gcal-warn" role="alert">${esc(st.syncNote)}</p>` : ""}
+                <button type="button" class="btn-secondary gcal-sync-on" data-g="sync-on" ${ready ? "" : "disabled"}>${ready ? "Turn on" : "Loading Google…"}</button>
+            </div>`;
     }
 
     /* ---------------- panel ---------------- */
@@ -244,7 +341,8 @@
         const t = overlay.querySelector("[data-g=close]"); if (t) t.focus();
         refreshStatus().then(s => {
             paintPanel();
-            if (s && s.configured && !s.connected) loadGis().then(() => { codeClient = makeCodeClient(); paintPanel(); }).catch(e => showError(e.message));
+            if (s && s.configured && !s.connected) loadGis().then(() => { codeClient = makeCodeClient(false); syncClient = makeCodeClient(true); paintPanel(); }).catch(e => showError(e.message));
+            if (s && s.connected && !s.canWrite && !s.needsUpdate) loadGis().then(() => { syncClient = makeCodeClient(true); paintPanel(); }).catch(() => {});
             if (s && s.connected && C()) fetchRange(C().today(), C().addDays(C().today(), 6), { force: !st.calendars.length });
         });
     }
@@ -292,13 +390,15 @@
             return;
         }
         if (!st.connected) {
-            const ready = Boolean(codeClient);
+            const ready = Boolean(codeClient && syncClient);
             body.innerHTML = `
                 <p class="gcal-lead">See your Google Calendar events in Planora, next to your tasks. Ask Planora will plan around them too.</p>
                 <ul class="gcal-points">
-                    <li><i class="ti ti-eye" aria-hidden="true"></i><span>Planora can only <strong>see</strong> your events. It never changes or deletes anything in Google.</span></li>
+                    <li><i class="ti ti-eye" aria-hidden="true"></i><span>Your own Google events are only <strong>read</strong>. Planora never changes or deletes them.</span></li>
                     <li><i class="ti ti-lock" aria-hidden="true"></i><span>Only you can see them. Unlink any time.</span></li>
                 </ul>
+                ${s.scopeSync && !s.needsUpdate ? `<label class="gcal-opt"><input type="checkbox" data-g-opt="sync" ${linkWithSync ? "checked" : ""}><span class="gcal-box" style="--c:#534AB7"><i class="ti ti-check" aria-hidden="true"></i></span>
+                    <span>Also add my Planora tasks and events to Google Calendar <small>(in a separate "Planora" calendar)</small></span></label>` : ""}
                 ${err}
                 <div class="gcal-actions">
                     <button type="button" class="gcal-google" data-g="link" ${ready ? "" : "disabled aria-busy=\"true\""}>
@@ -322,6 +422,7 @@
                         <span class="gcal-name">${esc(c.name)}${c.primary ? ' <small>(main)</small>' : ""}</span>
                     </label>`).join("") : `<p class="gcal-note">${st.syncing ? "Loading your calendars…" : "Your calendars will show here after the first sync."}</p>`}
             </fieldset>
+            ${syncSection()}
             <p class="gcal-hint">Google events are read-only in Planora. To change one, open it in Google Calendar.</p>
             <div class="gcal-actions">
                 <button type="button" class="gcal-unlink${confirmUnlink ? " is-confirm" : ""}" data-g="unlink">${confirmUnlink ? "Tap again to unlink" : "Unlink"}</button>
@@ -351,9 +452,29 @@
         if (act === "close") closePanel();
         else if (act === "retry") { paintPanel({ loading: true }); refreshStatus().then(() => paintPanel()); }
         else if (act === "link") {
-            if (!codeClient) codeClient = makeCodeClient();
-            if (!codeClient) { showError("Google's window isn't ready yet. Please try again in a moment."); return; }
-            codeClient.requestCode();                       // must run straight from the tap (pop-up blockers)
+            const opt = overlay.querySelector("[data-g-opt=sync]");
+            linkWithSync = Boolean(opt && opt.checked);
+            const client = linkWithSync ? (syncClient || (syncClient = makeCodeClient(true))) : (codeClient || (codeClient = makeCodeClient(false)));
+            if (!client) { showError("Google's window isn't ready yet. Please try again in a moment."); return; }
+            client.requestCode();                           // must run straight from the tap (pop-up blockers)
+        }
+        else if (act === "sync-on") {
+            const s = st.status || {};
+            if (s.canWrite) {
+                busy("Turning on…");
+                try { await call("/sync-setting", { method: "POST", body: JSON.stringify({ on: true }) }); st.status = { ...s, sync: true }; resetSnapshot(); schedulePush(0); if (C()) C().toast("Your Planora tasks will now show in Google Calendar ✅", "success"); }
+                catch (err) { if (err.code === "scope_write") st.status = { ...s, canWrite: false }; showError(err.message); return; }
+                paintPanel(); return;
+            }
+            if (!syncClient) syncClient = makeCodeClient(true);
+            if (!syncClient) { showError("Google's window isn't ready yet. Please try again in a moment."); return; }
+            syncClient.requestCode();
+        }
+        else if (act === "sync-off") {
+            busy("Turning off…");
+            try { await call("/sync-setting", { method: "POST", body: JSON.stringify({ on: false }) }); st.status = { ...(st.status || {}), sync: false }; if (C()) C().toast("Stopped adding Planora tasks to Google Calendar.", "success"); }
+            catch (err) { showError(err.message); return; }
+            paintPanel();
         }
         else if (act === "sync") {
             st.fetched = [];
@@ -373,7 +494,7 @@
                 paintButton(); redraw();
                 if (C()) C().toast("Google Calendar unlinked.", "success");
                 await loadGis().catch(() => {});
-                codeClient = makeCodeClient();
+                codeClient = makeCodeClient(false); syncClient = makeCodeClient(true);
                 paintPanel();
             } catch (err) { showError(err.message); }
         }
@@ -441,13 +562,17 @@
             if (g) { e.preventDefault(); e.stopPropagation(); openEvent(g.dataset.openGevent); }
         }, true);
         // keep fresh: when you come back to the tab
-        document.addEventListener("visibilitychange", () => { if (!document.hidden && st.connected) redraw(); });
+        document.addEventListener("visibilitychange", () => { if (!document.hidden && st.connected) { redraw(); schedulePush(500); } });
+        document.addEventListener("planora:data-changed", () => schedulePush());
+        document.addEventListener("planora:plan-added", () => schedulePush());
+        setInterval(() => { if (!document.hidden) pushChanges(); }, 20000);   // also catches changes saved without an event
         document.addEventListener("planora:user", () => { const before = st.uid; loadCache(); if (before !== st.uid) { st.fetched = []; redraw(); } });
         const ready = A() && A().ready;
         Promise.resolve(ready).catch(() => {}).then(() => {
             loadCache(); paintButton(); redraw();
             if (signedIn()) refreshStatus().then(() => {
                 paintButton();
+                schedulePush(800);
                 // the next month, so Ask Planora and "free time" can plan around Google events
                 if (st.connected && Date.now() - st.lastSync > 15 * 60 * 1000 && C()) fetchRange(C().today(), C().addDays(C().today(), 30));
             });

@@ -36,6 +36,10 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 
 const SCOPE = "openid email https://www.googleapis.com/auth/calendar.readonly";
+// Planora → Google: lets Planora make ONE calendar of its own ("Planora") and manage only the events in it.
+// It can't touch the person's other calendars or events.
+const WRITE_SCOPE = "https://www.googleapis.com/auth/calendar.app.created";
+const SCOPE_SYNC = SCOPE + " " + WRITE_SCOPE;
 const TABLE = "planora_google_calendar";
 
 // Google's 11 event colours (Calendar API → colors.event)
@@ -90,16 +94,26 @@ function install(app, requireAuth, supa) {
         let json = null; try { json = text ? JSON.parse(text) : null; } catch {}
         if (!res.ok) {
             const msg = (json && (json.message || json.error)) || text || res.statusText;
-            const err = new Error(/does not exist|schema cache/i.test(msg) ? "table_missing" : "db_error");
+            const err = new Error(/column/i.test(msg) && /does not exist|schema cache|could not find/i.test(msg) ? "column_missing"
+                : /does not exist|schema cache/i.test(msg) ? "table_missing" : "db_error");
             err.detail = msg; err.status = res.status;
             throw err;
         }
         return json;
     }
     async function getRow(req) {
-        const rows = await db(req, "GET", `?user_id=eq.${encodeURIComponent(req.user.id)}&select=user_id,google_email,token_enc,calendars`);
+        const q = `?user_id=eq.${encodeURIComponent(req.user.id)}&select=`;
+        let rows;
+        try { rows = await db(req, "GET", q + "user_id,google_email,token_enc,calendars,scopes,sync,planora_cal"); }
+        catch (err) {
+            if (err.message !== "column_missing") throw err;
+            // the sync columns haven't been added yet (supabase/google-calendar.sql): reading still works
+            rows = await db(req, "GET", q + "user_id,google_email,token_enc,calendars");
+            (rows || []).forEach(r => { r.legacy = true; r.scopes = ""; r.sync = false; r.planora_cal = ""; });
+        }
         return Array.isArray(rows) && rows[0] ? rows[0] : null;
     }
+    const canWrite = row => Boolean(row && String(row.scopes || "").includes("calendar.app.created"));
     const saveRow = (req, fields) => db(req, "POST", "?on_conflict=user_id", { user_id: req.user.id, updated_at: new Date().toISOString(), ...fields },
         { Prefer: "resolution=merge-duplicates,return=minimal" });
     const deleteRow = req => db(req, "DELETE", `?user_id=eq.${encodeURIComponent(req.user.id)}`, null, { Prefer: "return=minimal" });
@@ -160,7 +174,8 @@ function install(app, requireAuth, supa) {
             name: String(c.summaryOverride || c.summary || c.id).slice(0, 120),
             color: validHex(c.backgroundColor) || "#039BE5",
             primary: Boolean(c.primary),
-            googleSelected: Boolean(c.selected || c.primary)
+            googleSelected: Boolean(c.selected || c.primary),
+            planora: /^Tasks and events from Planora/.test(String(c.description || ""))   // the calendar Planora itself fills
         })).sort((a, b) => (b.primary - a.primary) || a.name.localeCompare(b.name));
         calCache.set(req.user.id, { list, until: Date.now() + 10 * 60 * 1000 });
         return list;
@@ -225,17 +240,18 @@ function install(app, requireAuth, supa) {
     router.use(requireAuth, (req, res, next) => {
         if (!req.user || req.user.guest || !bearer(req)) return res.status(401).json({ error: "Sign in to link Google Calendar.", code: "sign_in" });
         next();
-    }, limiter, express.json({ limit: "20kb" }));
+    }, limiter, express.json({ limit: "200kb" }));
     router.use((req, res, next) => {
         if (req.path === "/status" || configured()) return next();
         res.status(503).json({ error: "Google Calendar isn't set up on Planora's server yet.", code: "not_configured" });
     });
 
     router.get("/status", async (req, res) => {
-        if (!configured()) return res.json({ configured: false, connected: false, clientId: clientId() || "", scope: SCOPE });
+        if (!configured()) return res.json({ configured: false, connected: false, clientId: clientId() || "", scope: SCOPE, scopeSync: SCOPE_SYNC });
         try {
             const row = await getRow(req);
-            res.json({ configured: true, connected: Boolean(row), email: row ? row.google_email : "", clientId: clientId(), scope: SCOPE });
+            res.json({ configured: true, connected: Boolean(row), email: row ? row.google_email : "", clientId: clientId(), scope: SCOPE, scopeSync: SCOPE_SYNC,
+                sync: Boolean(row && row.sync && canWrite(row)), canWrite: canWrite(row), needsUpdate: Boolean(row && row.legacy) });
         } catch (err) {
             if (err.message === "table_missing") return res.json({ configured: false, connected: false, clientId: clientId(), scope: SCOPE, reason: "table_missing" });
             fail(res, err, "status");
@@ -265,10 +281,21 @@ function install(app, requireAuth, supa) {
                 }
                 if (!existing) return res.status(400).json({ error: "Google didn't give Planora lasting access. Remove Planora at myaccount.google.com/permissions, then link again.", code: "no_refresh" });
             }
-            await saveRow(req, { google_email: String(email).slice(0, 200), token_enc: refresh ? seal(refresh) : existing.token_enc, ...(existing ? {} : { calendars: [] }) });
+            const fields = { google_email: String(email).slice(0, 200), token_enc: refresh ? seal(refresh) : existing.token_enc, ...(existing ? {} : { calendars: [] }) };
+            const write = granted.includes("calendar.app.created");
+            const wantSync = Boolean(req.body && req.body.sync);
+            if (!(existing && existing.legacy)) {
+                fields.scopes = granted.slice(0, 1000);
+                if (wantSync) fields.sync = write;
+            } else if (wantSync) {
+                return res.status(503).json({ error: "Syncing to Google Calendar isn't switched on in Planora's database yet.", code: "needs_update" });
+            }
+            await saveRow(req, fields);
             access.set(req.user.id, { token: r.json.access_token, until: Date.now() + Math.max(60, (r.json.expires_in || 3600) - 120) * 1000 });
             calCache.delete(req.user.id);
-            res.json({ connected: true, email });
+            // linked fine, but the "make its own calendar" box was left unticked in Google's window
+            if (wantSync && !write) return res.json({ connected: true, email, canWrite: false, sync: false, syncNote: "To add your Planora tasks to Google Calendar, tick the box that lets Planora make its own calendar." });
+            res.json({ connected: true, email, canWrite: write, sync: Boolean(wantSync && write) });
         } catch (err) { fail(res, err, "connect"); }
     });
 
@@ -281,7 +308,7 @@ function install(app, requireAuth, supa) {
             const row = await getRow(req);
             if (!row) { const e = codeError("not_connected", "Google Calendar isn't linked."); throw e; }
             const token = await accessTokenFor(req, row);
-            const calendars = chosen(await calendarsFor(req, token), row.calendars);
+            const calendars = chosen((await calendarsFor(req, token)).filter(c => c.id !== row.planora_cal && !c.planora), row.calendars);   // Planora's own calendar is already in Planora
             const timeMin = encodeURIComponent(addDays(from, -1) + "T00:00:00Z");
             const timeMax = encodeURIComponent(addDays(to, 2) + "T00:00:00Z");
             const shown = calendars.filter(c => c.selected).slice(0, 15);
@@ -334,6 +361,116 @@ function install(app, requireAuth, supa) {
         } catch (err) { fail(res, err, "calendars"); }
     });
 
+    /* ---------- Planora → Google Calendar (one-way copy into a "Planora" calendar) ---------- */
+    async function gsend(token, method, path, body) {
+        const res = await fetch(API + path, {
+            method,
+            headers: { Authorization: "Bearer " + token, ...(body ? { "Content-Type": "application/json" } : {}) },
+            body: body ? JSON.stringify(body) : undefined
+        });
+        const json = await res.json().catch(() => ({}));
+        return { ok: res.ok, status: res.status, json };
+    }
+    async function ensurePlanoraCalendar(req, row, token, tz) {
+        if (row.planora_cal) return row.planora_cal;
+        // linked before? reuse the "Planora" calendar that's already in their Google account
+        try {
+            calCache.delete(req.user.id);
+            const mine = (await calendarsFor(req, token)).find(c => c.planora);
+            if (mine) {
+                row.planora_cal = mine.id;
+                await saveRow(req, { planora_cal: row.planora_cal, token_enc: row.token_enc });
+                return row.planora_cal;
+            }
+        } catch {}
+        const r = await gsend(token, "POST", "/calendar/v3/calendars", { summary: "Planora", description: "Tasks and events from Planora (planoraai.net). Changes you make in Planora show up here.", timeZone: tz });
+        if (!r.ok || !r.json.id) {
+            if (r.status === 403) throw codeError("scope_write", "Planora needs permission to add its calendar. Turn on sync again.");
+            if (r.status === 401) { const e = codeError("reconnect", "Please link Google Calendar again."); e.httpStatus = 401; throw e; }
+            throw codeError("google_error", "Google Calendar isn't answering right now. Please try again.");
+        }
+        row.planora_cal = String(r.json.id);
+        await saveRow(req, { planora_cal: row.planora_cal, token_enc: row.token_enc });
+        calCache.delete(req.user.id);
+        return row.planora_cal;
+    }
+    const eventId = (req, key) => "pl" + crypto.createHash("sha1").update(req.user.id + ":" + key).digest("hex");
+    const clock = v => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(v || ""));
+    const addMin = (hhmm, n) => { const [h, m] = hhmm.split(":").map(Number); const t = Math.min(23 * 60 + 59, h * 60 + m + n); return String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); };
+    function cleanItem(it) {
+        if (!it || typeof it !== "object") return null;
+        const key = String(it.key || "");
+        if (!/^[te]:[\w.:-]{1,90}$/.test(key) || !isDate(it.date) || !clock(it.start)) return null;
+        let end = clock(it.end) && it.end > it.start ? it.end : addMin(it.start, 30);
+        return { key, title: String(it.title || "Planora").slice(0, 200), date: it.date, start: it.start, end, done: Boolean(it.done), kind: key[0] === "e" ? "event" : "task" };
+    }
+
+    router.post("/sync-setting", async (req, res) => {
+        const on = Boolean(req.body && req.body.on);
+        try {
+            const row = await getRow(req);
+            if (!row) return res.status(409).json({ error: "Google Calendar isn't linked.", code: "not_connected" });
+            if (row.legacy) return res.status(503).json({ error: "Syncing to Google Calendar isn't switched on in Planora's database yet.", code: "needs_update" });
+            if (on && !canWrite(row)) return res.status(409).json({ error: "Planora needs one more permission from Google.", code: "scope_write" });
+            await saveRow(req, { sync: on, token_enc: row.token_enc });
+            res.json({ sync: on });
+        } catch (err) { fail(res, err, "sync-setting"); }
+    });
+
+    router.post("/push", async (req, res) => {
+        const tz = validTz(String((req.body && req.body.tz) || "")) ? String(req.body.tz) : "UTC";
+        const ups = (Array.isArray(req.body && req.body.upserts) ? req.body.upserts : []).slice(0, 150).map(cleanItem).filter(Boolean);
+        const dels = (Array.isArray(req.body && req.body.deletes) ? req.body.deletes : []).slice(0, 150).map(String).filter(k => /^[te]:[\w.:-]{1,90}$/.test(k));
+        try {
+            const row = await getRow(req);
+            if (!row) return res.status(409).json({ error: "Google Calendar isn't linked.", code: "not_connected" });
+            if (!row.sync || !canWrite(row)) return res.status(409).json({ error: "Syncing to Google Calendar is off.", code: "sync_off" });
+            const token = await accessTokenFor(req, row);
+            let cal = await ensurePlanoraCalendar(req, row, token, tz);
+            const done = [], failed = [];
+            const body = it => ({
+                id: eventId(req, it.key),
+                summary: (it.done ? "✓ " : "") + it.title,
+                description: `${it.kind === "event" ? "Event" : "Task"} from Planora — https://planoraai.net/calendar.html?date=${it.date}`,
+                start: { dateTime: `${it.date}T${it.start}:00`, timeZone: tz },
+                end: { dateTime: `${it.date}T${it.end}:00`, timeZone: tz },
+                status: "confirmed",
+                transparency: it.done ? "transparent" : "opaque",
+                reminders: { useDefault: false },
+                extendedProperties: { private: { planora: it.key } }
+            });
+            const one = async (job, retried) => {
+                const path = `/calendar/v3/calendars/${encodeURIComponent(cal)}/events`;
+                let r;
+                if (job.del) {
+                    r = await gsend(token, "DELETE", `${path}/${eventId(req, job.key)}`);
+                    if (r.ok || r.status === 404 || r.status === 410) return done.push(job.key);
+                } else {
+                    r = await gsend(token, "PUT", `${path}/${eventId(req, job.it.key)}`, body(job.it));
+                    if (r.status === 404) r = await gsend(token, "POST", path, body(job.it));
+                    if (r.ok) return done.push(job.it.key);
+                }
+                if (r.status === 404 && !retried && !job.del) {                       // the "Planora" calendar was deleted in Google: make it again
+                    row.planora_cal = ""; cal = await ensurePlanoraCalendar(req, row, token, tz);
+                    return one(job, true);
+                }
+                if (r.status === 401) { const e = codeError("reconnect", "Please link Google Calendar again."); e.httpStatus = 401; throw e; }
+                if (r.status === 403 && /insufficient|scope|permission/i.test(JSON.stringify(r.json))) throw codeError("scope_write", "Planora needs permission to add to Google Calendar. Turn on sync again.");
+                failed.push(job.del ? job.key : job.it.key);
+            };
+            const jobs = ups.map(it => ({ it })).concat(dels.map(key => ({ del: true, key })));
+            for (let i = 0; i < jobs.length; i += 5) await Promise.all(jobs.slice(i, i + 5).map(j => one(j)));
+            res.json({ done, failed, calendar: "Planora" });
+        } catch (err) {
+            if (err.code === "scope_write") {
+                await saveRow(req, { sync: false, scopes: "", token_enc: (await getRow(req).catch(() => null) || {}).token_enc }).catch(() => {});
+                return res.status(409).json({ error: err.message, code: "scope_write" });
+            }
+            if (err.code === "reconnect") forget(req.user.id);
+            fail(res, err, "push");
+        }
+    });
+
     router.post("/disconnect", async (req, res) => {
         try {
             const row = await getRow(req);
@@ -350,4 +487,4 @@ function install(app, requireAuth, supa) {
     return { configured, toItems, seal, open };
 }
 
-module.exports = { install, SCOPE };
+module.exports = { install, SCOPE, SCOPE_SYNC };

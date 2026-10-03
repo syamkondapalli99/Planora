@@ -354,6 +354,7 @@
         }
         keys.forEach(key => rawRemove.call(store, key));
         rawRemove.call(store, "planora-gcal-cache");      // Google Calendar events shown on this device
+        rawRemove.call(store, "planora-gcal-sync");       // what this device last copied to Google Calendar
     }
 
     /*

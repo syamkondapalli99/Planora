@@ -10,6 +10,9 @@
 --                  Planora's web page never sees the real token.
 --   calendars    : which of their Google calendars to show ([] = the ones
 --                  ticked in Google Calendar itself)
+--   scopes       : what the person allowed in Google's window
+--   sync         : copy Planora tasks/events into Google Calendar (on/off)
+--   planora_cal  : the id of the "Planora" calendar Planora made in their Google account
 -- Row Level Security: a user can only ever see or change their own row.
 -- Deleting the account deletes this row too.
 -- =========================================================
@@ -22,6 +25,11 @@ create table if not exists public.planora_google_calendar (
     updated_at   timestamptz not null default now(),
     created_at   timestamptz not null default now()
 );
+
+-- added 3 Oct 2026: Planora → Google Calendar sync
+alter table public.planora_google_calendar add column if not exists scopes      text    not null default '';
+alter table public.planora_google_calendar add column if not exists sync        boolean not null default false;
+alter table public.planora_google_calendar add column if not exists planora_cal text    not null default '';
 
 alter table public.planora_google_calendar enable row level security;
 

@@ -184,10 +184,32 @@
         if (oldScroll) scrollMemo = { top: oldScroll.scrollTop, left: oldScroll.scrollLeft, view: state.view, key: host.dataset.key };
         renderToolbar();
         host.className = "cal-view is-" + state.view;
-        if (state.view === "month") renderMonth(host);
-        else renderGrid(host, state.view === "day" ? [state.date] : Array.from({ length: 7 }, (_, i) => C().addDays(mondayOf(state.date), i)));
+        let range;
+        if (state.view === "month") { renderMonth(host); const m = monthStart(state.date); range = [m, C().addDays(addMonths(m, 1), -1)]; }
+        else {
+            const days = state.view === "day" ? [state.date] : Array.from({ length: 7 }, (_, i) => C().addDays(mondayOf(state.date), i));
+            renderGrid(host, days); range = [days[0], days[days.length - 1]];
+        }
+        renderClashBar(range);
         const tab = document.getElementById("cv-tab-" + state.view);
         if (tab) host.setAttribute("aria-labelledby", tab.id);
+    }
+
+    /* ---------- "2 tasks overlap" bar with Fix clashes ---------- */
+    let clashRange = null;
+    function renderClashBar(range) {
+        const host = document.getElementById("cal-view");
+        let bar = document.getElementById("cal-clash");
+        const n = C().findClashes ? C().findClashes(range[0], range[1]).length : 0;
+        clashRange = range;
+        if (!n) { if (bar) bar.remove(); return; }
+        if (!bar) {
+            bar = document.createElement("div");
+            bar.id = "cal-clash"; bar.className = "cal-clash"; bar.setAttribute("role", "status");
+            host.parentNode.insertBefore(bar, host);
+        }
+        const what = state.view === "day" ? "today" : state.view === "week" ? "this week" : "this month";
+        bar.innerHTML = `<i class="ti ti-alert-triangle" aria-hidden="true"></i><span><strong>${n} task${n === 1 ? "" : "s"}</strong> overlap${n === 1 ? "s" : ""} with something else ${state.view === "day" && state.date !== C().today() ? "on this day" : what}.</span><button type="button" class="cal-clash-btn" data-fix-clashes>Fix clashes</button>`;
     }
 
     /* ---------- month ---------- */
@@ -563,6 +585,12 @@
     function onClick(e) {
         const core = C();
         if (e.target.closest(".cv-picker")) return;
+        const fx = e.target.closest("[data-fix-clashes]");
+        if (fx && clashRange) {
+            fx.disabled = true;
+            Promise.resolve(core.fixClashes(clashRange[0], clashRange[1])).catch(err => core.toast(err.message || "Planora couldn't fix that right now.", "error")).finally(() => { fx.disabled = false; });
+            return;
+        }
         const nav = e.target.closest("[data-nav]");
         if (nav) { closePicker(); if (nav.dataset.nav === "today") go(core.today()); else step(nav.dataset.nav === "next" ? 1 : -1); return; }
         const vb = e.target.closest("[data-view]");
