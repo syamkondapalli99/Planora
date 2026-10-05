@@ -1071,7 +1071,6 @@
                     </div>
                     <div class="home-header-side">
                         <div class="home-header-row">
-                            <a class="week-chip" id="home-week" href="profile.html" hidden></a>
                             <button type="button" class="icon-btn-round home-search" data-search aria-label="Search Planora"><i class="ti ti-search" aria-hidden="true"></i></button>
                         </div>
                         <!-- Planora: opens Ask Planora in a pop-up -->
@@ -1083,8 +1082,8 @@
                 <section class="today-bar" id="today-bar" aria-label="Today at a glance" hidden>
                     <p class="wl" id="home-status"><span class="wl-dot" aria-hidden="true"></span><strong class="wl-label"></strong><span class="wl-text"></span></p>
                     <div class="today-actions">
-                        <button type="button" class="btn-primary" id="btn-what-now"><i class="ti ti-bolt" aria-hidden="true"></i> What should I do now?</button>
-                        <button type="button" class="btn-secondary" id="btn-optimize"><i class="ti ti-wand" aria-hidden="true"></i> Optimize my day</button>
+                        <button type="button" class="btn-primary" id="btn-what-now" aria-label="What should I do now?"><i class="ti ti-bolt" aria-hidden="true"></i> <span class="lbl-long">What should I do now?</span><span class="lbl-short" aria-hidden="true">What now?</span></button>
+                        <button type="button" class="btn-secondary" id="btn-optimize" aria-label="Optimize my day"><i class="ti ti-wand" aria-hidden="true"></i> <span class="lbl-long">Optimize my day</span><span class="lbl-short" aria-hidden="true">Optimize</span></button>
                         <button type="button" class="btn-secondary" id="btn-review" hidden><i class="ti ti-clipboard-check" aria-hidden="true"></i> Review today</button>
                     </div>
                 </section>
@@ -1149,14 +1148,11 @@
                             <i class="ti ti-chevron-right" aria-hidden="true"></i>
                         </a>
 
-                        <!-- GET AROUND QUICKLY -->
-                        <nav class="home-links" aria-label="Shortcuts">
-                            <p class="home-links-title">Go to</p>
-                            <a href="calendar.html"><i class="ti ti-calendar" aria-hidden="true"></i><span>Calendar</span></a>
-                            <a href="planner.html#goals"><i class="ti ti-target-arrow" aria-hidden="true"></i><span>Goals</span></a>
-                            <a href="journal.html" data-nav="journal"><i class="ti ti-notebook" aria-hidden="true"></i><span>Journal</span></a>
-                            <button type="button" data-quick-add><i class="ti ti-plus" aria-hidden="true"></i><span>Add task</span></button>
-                        </nav>
+                        <!-- THIS WEEK (small, quiet) — the menu already has Calendar, Goals (Planora) and + for new tasks -->
+                        <div class="week-card" id="home-week-card" hidden>
+                            <a class="week-chip" id="home-week" href="profile.html" hidden></a>
+                            <span class="week-bar" aria-hidden="true"><span id="home-week-fill"></span></span>
+                        </div>
                     </div>
                 </div>
 

@@ -6,23 +6,23 @@
   --blue-600: #185FA5;
   --blue-800: #0C447C;
   --blue-900: #042C53;
-  --purple-50: #EEEDFE;
-  --purple-100: #CECBF6;
-  --purple-200: #AFA9EC;
-  --purple-400: #7F77DD;
-  --purple-600: #534AB7;
-  --purple-800: #3C3489;
-  --purple-900: #26215C;
+  --purple-50: #EFEDFF;
+  --purple-100: #D8D3FA;
+  --purple-200: #B4ABF5;
+  --purple-400: #6C5CE7;
+  --purple-600: #5145CD;
+  --purple-800: #3A2FA0;
+  --purple-900: #1E1A4D;
   --pink-400: #D4537E;
   --pink-800: #72243E;
   --amber-100: #FAC775;
   --amber-800: #633806;
   --amber-900: #412402;
   --gray-50: #F6F5FF;
-  --gray-200: #D3D1C7;
-  --gray-400: #888780;
-  --gray-600: #5F5E5A;
-  --gray-900: #2C2C2A;
+  --gray-200: #D9D6E8;
+  --gray-400: #6F6A88;
+  --gray-600: #4A4566;
+  --gray-900: #1E1A3C;
   --white: #FFFFFF;
   --radius-sm: 10px;
   --radius-md: 16px;
@@ -95,15 +95,16 @@ input {
   padding: 15px;
   border: none;
   border-radius: 16px;
-  background: var(--purple-400);
+  background: var(--purple-600);
   color: #fff;
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   transition: transform 0.1s ease, background 0.2s ease;
 }
+.btn-primary:hover { background: var(--purple-800); }
 .btn-primary:active {
   transform: scale(0.98);
-  background: var(--purple-600);
+  background: var(--purple-800);
 }
 .btn-secondary {
   width: 100%;

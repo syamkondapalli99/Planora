@@ -421,8 +421,8 @@ body.sp-reviewing .fab { opacity: 0; pointer-events: none; transform: scale(.8);
 :root {
   --pl-radius: 16px;
   --pl-line: rgba(83, 74, 183, 0.14);
-  --pl-muted: #6B6A64;
-  --pl-text: #26215C;
+  --pl-muted: #4F4A6B;
+  --pl-text: #1E1A4D;
 }
 
 .sr-only {
@@ -1767,3 +1767,86 @@ body.ask-open .fab { opacity: 0; pointer-events: none; }
 .gcal-sync-on { margin-left: 29px; width: auto; padding: 9px 16px; }
 .gcal-linkbtn { margin-left: 29px; border: none; background: none; padding: 6px 0; font: inherit; font-size: 13.5px; font-weight: 500; color: var(--purple-700, #4A41A8); text-decoration: underline; cursor: pointer; }
 .gcal-warn { color: #B42318; }
+
+/* =========================================================
+   HOME — CALMER (5 Oct 2026)
+   Only three things compete for attention: Today's schedule, the
+   "move to today" suggestion and the Journal. Everything else is small
+   and quiet. The old "Go to" shortcuts are gone: the menu, the + button
+   and the Planora button already do those jobs.
+   ========================================================= */
+.home-links { display: none !important; }
+
+/* header */
+.home-greeting { font-weight: 700 !important; color: var(--pl-text); letter-spacing: -0.02em; }
+.home-header .date { color: var(--pl-muted); font-weight: 600; }
+.home-header .ai-greeting-msg { color: var(--pl-muted); font-size: 15px; }
+.planora-btn { background: linear-gradient(135deg, #7B6CF0 0%, #4A3FC4 100%); box-shadow: 0 6px 16px rgba(81, 69, 205, .30); }
+
+/* today at a glance: a quiet line, not a card */
+.today-bar { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 2px !important; margin: 0 0 14px !important; }
+.wl { font-size: 14px; color: var(--pl-muted); }
+.wl-label { color: var(--pl-text); font-weight: 700; }
+.today-actions .btn-primary, .today-actions .btn-secondary {
+  min-height: 36px; padding: 7px 14px !important; font-size: 13.5px !important; font-weight: 600 !important; border-radius: 999px !important;
+}
+.today-actions .btn-primary { background: var(--purple-50) !important; color: var(--purple-800) !important; border: 1px solid var(--purple-100) !important; box-shadow: none !important; }
+.today-actions .btn-primary i { color: var(--purple-600); }
+.today-actions .btn-primary:hover { background: var(--purple-100) !important; }
+.today-actions .btn-secondary { background: #fff !important; color: var(--purple-800) !important; border: 1px solid var(--purple-100) !important; }
+
+/* "2 tasks from earlier…  [Move to today]  ×" — one compact line */
+.rec-card {
+  grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 12px;
+  background: #fff; border: 1px solid var(--purple-100); border-left: 4px solid var(--purple-600);
+  border-radius: 14px; padding: 10px 10px 10px 14px; box-shadow: 0 1px 3px rgba(30, 26, 77, .05);
+}
+.rec-icon { color: var(--purple-600); font-size: 20px; margin: 0; }
+.rec-card p { font-size: 14px; color: var(--pl-text); font-weight: 500; }
+.rec-actions { grid-column: 3; grid-row: 1; margin: 0; gap: 4px; }
+.rec-actions .btn-primary { padding: 8px 14px; font-size: 13.5px; border-radius: 999px; font-weight: 600; }
+@media (max-width: 560px) {
+  .rec-card { grid-template-columns: auto 1fr; }
+  .rec-actions { grid-column: 2; grid-row: 2; margin-top: 4px; }
+}
+
+/* Today's schedule: the main thing */
+.schedule-card .card-title { font-size: 18px !important; font-weight: 700 !important; color: var(--pl-text); }
+.task-item .t-title { font-size: 15px; font-weight: 600; color: var(--pl-text); }
+.task-item .t-time { font-size: 13px; color: var(--pl-muted); font-weight: 500; }
+.task-item.completed .t-title { color: var(--gray-400); font-weight: 500; }
+.completed-label { color: var(--pl-muted) !important; font-weight: 600; }
+
+/* Journal: always here */
+.journal-nudge {
+  background: #fff; border: 1px solid var(--purple-100); border-radius: 18px; padding: 14px 16px; gap: 14px;
+  box-shadow: 0 1px 3px rgba(30, 26, 77, .05); font-size: 14px;
+}
+.journal-nudge:hover { border-color: var(--purple-200); }
+.journal-nudge > i:first-child {
+  width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  background: #FFF1E6; color: #C2570C; font-size: 21px;
+}
+.journal-nudge strong { color: var(--pl-text); font-weight: 700; font-size: 15px; }
+.journal-nudge span { color: var(--pl-muted); }
+.journal-nudge > i:last-child { color: var(--purple-600); }
+.journal-nudge:focus-visible { outline: 3px solid var(--purple-200); outline-offset: 2px; }
+
+/* This week: a small progress line */
+.week-card { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 14px; border-radius: 18px; background: #fff; border: 1px solid var(--purple-100); }
+.week-card[hidden] { display: none; }
+.week-card .week-chip { display: inline !important; padding: 0 !important; border: none !important; background: none !important; font-size: 14px; font-weight: 600; color: var(--pl-text); text-decoration: none; }
+.week-card .week-chip:hover { text-decoration: underline; }
+.week-bar { height: 8px; border-radius: 999px; background: var(--purple-50); overflow: hidden; }
+.week-bar span { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, #7B6CF0, #1D9E75); transition: width .3s ease; }
+
+/* phone order: suggestion, schedule, journal, this week */
+@media (max-width: 899px) {
+  #home-week-card { order: 6; }
+}
+@media (max-width: 699px) {
+  .today-actions { grid-template-columns: 1fr 1fr; }
+  .today-actions .btn-primary, .today-actions .btn-secondary { font-size: 13px !important; padding: 7px 8px !important; }
+}
+.lbl-short { display: none; }
+@media (max-width: 699px) { .today-actions .lbl-long { display: none; } .today-actions .lbl-short { display: inline; } }

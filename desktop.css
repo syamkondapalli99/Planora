@@ -36,14 +36,14 @@
 
 /* ---------- tokens ---------- */
 html.web-mode {
-  --d-ink: #26215C;          /* text, headings */
-  --d-ink-2: #5B5677;        /* secondary text */
-  --d-muted: #8A86A3;        /* hints */
+  --d-ink: #1E1A4D;          /* text, headings */
+  --d-ink-2: #45405F;        /* secondary text */
+  --d-muted: #66617F;        /* hints */
   --d-canvas: #F5F4FB;       /* page background */
   --d-surface: #FFFFFF;      /* cards */
-  --d-line: #E6E3F3;         /* hairlines */
-  --d-accent: #534AB7;       /* active, links */
-  --d-accent-soft: #EEEDFE;  /* active backgrounds */
+  --d-line: #E2DEF2;         /* hairlines */
+  --d-accent: #5145CD;       /* active, links */
+  --d-accent-soft: #EFEDFF;  /* active backgrounds */
   --d-rail: #1F1A4D;         /* dark sidebar */
   --d-rail-text: #CECBF6;
   --d-rail-muted: #9C97C9;
@@ -198,7 +198,7 @@ html.web-mode {
   html.web-mode .rail-add {
     display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
     padding: 12px; border-radius: 14px; border: none; cursor: pointer;
-    background: #7F77DD; color: #fff; font: 600 15px/1 var(--d-text);
+    background: #6C5CE7; color: #fff; font: 600 15px/1 var(--d-text);
   }
   html.web-mode .rail-add:hover { background: #8F88E6; }
   html.web-mode .rail-add:focus-visible { outline: 3px solid #AFA9EC; outline-offset: 2px; }

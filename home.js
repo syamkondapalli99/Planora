@@ -59,6 +59,9 @@
             const done = week.filter(x => x.completed).length;
             chip.hidden = week.length === 0;
             chip.textContent = `This week: ${done}/${week.length} done`;
+            const card = $("home-week-card"), fill = $("home-week-fill");
+            if (card) card.hidden = week.length === 0;
+            if (fill) fill.style.width = (week.length ? Math.round(done / week.length * 100) : 0) + "%";
             chip.setAttribute("aria-label", `This week you've completed ${done} of ${week.length} planned tasks. Open your progress`);
         }
     }
@@ -499,7 +502,7 @@
         const todayEntry = (Array.isArray(journals) ? journals : []).find(j => j && j.date === core.today());
         const written = todayEntry && ((todayEntry.content || "").trim() || todayEntry.mood || (todayEntry.wins || []).length);
         // Always a way into the Journal (phones have no Journal tab), but not on day one
-        el.hidden = !core.getTasks().length && !written;
+        el.hidden = false;                       // always on Home: it's the way into the Journal on phones
         const text = el.querySelector("span");
         if (text) text.innerHTML = written
             ? "<strong>You've written in your journal today.</strong><br>Open your journal"

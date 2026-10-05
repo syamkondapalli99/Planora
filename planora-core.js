@@ -213,7 +213,7 @@
        - no category: Planora purple
        ===================================================== */
 
-    const DEFAULT_COLOR = { color: "#7F77DD", soft: "#EEEDFE" };
+    const DEFAULT_COLOR = { color: "#6C5CE7", soft: "#EFEDFF" };
     const GOAL_COLORS = [
         { color: "#F07A54", soft: "#FDEEE8" },   // coral
         { color: "#14A3A3", soft: "#E0F5F5" },   // teal
@@ -226,7 +226,7 @@
     ];
     // Colours to choose from for goals and for your own categories
     const SWATCHES = [
-        "#7F77DD", "#3B6FD4", "#2B9ED8", "#14A3A3", "#1D9E75", "#5E9E2F",
+        "#6C5CE7", "#3B6FD4", "#2B9ED8", "#14A3A3", "#1D9E75", "#5E9E2F",
         "#E09A1A", "#F07A54", "#D64545", "#D4537E", "#C2489B", "#4F5BD5"
     ];
 
