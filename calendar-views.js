@@ -69,6 +69,15 @@
         return c || { color: "#7F77DD", soft: "#EEEDFE", label: "" };
     }
 
+    // white or dark text, whichever reads better on a solid colour
+    function onColor(hex) {
+        const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+        if (!m) return "#fff";
+        const n = parseInt(m[1], 16), lin = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+        const L = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+        return L > 0.42 ? "#1E1A3C" : "#fff";
+    }
+
     /* ---------------- toolbar ---------------- */
     function renderToolbar() {
         const bar = document.getElementById("cal-toolbar");
@@ -249,13 +258,13 @@
         const c = colorOf(x);
         const time = x.start ? core.time12(x.start).replace(":00", "").replace(" ", "").toLowerCase() : "";
         if (x.kind === "gevent") {
-            return `<button type="button" class="mv-item is-event is-google" data-open-gevent="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft}" title="Google Calendar: ${core.esc(x.title)}"><i class="ti ti-brand-google" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (Google Calendar event)</span></button>`;
+            return `<button type="button" class="mv-item is-event is-google" data-open-gevent="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft};--on:${onColor(c.color)}" title="Google Calendar: ${core.esc(x.title)}"><i class="ti ti-brand-google" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (Google Calendar event)</span></button>`;
         }
         if (x.kind === "event") {
-            return `<button type="button" class="mv-item is-event" data-open-event="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft}" title="Event: ${core.esc(x.title)}"><i class="ti ti-calendar-event" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (event)</span></button>`;
+            return `<button type="button" class="mv-item is-event" data-open-event="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft};--on:${onColor(c.color)}" title="Event: ${core.esc(x.title)}"><i class="ti ti-calendar-event" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (event)</span></button>`;
         }
         const g = goalLabel(x);
-        return `<button type="button" class="mv-item is-task${x.raw.completed ? " is-done" : ""}" data-open-task="${core.esc(x.id)}" style="--c:${c.color}" title="Task: ${core.esc(x.title)}${g ? " · " + core.esc(g.text) : ""}"><i class="ti ${x.raw.completed ? "ti-square-check" : "ti-square"}" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (task${x.raw.completed ? ", done" : ""})</span></button>`;
+        return `<button type="button" class="mv-item is-task${x.raw.completed ? " is-done" : ""}" data-open-task="${core.esc(x.id)}" style="--c:${c.color}" title="Task: ${core.esc(x.title)}${g ? " · " + core.esc(g.text) : ""}"><i class="ti ${x.raw.completed ? "ti-circle-check-filled" : "ti-circle"}" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (task${x.raw.completed ? ", done" : ""})</span></button>`;
     }
 
     /* ---------- week / day time grid ---------- */
@@ -344,8 +353,8 @@
     function allDayChip(x) {
         const core = C();
         const c = colorOf(x);
-        if (x.kind === "gevent") return `<button type="button" class="ad-item is-event is-google" data-open-gevent="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft}"><i class="ti ti-brand-google" aria-hidden="true"></i><span>${core.esc(x.title)}</span><span class="sr-only"> (Google Calendar, all day)</span></button>`;
-        if (x.kind === "event") return `<button type="button" class="ad-item is-event" data-open-event="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft}"><i class="ti ti-calendar-event" aria-hidden="true"></i><span>${core.esc(x.title)}</span></button>`;
+        if (x.kind === "gevent") return `<button type="button" class="ad-item is-event is-google" data-open-gevent="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft};--on:${onColor(c.color)}"><i class="ti ti-brand-google" aria-hidden="true"></i><span>${core.esc(x.title)}</span><span class="sr-only"> (Google Calendar, all day)</span></button>`;
+        if (x.kind === "event") return `<button type="button" class="ad-item is-event" data-open-event="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft};--on:${onColor(c.color)}"><i class="ti ti-calendar-event" aria-hidden="true"></i><span>${core.esc(x.title)}</span></button>`;
         return `<div class="ad-item is-task${x.raw.completed ? " is-done" : ""}" data-drag="task" data-id="${core.esc(x.id)}" data-dur="${x.dur}" style="--c:${c.color}">
             <button type="button" class="blk-check" data-check="${core.esc(x.id)}" aria-label="${x.raw.completed ? "Mark not done" : "Complete"}: ${core.esc(x.title)}"><i class="ti ti-check" aria-hidden="true"></i></button>
             <button type="button" class="ad-open" data-open-task="${core.esc(x.id)}">${core.esc(x.title)} <small>${core.esc(core.durLabel(x.dur))}</small></button>
@@ -362,7 +371,7 @@
         const endClock = core.toClock(Math.min(24 * 60 - 1, s + it.dur));
         const time = `${core.time12(it.start)} – ${core.time12(endClock)}`;
         const short = h < 34;
-        const style = `top:${top}px;height:${h}px;left:calc(${pos.col * w}% + 1px);width:calc(${w}% - 3px);--c:${c.color};--s:${c.soft}`;
+        const style = `top:${top}px;height:${h}px;left:calc(${pos.col * w}% + 1px);width:calc(${w}% - 3px);--c:${c.color};--s:${c.soft};--on:${onColor(c.color)}`;
         const series = it.raw.seriesId;
         const g = goalLabel(it);
         const extra = [g ? g.text : "", single ? c.label : "", single && it.kind === "event" && it.raw.location ? it.raw.location : "", single && it.kind === "task" && it.raw.priority === "high" ? "High priority" : ""].filter(Boolean).join(" · ");
@@ -429,6 +438,15 @@
         line.setAttribute("aria-hidden", "true");
         line.innerHTML = `<span>Now ${core.esc(core.time12(core.nowClock()))}</span>`;
         col.appendChild(line);
+        // the time sits in the hour column, so it never covers a task
+        const gut = document.querySelector("#cal-view .tg-gutter");
+        if (gut) {
+            gut.querySelectorAll(".tg-now-time").forEach(n => n.remove());
+            const t = document.createElement("b");
+            t.className = "tg-now-time"; t.style.top = (m / 60 * HOUR) + "px";
+            t.textContent = core.time12(core.nowClock());
+            gut.appendChild(t);
+        }
     }
 
     /* =========================================================

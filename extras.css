@@ -1769,84 +1769,169 @@ body.ask-open .fab { opacity: 0; pointer-events: none; }
 .gcal-warn { color: #B42318; }
 
 /* =========================================================
-   HOME — CALMER (5 Oct 2026)
+   HOME — CALMER ON THE WEBSITE (laptops, html.web-mode) — 5 Oct 2026
    Only three things compete for attention: Today's schedule, the
-   "move to today" suggestion and the Journal. Everything else is small
-   and quiet. The old "Go to" shortcuts are gone: the menu, the + button
-   and the Planora button already do those jobs.
+   "move to today" suggestion and the Journal. The sidebar already has
+   Calendar, Planora (goals) and New task, so the "Go to" box is gone.
+   Phones and tablets keep their app layout; the readability changes
+   (darker text, bolder titles) apply everywhere.
    ========================================================= */
-.home-links { display: none !important; }
 
-/* header */
+/* ---- everywhere: easier to read ---- */
 .home-greeting { font-weight: 700 !important; color: var(--pl-text); letter-spacing: -0.02em; }
 .home-header .date { color: var(--pl-muted); font-weight: 600; }
-.home-header .ai-greeting-msg { color: var(--pl-muted); font-size: 15px; }
+.home-header .ai-greeting-msg { color: var(--pl-muted); }
 .planora-btn { background: linear-gradient(135deg, #7B6CF0 0%, #4A3FC4 100%); box-shadow: 0 6px 16px rgba(81, 69, 205, .30); }
-
-/* today at a glance: a quiet line, not a card */
-.today-bar { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 2px !important; margin: 0 0 14px !important; }
-.wl { font-size: 14px; color: var(--pl-muted); }
+.wl { color: var(--pl-muted); }
 .wl-label { color: var(--pl-text); font-weight: 700; }
-.today-actions .btn-primary, .today-actions .btn-secondary {
+.rec-icon { color: var(--purple-600); }
+.rec-card p { color: var(--pl-text); }
+.schedule-card .card-title { font-weight: 700 !important; color: var(--pl-text); }
+.task-item .t-title { font-weight: 600; color: var(--pl-text); }
+.task-item .t-time { color: var(--pl-muted); font-weight: 500; }
+.task-item.completed .t-title { color: var(--gray-400); font-weight: 500; }
+.completed-label { color: var(--pl-muted) !important; font-weight: 600; }
+.journal-nudge strong { color: var(--pl-text); font-weight: 700; }
+.journal-nudge span { color: var(--pl-muted); }
+.lbl-short { display: none; }
+.week-card { display: none; }                         /* phones/tablets: the week chip stays hidden, as before */
+
+/* ---- website only: the calmer layout ---- */
+html.web-mode .home-links { display: none !important; }
+html.web-mode .home-header .ai-greeting-msg { font-size: 15px; }
+
+html.web-mode .today-bar { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 2px !important; margin: 0 0 14px !important; }
+html.web-mode .wl { font-size: 14px; }
+html.web-mode .today-actions .btn-primary, html.web-mode .today-actions .btn-secondary {
   min-height: 36px; padding: 7px 14px !important; font-size: 13.5px !important; font-weight: 600 !important; border-radius: 999px !important;
 }
-.today-actions .btn-primary { background: var(--purple-50) !important; color: var(--purple-800) !important; border: 1px solid var(--purple-100) !important; box-shadow: none !important; }
-.today-actions .btn-primary i { color: var(--purple-600); }
-.today-actions .btn-primary:hover { background: var(--purple-100) !important; }
-.today-actions .btn-secondary { background: #fff !important; color: var(--purple-800) !important; border: 1px solid var(--purple-100) !important; }
+html.web-mode .today-actions .btn-primary { background: var(--purple-50) !important; color: var(--purple-800) !important; border: 1px solid var(--purple-100) !important; box-shadow: none !important; }
+html.web-mode .today-actions .btn-primary i { color: var(--purple-600); }
+html.web-mode .today-actions .btn-primary:hover { background: var(--purple-100) !important; }
+html.web-mode .today-actions .btn-secondary { background: #fff !important; color: var(--purple-800) !important; border: 1px solid var(--purple-100) !important; }
 
 /* "2 tasks from earlier…  [Move to today]  ×" — one compact line */
-.rec-card {
+html.web-mode .rec-card {
   grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 12px;
   background: #fff; border: 1px solid var(--purple-100); border-left: 4px solid var(--purple-600);
   border-radius: 14px; padding: 10px 10px 10px 14px; box-shadow: 0 1px 3px rgba(30, 26, 77, .05);
 }
-.rec-icon { color: var(--purple-600); font-size: 20px; margin: 0; }
-.rec-card p { font-size: 14px; color: var(--pl-text); font-weight: 500; }
-.rec-actions { grid-column: 3; grid-row: 1; margin: 0; gap: 4px; }
-.rec-actions .btn-primary { padding: 8px 14px; font-size: 13.5px; border-radius: 999px; font-weight: 600; }
-@media (max-width: 560px) {
-  .rec-card { grid-template-columns: auto 1fr; }
-  .rec-actions { grid-column: 2; grid-row: 2; margin-top: 4px; }
-}
+html.web-mode .rec-icon { margin: 0; }
+html.web-mode .rec-card p { font-size: 14px; font-weight: 500; }
+html.web-mode .rec-actions { grid-column: 3; grid-row: 1; margin: 0; gap: 4px; }
+html.web-mode .rec-actions .btn-primary { padding: 8px 14px; font-size: 13.5px; border-radius: 999px; font-weight: 600; }
 
-/* Today's schedule: the main thing */
-.schedule-card .card-title { font-size: 18px !important; font-weight: 700 !important; color: var(--pl-text); }
-.task-item .t-title { font-size: 15px; font-weight: 600; color: var(--pl-text); }
-.task-item .t-time { font-size: 13px; color: var(--pl-muted); font-weight: 500; }
-.task-item.completed .t-title { color: var(--gray-400); font-weight: 500; }
-.completed-label { color: var(--pl-muted) !important; font-weight: 600; }
+html.web-mode .schedule-card .card-title { font-size: 18px !important; }
+html.web-mode .task-item .t-title { font-size: 15px; }
+html.web-mode .task-item .t-time { font-size: 13px; }
 
-/* Journal: always here */
-.journal-nudge {
+/* Journal card */
+html.web-mode .journal-nudge {
   background: #fff; border: 1px solid var(--purple-100); border-radius: 18px; padding: 14px 16px; gap: 14px;
   box-shadow: 0 1px 3px rgba(30, 26, 77, .05); font-size: 14px;
 }
-.journal-nudge:hover { border-color: var(--purple-200); }
-.journal-nudge > i:first-child {
+html.web-mode .journal-nudge:hover { border-color: var(--purple-200); }
+html.web-mode .journal-nudge > i:first-child {
   width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
   background: #FFF1E6; color: #C2570C; font-size: 21px;
 }
-.journal-nudge strong { color: var(--pl-text); font-weight: 700; font-size: 15px; }
-.journal-nudge span { color: var(--pl-muted); }
-.journal-nudge > i:last-child { color: var(--purple-600); }
-.journal-nudge:focus-visible { outline: 3px solid var(--purple-200); outline-offset: 2px; }
+html.web-mode .journal-nudge strong { font-size: 15px; }
+html.web-mode .journal-nudge > i:last-child { color: var(--purple-600); }
+html.web-mode .journal-nudge:focus-visible { outline: 3px solid var(--purple-200); outline-offset: 2px; }
 
-/* This week: a small progress line */
-.week-card { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 14px; border-radius: 18px; background: #fff; border: 1px solid var(--purple-100); }
-.week-card[hidden] { display: none; }
-.week-card .week-chip { display: inline !important; padding: 0 !important; border: none !important; background: none !important; font-size: 14px; font-weight: 600; color: var(--pl-text); text-decoration: none; }
-.week-card .week-chip:hover { text-decoration: underline; }
-.week-bar { height: 8px; border-radius: 999px; background: var(--purple-50); overflow: hidden; }
-.week-bar span { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, #7B6CF0, #1D9E75); transition: width .3s ease; }
+/* This week: a small progress line under the Journal */
+html.web-mode .week-card { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 14px; border-radius: 18px; background: #fff; border: 1px solid var(--purple-100); }
+html.web-mode .week-card[hidden] { display: none; }
+html.web-mode .week-card .week-chip { display: inline !important; padding: 0 !important; border: none !important; background: none !important; font-size: 14px; font-weight: 600; color: var(--pl-text); text-decoration: none; }
+html.web-mode .week-card .week-chip:hover { text-decoration: underline; }
+html.web-mode .week-bar { height: 8px; border-radius: 999px; background: var(--purple-50); overflow: hidden; }
+html.web-mode .week-bar span { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, #7B6CF0, #1D9E75); transition: width .3s ease; }
+@media (max-width: 899px) { html.web-mode #home-week-card { order: 6; } }
 
-/* phone order: suggestion, schedule, journal, this week */
-@media (max-width: 899px) {
-  #home-week-card { order: 6; }
+/* =========================================================
+   CALENDAR — CLEAN & PRESENTABLE (7 Oct 2026)
+   Like Google Calendar: light grid, items without boxes in Month,
+   solid events and soft tasks in Week/Day, nothing covering tasks.
+   Events: solid colour + calendar icon. Tasks: soft tint + tick box.
+   ========================================================= */
+.cal-view { --cal-line: #E6E3F2; --cal-edge: #DAD6EC; }
+
+/* page title smaller, so the calendar is the main thing */
+#calendar-screen .dash-header h2#todayHeader { font-size: 26px !important; line-height: 1.15; }
+#calendar-screen .dash-header .date { margin-bottom: 2px; }
+html.web-mode #calendar-screen .dash-header { margin-bottom: 18px !important; }
+
+/* ---------- Month ---------- */
+.mv-dow span { font-size: 12.5px; font-weight: 600; letter-spacing: .02em; color: #6F6A88; }
+.mv-day { padding: 6px 6px 4px; gap: 1px; }
+.mv-num { align-self: center; width: 28px; height: 28px; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.mv-day.is-today .mv-num { background: var(--purple-600, #5145CD); color: #fff; }
+.mv-item {
+  background: transparent !important; border: none !important; border-radius: 6px; padding: 2px 6px; min-height: 22px;
+  font-size: 12.5px; font-weight: 500; color: #2A2550; gap: 6px;
 }
-@media (max-width: 699px) {
-  .today-actions { grid-template-columns: 1fr 1fr; }
-  .today-actions .btn-primary, .today-actions .btn-secondary { font-size: 13px !important; padding: 7px 8px !important; }
+.mv-item:hover { background: #F2F0FB !important; filter: none; }
+.mv-item b { font-weight: 500; color: #6F6A88; margin-right: 1px; }
+.mv-item i { font-size: 12px; color: var(--c); }
+.mv-item.is-task i { font-size: 13px; }
+.mv-item.is-done .t { color: #9A96AE; text-decoration: line-through; }
+.mv-item.is-done i { opacity: .6; }
+/* all-day Google events: a solid bar, like Google */
+.mv-item.is-google:not(:has(b)) { background: var(--c) !important; color: var(--on, #fff); font-weight: 600; }
+.mv-item.is-google:not(:has(b)) i { color: var(--on, #fff); }
+.mv-more { font-size: 12px; padding: 2px 6px; color: #5145CD; }
+
+/* ---------- Week / Day grid ---------- */
+.tg-date .dow { font-size: 11.5px; letter-spacing: .06em; color: #6F6A88; font-weight: 600; }
+.tg-date .num { font-size: 22px; font-weight: 600; }
+.tg-head.is-today .num { background: var(--purple-600, #5145CD); }
+.tg-col.is-today { background-color: #FBFAFF; }
+.tg-gutter span { font-size: 11px; font-weight: 500; color: #7A7592; }
+
+/* blocks: no borders or shadows */
+.blk { border-radius: 8px !important; box-shadow: none !important; }
+html.web-mode .blk { padding: 4px 6px 4px 8px; gap: 6px; }
+.blk.is-task {
+  background: color-mix(in srgb, var(--c) 13%, #fff) !important;
+  border: none !important; border-left: 4px solid var(--c) !important;
 }
-.lbl-short { display: none; }
-@media (max-width: 699px) { .today-actions .lbl-long { display: none; } .today-actions .lbl-short { display: inline; } }
+.blk.is-task:hover { background: color-mix(in srgb, var(--c) 20%, #fff) !important; }
+.blk.is-event {
+  background: var(--c) !important; border: none !important; color: var(--on, #fff);
+}
+.blk.is-event:hover { filter: brightness(.95); }
+.blk.is-event .blk-title, .blk.is-event .blk-time, .blk.is-event .blk-title i { color: var(--on, #fff) !important; }
+.blk.is-event .blk-time { opacity: .92; }
+.blk-title { font-size: 12.5px; font-weight: 600; color: #1E1A3C; line-height: 1.25; }
+.blk-time { font-size: 11.5px; font-weight: 500; color: #4A4566; }
+.blk-check { width: 15px; height: 15px; border-width: 1.5px; border-radius: 5px; margin-top: 1px; background: rgba(255,255,255,.85); font-size: 11px; }
+.blk.is-short .blk-check { width: 13px; height: 13px; }
+.blk.is-done { opacity: .55; }
+.blk:hover { z-index: 3; box-shadow: 0 3px 10px rgba(30, 26, 77, .14) !important; }
+.tg.is-day .blk-title { font-size: 14px; }
+
+/* "Anytime" row */
+.ad-item { border-radius: 6px; font-size: 12px; font-weight: 600; min-height: 24px; }
+.ad-item.is-event { background: var(--c) !important; color: var(--on, #fff) !important; border: none !important; }
+.ad-item.is-event i, .ad-item.is-event span { color: var(--on, #fff) !important; }
+.ad-item.is-task { background: color-mix(in srgb, var(--c) 13%, #fff) !important; border: none !important; border-left: 3px solid var(--c) !important; }
+
+/* current time: a thin line and dot; the time is shown in the hour column */
+.tg-now { height: 2px; background: #E5484D; }
+.tg-now::before { background: #E5484D; }
+.tg-now span { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.tg-now-time {
+  position: absolute; right: 4px; transform: translateY(-50%); z-index: 2;
+  font-size: 10.5px; font-weight: 700; color: #fff; background: #E5484D; padding: 1px 5px; border-radius: 999px; white-space: nowrap;
+}
+
+/* phone month: dots a little bigger */
+.mv-dots i { width: 7px; height: 7px; }
+/* one title: "Calendar" (the ‹ Today › bar already shows the dates) */
+#calendar-screen .dash-header #todayHeader { display: none !important; }
+#calendar-screen .dash-header .date {
+  font-size: 26px !important; font-weight: 700 !important; color: var(--pl-text, #1E1A4D) !important; letter-spacing: -0.02em;
+  text-transform: none !important; margin: 0 !important; line-height: 1.2;
+}
+html.web-mode #calendar-screen .dash-header .date { font-family: var(--d-display, inherit); font-size: 32px !important; }
+.mv-dots i.is-task { border-radius: 50%; }
