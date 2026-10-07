@@ -550,6 +550,12 @@
         g.querySelector(".blk-time").textContent = `${fmt(op.newDate, { weekday: "short" })} ${core.time12(core.toClock(op.newStart))} – ${core.time12(core.toClock(Math.min(24 * 60 - 1, op.newStart + op.newDur)))}`;
     }
 
+    let gNoteAt = 0;
+    function googleNote() {
+        if (Date.now() - gNoteAt < 4000) return;
+        gNoteAt = Date.now();
+        C().toast("This event is from Google Calendar, so it can only be moved in Google Calendar. Planora tasks and events can be dragged.");
+    }
     function headAt(x, y) {
         const el = document.elementFromPoint(x, y);
         const h = el && el.closest("#cal-view .tg-head");
@@ -695,6 +701,8 @@
         const host = e.target.closest("#cal-view");
         if (!host) return;
         if (e.target.closest("[data-check]")) return;
+        // Google Calendar events can't be moved here: say so if someone tries
+        if (e.target.closest("[data-open-gevent]")) { op = { kind: "gnote", x0: e.clientX, y0: e.clientY }; return; }
         const rs = e.target.closest("[data-resize]");
         const el = e.target.closest("[data-drag]");
         if (el && !el.classList.contains("blk-ghost")) {
@@ -710,11 +718,16 @@
     function onPointerMove(e) {
         if (!op || e.pointerType === "touch") return;
         if (op.kind === "slot") { if (Math.abs(e.clientX - op.x0) + Math.abs(e.clientY - op.y0) > 6) op = null; return; }
+        if (op.kind === "gnote") {
+            if (Math.abs(e.clientX - op.x0) + Math.abs(e.clientY - op.y0) > 10) { op = null; googleNote(); }
+            return;
+        }
         if (!op.active && Math.abs(e.clientX - op.x0) + Math.abs(e.clientY - op.y0) > 4) activate();
         if (op.active) { e.preventDefault(); moveTo(e.clientX, e.clientY); }
     }
     function onPointerUp(e) {
         if (!op || e.pointerType === "touch") return;
+        if (op.kind === "gnote") { op = null; return; }
         if (op.kind === "slot") { const o = op; op = null; openSlot(o.col, e.clientY); return; }
         if (op.active) suppressClick = true;
         finish(false);
@@ -727,6 +740,7 @@
         const tt = e.touches[0];
         const host = e.target.closest("#cal-view");
         if (!host || e.target.closest("[data-check]")) return;
+        if (e.target.closest("[data-open-gevent]")) { const t0 = setTimeout(googleNote, 450); e.target.addEventListener("touchend", () => clearTimeout(t0), { once: true }); e.target.addEventListener("touchmove", () => clearTimeout(t0), { once: true }); return; }
         const rs = e.target.closest("[data-resize]");
         const el = e.target.closest("[data-drag]");
         if (el && !el.classList.contains("blk-ghost")) {
