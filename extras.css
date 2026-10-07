@@ -1935,3 +1935,19 @@ html.web-mode .blk { padding: 4px 6px 4px 8px; gap: 6px; }
 }
 html.web-mode #calendar-screen .dash-header .date { font-family: var(--d-display, inherit); font-size: 32px !important; }
 .mv-dots i.is-task { border-radius: 50%; }
+
+/* ---------- drag & drop like Google Calendar (7 Oct 2026) ---------- */
+.mv-item[data-drag] { cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+body.cv-dragging, body.cv-dragging * { cursor: grabbing !important; }
+.mv-item.is-dragging { opacity: .35; }
+.mv-ghost {
+  position: fixed !important; z-index: 2147483000; pointer-events: none; margin: 0;
+  background: #fff !important; border-radius: 8px !important; box-shadow: 0 10px 28px rgba(30, 26, 77, .28) !important;
+  transform: rotate(-1.5deg); opacity: .97;
+}
+.mv-ghost.is-event { background: var(--c) !important; color: var(--on, #fff) !important; }
+.mv-ghost.is-event i, .mv-ghost.is-event b { color: var(--on, #fff) !important; }
+.mv-day.is-drop { background: #EFEDFF !important; box-shadow: inset 0 0 0 2px #6C5CE7 !important; }
+.tg-head.is-drop .tg-allday { display: flex !important; min-height: 28px; border-radius: 8px; outline: 2px dashed #6C5CE7; outline-offset: 1px; background: #EFEDFF; }
+.blk-ghost.is-anytime { position: relative !important; top: auto !important; height: auto !important; min-height: 24px; left: auto !important; width: auto !important; padding: 2px 6px; display: flex; flex-direction: row; gap: 6px; align-items: center; }
+.blk-ghost.is-anytime .blk-time { font-size: 10.5px; }

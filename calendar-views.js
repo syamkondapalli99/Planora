@@ -261,10 +261,10 @@
             return `<button type="button" class="mv-item is-event is-google" data-open-gevent="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft};--on:${onColor(c.color)}" title="Google Calendar: ${core.esc(x.title)}"><i class="ti ti-brand-google" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (Google Calendar event)</span></button>`;
         }
         if (x.kind === "event") {
-            return `<button type="button" class="mv-item is-event" data-open-event="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft};--on:${onColor(c.color)}" title="Event: ${core.esc(x.title)}"><i class="ti ti-calendar-event" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (event)</span></button>`;
+            return `<button type="button" class="mv-item is-event" data-drag="event" data-id="${core.esc(x.id)}" data-open-event="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft};--on:${onColor(c.color)}" title="Event: ${core.esc(x.title)}"><i class="ti ti-calendar-event" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (event)</span></button>`;
         }
         const g = goalLabel(x);
-        return `<button type="button" class="mv-item is-task${x.raw.completed ? " is-done" : ""}" data-open-task="${core.esc(x.id)}" style="--c:${c.color}" title="Task: ${core.esc(x.title)}${g ? " · " + core.esc(g.text) : ""}"><i class="ti ${x.raw.completed ? "ti-circle-check-filled" : "ti-circle"}" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (task${x.raw.completed ? ", done" : ""})</span></button>`;
+        return `<button type="button" class="mv-item is-task${x.raw.completed ? " is-done" : ""}" data-drag="task" data-id="${core.esc(x.id)}" data-open-task="${core.esc(x.id)}" style="--c:${c.color}" title="Task: ${core.esc(x.title)}${g ? " · " + core.esc(g.text) : ""}"><i class="ti ${x.raw.completed ? "ti-circle-check-filled" : "ti-circle"}" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (task${x.raw.completed ? ", done" : ""})</span></button>`;
     }
 
     /* ---------- week / day time grid ---------- */
@@ -489,13 +489,26 @@
         let grab = 0;
         if (col && startMin !== null) grab = minutesAt(col, y) - startMin;
         else grab = Math.min(15, dur / 2);
-        return { kind, el, type, id, raw, dur, grab, x0: x, y0: y, active: false, pointerType, date: raw.date, start: startMin, newDate: raw.date, newStart: startMin, newDur: dur };
+        const mode = el.closest(".mv") ? "month" : "grid";
+        return { kind, el, type, id, raw, dur, grab, mode, x0: x, y0: y, active: false, pointerType, date: raw.date, start: startMin, newDate: raw.date, newStart: startMin, newDur: dur };
     }
 
     function activate() {
         op.active = true;
         op.el.classList.add("is-dragging");
         document.body.classList.add("cv-dragging");
+        if (op.mode === "month") {
+            // a copy of the item follows the pointer; the day under it lights up
+            const r = op.el.getBoundingClientRect();
+            const g = op.el.cloneNode(true);
+            g.className = op.el.className.replace("is-dragging", "") + " mv-ghost";
+            g.removeAttribute("data-drag"); g.setAttribute("aria-hidden", "true");
+            g.style.width = r.width + "px";
+            op.ghost = g; op.dx = op.x0 - r.left; op.dy = op.y0 - r.top;
+            document.body.appendChild(g);
+            if (navigator.vibrate && op.pointerType === "touch") { try { navigator.vibrate(12); } catch {} }
+            return;
+        }
         const ghost = document.createElement("div");
         ghost.className = `blk blk-ghost is-${op.type}`;
         ghost.style.setProperty("--c", op.el.style.getPropertyValue("--c") || "#7F77DD");
@@ -507,9 +520,14 @@
 
     function moveTo(x, y) {
         const core = C();
+        if (op.mode === "month") return moveMonth(x, y);
         autoScroll(x, y);
+        // a task dragged up into the "Anytime" row loses its time
+        const head = op.kind === "move" && op.type === "task" ? headAt(x, y) : null;
+        if (head) return moveToAnytime(head);
         const col = colAt(x, y);
         if (!col) return;
+        op.toAnytime = false;
         if (op.kind === "resize") {
             const end = snap(minutesAt(col === op.el.closest(".tg-col") ? col : op.el.closest(".tg-col"), y));
             op.newDur = Math.max(SNAP, Math.min(24 * 60 - op.start, end - op.start));
@@ -521,6 +539,8 @@
             op.newDur = op.dur;
         }
         const g = op.ghost;
+        g.classList.remove("is-anytime");
+        document.querySelectorAll("#cal-view .tg-head.is-drop").forEach(n => n.classList.remove("is-drop"));
         const target = document.querySelector(`#cal-view .tg-col[data-col="${op.newDate}"]`);
         if (g.parentElement !== target) target.appendChild(g);
         g.style.top = (op.newStart / 60 * HOUR) + "px";
@@ -528,6 +548,37 @@
         g.style.left = "1px"; g.style.width = "calc(100% - 3px)";
         g.querySelector(".blk-title").textContent = op.raw.title;
         g.querySelector(".blk-time").textContent = `${fmt(op.newDate, { weekday: "short" })} ${core.time12(core.toClock(op.newStart))} – ${core.time12(core.toClock(Math.min(24 * 60 - 1, op.newStart + op.newDur)))}`;
+    }
+
+    function headAt(x, y) {
+        const el = document.elementFromPoint(x, y);
+        const h = el && el.closest("#cal-view .tg-head");
+        return h || null;
+    }
+    function moveToAnytime(head) {
+        op.toAnytime = true;
+        op.newDate = head.dataset.head; op.newStart = null; op.newDur = op.dur;
+        const zone = head.querySelector(".tg-allday");
+        const g = op.ghost;
+        if (g.parentElement !== zone) zone.appendChild(g);
+        g.style.top = ""; g.style.height = ""; g.style.left = ""; g.style.width = "";
+        g.classList.add("is-anytime");
+        g.querySelector(".blk-title").textContent = op.raw.title;
+        g.querySelector(".blk-time").textContent = `${fmt(op.newDate, { weekday: "short" })} · Anytime`;
+        document.querySelectorAll("#cal-view .tg-head.is-drop").forEach(n => { if (n !== head) n.classList.remove("is-drop"); });
+        head.classList.add("is-drop");
+    }
+    function moveMonth(x, y) {
+        const g = op.ghost;
+        g.style.left = (x - op.dx) + "px"; g.style.top = (y - op.dy) + "px";
+        g.style.visibility = "hidden";
+        const under = document.elementFromPoint(x, y);
+        g.style.visibility = "";
+        const cell = under && under.closest("#cal-view .mv-day");
+        document.querySelectorAll("#cal-view .mv-day.is-drop").forEach(n => { if (n !== cell) n.classList.remove("is-drop"); });
+        if (!cell) return;
+        cell.classList.add("is-drop");
+        op.newDate = cell.dataset.day; op.newStart = op.start; op.newDur = op.dur;
     }
 
     function autoScroll(x, y) {
@@ -543,6 +594,7 @@
         const o = op;
         op = null;
         document.body.classList.remove("cv-dragging");
+        document.querySelectorAll("#cal-view .is-drop").forEach(n => n.classList.remove("is-drop"));
         if (!o) return;
         if (o.el) o.el.classList.remove("is-dragging");
         if (o.ghost) o.ghost.remove();
@@ -554,10 +606,13 @@
     function commit(o) {
         const core = C();
         const changed = o.newDate !== o.date || o.newStart !== o.start || o.newDur !== o.dur;
-        if (!changed) return;
-        const start = core.toClock(o.newStart);
-        const end = core.toClock(Math.min(24 * 60 - 1, o.newStart + o.newDur));
-        const when = `${fmt(o.newDate, { weekday: "long" })} ${core.time12(start).replace(":00", "")}`;
+        if (!changed || !o.newDate) return;
+        const timed = o.newStart !== null && o.newStart !== undefined;
+        const start = timed ? core.toClock(o.newStart) : "";
+        const end = timed ? core.toClock(Math.min(24 * 60 - 1, o.newStart + o.newDur)) : "";
+        const day = o.mode === "month" || Math.abs(new Date(o.newDate) - new Date(o.date)) > 6 * 864e5
+            ? fmt(o.newDate, { weekday: "long", month: "short", day: "numeric" }) : fmt(o.newDate, { weekday: "long" });
+        const when = timed ? `${day} ${core.time12(start).replace(":00", "")}` : `${day} (anytime)`;
         if (o.type === "task") {
             const before = { date: o.raw.date, start: o.raw.start || "", end: o.raw.end || "", duration: o.raw.duration };
             core.updateTask(o.id, { date: o.newDate, start, end, duration: o.newDur });
