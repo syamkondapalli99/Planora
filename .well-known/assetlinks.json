@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "net.planoraai.app",
+        "sha256_cert_fingerprints": ["24:32:DF:88:80:16:3B:D7:CA:7F:20:EB:53:11:2B:E8:38:89:A2:CC:1E:7E:62:D2:C2:25:35:72:5E:DD:36:95"]
+      }
+    }]
