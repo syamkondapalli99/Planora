@@ -40,6 +40,10 @@ const SCOPE = "openid email https://www.googleapis.com/auth/calendar.readonly";
 // It can't touch the person's other calendars or events.
 const WRITE_SCOPE = "https://www.googleapis.com/auth/calendar.app.created";
 const SCOPE_SYNC = SCOPE + " " + WRITE_SCOPE;
+// Optional: change the person's own Google events from Planora (drag, edit title/time).
+const EDIT_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+const SCOPE_EDIT = SCOPE_SYNC + " " + EDIT_SCOPE;
+const hasScope = (granted, scope) => String(granted || "").split(/\s+/).includes(scope);
 const TABLE = "planora_google_calendar";
 
 // Google's 11 event colours (Calendar API → colors.event)
@@ -114,6 +118,7 @@ function install(app, requireAuth, supa) {
         return Array.isArray(rows) && rows[0] ? rows[0] : null;
     }
     const canWrite = row => Boolean(row && String(row.scopes || "").includes("calendar.app.created"));
+    const canEdit = row => Boolean(row && hasScope(row.scopes, EDIT_SCOPE));
     const saveRow = (req, fields) => db(req, "POST", "?on_conflict=user_id", { user_id: req.user.id, updated_at: new Date().toISOString(), ...fields },
         { Prefer: "resolution=merge-duplicates,return=minimal" });
     const deleteRow = req => db(req, "DELETE", `?user_id=eq.${encodeURIComponent(req.user.id)}`, null, { Prefer: "return=minimal" });
@@ -175,6 +180,7 @@ function install(app, requireAuth, supa) {
             color: validHex(c.backgroundColor) || "#039BE5",
             primary: Boolean(c.primary),
             googleSelected: Boolean(c.selected || c.primary),
+            writable: ["owner", "writer"].includes(String(c.accessRole || "")),
             planora: /^Tasks and events from Planora/.test(String(c.description || ""))   // the calendar Planora itself fills
         })).sort((a, b) => (b.primary - a.primary) || a.name.localeCompare(b.name));
         calCache.set(req.user.id, { list, until: Date.now() + 10 * 60 * 1000 });
@@ -203,13 +209,15 @@ function install(app, requireAuth, supa) {
             title: String(ev.summary || "(No title)").slice(0, 200),
             color: (Object.prototype.hasOwnProperty.call(EVENT_COLORS, String(ev.colorId)) && EVENT_COLORS[String(ev.colorId)]) || cal.color,
             location: String(ev.location || "").slice(0, 200),
+            // can Planora change it? (their calendar, they organise it, not a birthday/Gmail event)
+            w: Boolean(cal.writable) && !(ev.organizer && ev.organizer.self === false && (ev.attendees || []).length) && !["birthday", "fromGmail"].includes(ev.eventType),
             link: /^https:\/\/(www\.)?google\.com\/calendar\//.test(String(ev.htmlLink || "")) ? String(ev.htmlLink) : ""
         };
         const out = [];
         if (ev.start && ev.start.date) {                       // all-day (end date is exclusive)
             const endEx = (ev.end && ev.end.date) || addDays(ev.start.date, 1);
             for (let d = ev.start.date > from ? ev.start.date : from, i = 0; d < endEx && i < 120; d = addDays(d, 1), i++) {
-                if (d >= from && d <= to) out.push({ ...base, id: `${base.gid}@${d}`, date: d, allDay: true, start: "", end: "" });
+                if (d >= from && d <= to) out.push({ ...base, id: `${base.gid}@${d}`, date: d, allDay: true, start: "", end: "", ...(addDays(ev.start.date, 1) !== endEx ? { multi: true, w: base.w && d === ev.start.date } : {}) });
             }
             return out;
         }
@@ -220,7 +228,7 @@ function install(app, requireAuth, supa) {
             if (d === ed && d !== sd && et === "00:00") break;  // ends exactly at midnight
             const start = d === sd ? st : "00:00";
             const end = d === ed ? et : "23:59";
-            if (d >= from && d <= to) out.push({ ...base, id: `${base.gid}@${d}`, date: d, allDay: false, start, end: end > start ? end : start });
+            if (d >= from && d <= to) out.push({ ...base, id: `${base.gid}@${d}`, date: d, allDay: false, start, end: end > start ? end : start, ...(sd !== ed ? { multi: true, w: base.w && d === sd } : {}) });
         }
         return out;
     }
@@ -251,7 +259,7 @@ function install(app, requireAuth, supa) {
         try {
             const row = await getRow(req);
             res.json({ configured: true, connected: Boolean(row), email: row ? row.google_email : "", clientId: clientId(), scope: SCOPE, scopeSync: SCOPE_SYNC,
-                sync: Boolean(row && row.sync && canWrite(row)), canWrite: canWrite(row), needsUpdate: Boolean(row && row.legacy) });
+                sync: Boolean(row && row.sync && canWrite(row)), canWrite: canWrite(row), canEdit: canEdit(row), scopeEdit: SCOPE_EDIT, needsUpdate: Boolean(row && row.legacy) });
         } catch (err) {
             if (err.message === "table_missing") return res.json({ configured: false, connected: false, clientId: clientId(), scope: SCOPE, reason: "table_missing" });
             fail(res, err, "status");
@@ -284,6 +292,7 @@ function install(app, requireAuth, supa) {
             const fields = { google_email: String(email).slice(0, 200), token_enc: refresh ? seal(refresh) : existing.token_enc, ...(existing ? {} : { calendars: [] }) };
             const write = granted.includes("calendar.app.created");
             const wantSync = Boolean(req.body && req.body.sync);
+            const wantEdit = Boolean(req.body && req.body.edit);
             if (!(existing && existing.legacy)) {
                 fields.scopes = granted.slice(0, 1000);
                 if (wantSync) fields.sync = write;
@@ -295,7 +304,9 @@ function install(app, requireAuth, supa) {
             calCache.delete(req.user.id);
             // linked fine, but the "make its own calendar" box was left unticked in Google's window
             if (wantSync && !write) return res.json({ connected: true, email, canWrite: false, sync: false, syncNote: "To add your Planora tasks to Google Calendar, tick the box that lets Planora make its own calendar." });
-            res.json({ connected: true, email, canWrite: write, sync: Boolean(wantSync && write) });
+            const edit = hasScope(granted, EDIT_SCOPE);
+            res.json({ connected: true, email, canWrite: write, canEdit: edit, sync: Boolean(wantSync && write),
+                ...(wantEdit && !edit ? { editNote: "To change your Google events from Planora, tick the box that lets Planora edit your events." } : {}) });
         } catch (err) { fail(res, err, "connect"); }
     });
 
@@ -405,6 +416,65 @@ function install(app, requireAuth, supa) {
         return { key, title: String(it.title || "Planora").slice(0, 200), date: it.date, start: it.start, end, done: Boolean(it.done), kind: key[0] === "e" ? "event" : "task" };
     }
 
+    /* ---------- change one of the person's own Google events (drag / edit) ---------- */
+    const addMinLocal = (date, hhmm, mins) => {          // local wall-clock arithmetic, crossing midnight if needed
+        const [h, m] = hhmm.split(":").map(Number);
+        let t = h * 60 + m + mins, d = date;
+        while (t >= 1440) { t -= 1440; d = addDays(d, 1); }
+        while (t < 0) { t += 1440; d = addDays(d, -1); }
+        return { date: d, time: String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0") };
+    };
+    router.post("/move", async (req, res) => {
+        const b = req.body || {};
+        const tz = validTz(String(b.tz || "")) ? String(b.tz) : "UTC";
+        const cal = String(b.cal || ""), eid = String(b.gid || "").split("~")[0];
+        const date = String(b.date || ""), start = String(b.start || ""), end = String(b.end || "");
+        const title = typeof b.title === "string" ? b.title.trim().slice(0, 200) : null;
+        if (!cal || cal.length > 300 || !/^[\w.@-]{1,1024}$/.test(eid) || !isDate(date)) return res.status(400).json({ error: "That change didn't look right. Please try again." });
+        if (start && !clock(start)) return res.status(400).json({ error: "Pick a valid time." });
+        if (end && !clock(end)) return res.status(400).json({ error: "Pick a valid end time." });
+        if (title !== null && !title) return res.status(400).json({ error: "Give the event a name." });
+        try {
+            const row = await getRow(req);
+            if (!row) return res.status(409).json({ error: "Google Calendar isn't linked.", code: "not_connected" });
+            if (!canEdit(row)) return res.status(409).json({ error: "Planora needs permission to change your Google events.", code: "scope_edit" });
+            const token = await accessTokenFor(req, row);
+            const c = (await calendarsFor(req, token)).find(x => x.id === cal);
+            if (!c || !c.writable) return res.status(403).json({ error: "You can only view this calendar, so this event can't be changed.", code: "read_only" });
+            const path = `/calendar/v3/calendars/${encodeURIComponent(cal)}/events/${encodeURIComponent(eid)}`;
+            const ev = await gget(token, path);
+            const patch = {};
+            if (title !== null) patch.summary = title;
+            if (ev.start && ev.start.date) {                                   // all-day: keep its length in days
+                const days = Math.max(1, Math.round((new Date(ev.end.date) - new Date(ev.start.date)) / 864e5));
+                if (start) {                                                     // dropped at a time: becomes a 1-hour timed event
+                    const e2 = end && end > start ? { date, time: end } : addMinLocal(date, start, 60);
+                    patch.start = { dateTime: `${date}T${start}:00`, timeZone: tz };
+                    patch.end = { dateTime: `${e2.date}T${e2.time}:00`, timeZone: tz };
+                } else {
+                    patch.start = { date }; patch.end = { date: addDays(date, days) };
+                }
+            } else {
+                const s0 = new Date(ev.start.dateTime), e0 = new Date(ev.end.dateTime || ev.start.dateTime);
+                const dur = Math.max(15, Math.round((e0 - s0) / 60000));
+                const st = start || String(b.oldStart || "") || "09:00";
+                let e2;
+                if (end && end > st) e2 = { date, time: end };
+                else if (end && end <= st && b.resize) e2 = addMinLocal(date, st, 15);
+                else e2 = addMinLocal(date, st, dur);
+                patch.start = { dateTime: `${date}T${st}:00`, timeZone: tz };
+                patch.end = { dateTime: `${e2.date}T${e2.time}:00`, timeZone: tz };
+            }
+            const r = await gsend(token, "PATCH", path, patch);
+            if (!r.ok) {
+                if (r.status === 403) return res.status(403).json({ error: "Google didn't allow that change. You may only be able to view this event.", code: "read_only" });
+                if (r.status === 401) { forget(req.user.id); return res.status(409).json({ error: "Please link Google Calendar again.", code: "reconnect" }); }
+                return res.status(502).json({ error: "Google Calendar isn't answering right now. Please try again.", code: "google_error" });
+            }
+            res.json({ ok: true });
+        } catch (err) { fail(res, err, "move"); }
+    });
+
     router.post("/sync-setting", async (req, res) => {
         const on = Boolean(req.body && req.body.on);
         try {
@@ -487,4 +557,4 @@ function install(app, requireAuth, supa) {
     return { configured, toItems, seal, open };
 }
 
-module.exports = { install, SCOPE, SCOPE_SYNC };
+module.exports = { install, SCOPE, SCOPE_SYNC, SCOPE_EDIT };

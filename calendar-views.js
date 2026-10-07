@@ -258,7 +258,7 @@
         const c = colorOf(x);
         const time = x.start ? core.time12(x.start).replace(":00", "").replace(" ", "").toLowerCase() : "";
         if (x.kind === "gevent") {
-            return `<button type="button" class="mv-item is-event is-google" data-open-gevent="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft};--on:${onColor(c.color)}" title="Google Calendar: ${core.esc(x.title)}"><i class="ti ti-brand-google" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (Google Calendar event)</span></button>`;
+            return `<button type="button" class="mv-item is-event is-google"${gMovable(x.raw) ? ` data-drag="gevent" data-id="${core.esc(x.id)}"` : ""} data-open-gevent="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft};--on:${onColor(c.color)}" title="Google Calendar: ${core.esc(x.title)}"><i class="ti ti-brand-google" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (Google Calendar event)</span></button>`;
         }
         if (x.kind === "event") {
             return `<button type="button" class="mv-item is-event" data-drag="event" data-id="${core.esc(x.id)}" data-open-event="${core.esc(x.id)}" style="--c:${c.color};--s:${c.soft};--on:${onColor(c.color)}" title="Event: ${core.esc(x.title)}"><i class="ti ti-calendar-event" aria-hidden="true"></i><span class="t">${time ? `<b>${core.esc(time)}</b> ` : ""}${core.esc(x.title)}</span><span class="sr-only"> (event)</span></button>`;
@@ -379,11 +379,12 @@
             const gEnd = it.raw.end ? core.time12(it.raw.end) : core.time12(endClock);
             const gExtra = [single ? (it.raw.calName || "") : "", single && it.raw.location ? it.raw.location : ""].filter(Boolean).join(" · ");
             return `
-            <div class="blk is-event is-google${short ? " is-short" : ""}" style="${style}">
+            <div class="blk is-event is-google${short ? " is-short" : ""}"${gMovable(it.raw) ? ` data-drag="gevent" data-id="${core.esc(it.id)}" data-dur="${it.dur}"` : ""} style="${style}">
                 <button type="button" class="blk-body" data-open-gevent="${core.esc(it.id)}" aria-label="Google Calendar: ${core.esc(it.title)}, ${core.esc(core.time12(it.start))} – ${core.esc(gEnd)}">
                     <span class="blk-title"><i class="ti ti-brand-google" aria-hidden="true"></i>${core.esc(it.title)}</span>
                     <span class="blk-time">${core.esc(core.time12(it.start))} – ${core.esc(gEnd)}${gExtra ? " · " + core.esc(gExtra) : ""}</span>
                 </button>
+                ${gMovable(it.raw) && !it.raw.multi ? '<span class="blk-resize" data-resize aria-hidden="true"></span>' : ""}
             </div>`;
         }
         if (it.kind === "event") {
@@ -481,11 +482,12 @@
         const core = C();
         const id = el.dataset.id;
         const type = el.dataset.drag;
-        const raw = type === "event" ? core.getEvent(id) : core.getTasks().find(t => String(t.id) === id);
+        const raw = type === "gevent" ? (window.PlanoraGCal && PlanoraGCal.find(id)) : type === "event" ? core.getEvent(id) : core.getTasks().find(t => String(t.id) === id);
         if (!raw) return null;
         const col = el.closest(".tg-col");
         const startMin = core.toMin(raw.start);
-        const dur = type === "event" ? core.eventDuration(raw) : core.taskDuration(raw);
+        const dur = type === "gevent" ? (raw.allDay ? 0 : Math.max(15, (core.toMin(raw.end) || 0) - (startMin || 0)))
+            : type === "event" ? core.eventDuration(raw) : core.taskDuration(raw);
         let grab = 0;
         if (col && startMin !== null) grab = minutesAt(col, y) - startMin;
         else grab = Math.min(15, dur / 2);
@@ -550,11 +552,16 @@
         g.querySelector(".blk-time").textContent = `${fmt(op.newDate, { weekday: "short" })} ${core.time12(core.toClock(op.newStart))} – ${core.time12(core.toClock(Math.min(24 * 60 - 1, op.newStart + op.newDur)))}`;
     }
 
+    // can this Google event be dragged here?
+    const gMovable = raw => Boolean(window.PlanoraGCal && PlanoraGCal.canEdit && raw && raw.w);
     let gNoteAt = 0;
     function googleNote() {
         if (Date.now() - gNoteAt < 4000) return;
         gNoteAt = Date.now();
-        C().toast("This event is from Google Calendar, so it can only be moved in Google Calendar. Planora tasks and events can be dragged.");
+        const g = window.PlanoraGCal;
+        C().toast(g && g.canEdit
+            ? "This Google event can't be changed from here (it's from a shared calendar or an invitation). Open it in Google Calendar to change it."
+            : "To move Google events here, let Planora edit them: Calendar → Google → Change Google events → Allow.");
     }
     function headAt(x, y) {
         const el = document.elementFromPoint(x, y);
@@ -619,6 +626,20 @@
         const day = o.mode === "month" || Math.abs(new Date(o.newDate) - new Date(o.date)) > 6 * 864e5
             ? fmt(o.newDate, { weekday: "long", month: "short", day: "numeric" }) : fmt(o.newDate, { weekday: "long" });
         const when = timed ? `${day} ${core.time12(start).replace(":00", "")}` : `${day} (anytime)`;
+        if (o.type === "gevent") {
+            const g = window.PlanoraGCal; if (!g) return;
+            const ev = o.raw, before = { date: ev.date, start: ev.start, end: ev.end };
+            const change = timed ? { date: o.newDate, start, end: o.kind === "resize" ? end : undefined, resize: o.kind === "resize" } : { date: o.newDate };
+            g.moveEvent(ev, change).then(ok => {
+                if (!ok) return;
+                const msg = o.kind === "resize" ? `${ev.title} now ends at ${core.time12(end)} (saved in Google).` : `Moved ${ev.title} to ${when} (saved in Google).`;
+                core.toastUndo(msg, () => {
+                    const now = g.find(ev.id.replace(/@.*/, "@" + o.newDate)) || Object.assign({}, ev, { date: o.newDate, start: timed ? start : ev.start, end: timed ? end : ev.end });
+                    g.moveEvent(now, before.start ? { date: before.date, start: before.start, end: before.end, resize: true } : { date: before.date });
+                });
+            });
+            return;
+        }
         if (o.type === "task") {
             const before = { date: o.raw.date, start: o.raw.start || "", end: o.raw.end || "", duration: o.raw.duration };
             core.updateTask(o.id, { date: o.newDate, start, end, duration: o.newDur });
@@ -702,9 +723,9 @@
         if (!host) return;
         if (e.target.closest("[data-check]")) return;
         // Google Calendar events can't be moved here: say so if someone tries
-        if (e.target.closest("[data-open-gevent]")) { op = { kind: "gnote", x0: e.clientX, y0: e.clientY }; return; }
         const rs = e.target.closest("[data-resize]");
         const el = e.target.closest("[data-drag]");
+        if (!el && e.target.closest("[data-open-gevent]")) { op = { kind: "gnote", x0: e.clientX, y0: e.clientY, target: e.target.closest("[data-open-gevent]") }; return; }
         if (el && !el.classList.contains("blk-ghost")) {
             op = begin(rs ? "resize" : "move", el, e.clientX, e.clientY, e.pointerType);
             if (op && rs) { e.preventDefault(); activate(); moveTo(e.clientX, e.clientY); }
@@ -828,6 +849,7 @@
 
     window.PlanoraCalendar = {
         get view() { return state.view; },
+        get justDragged() { return suppressClick; },
         get date() { return state.date; },
         setView, go, step, create, render
     };

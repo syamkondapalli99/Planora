@@ -177,7 +177,7 @@
     }
 
     /* ---------------- Google's popup (one-time code) ---------------- */
-    let gisPromise = null, codeClient = null, syncClient = null, linkWithSync = true;
+    let gisPromise = null, codeClient = null, syncClient = null, editClient = null, linkWithSync = true;
     function loadGis() {
         if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
         if (gisPromise) return gisPromise;
@@ -190,13 +190,14 @@
         return gisPromise;
     }
     // withSync: also ask for permission to keep a "Planora" calendar in Google
+    // withSync === "edit": also ask to change the person's own Google events
     function makeCodeClient(withSync) {
         const s = st.status || {};
         if (!(window.google && google.accounts && google.accounts.oauth2) || !s.clientId) return null;
         const u = user() || {};
         return google.accounts.oauth2.initCodeClient({
             client_id: s.clientId,
-            scope: (withSync && s.scopeSync) || s.scope || "openid email https://www.googleapis.com/auth/calendar.readonly",
+            scope: (withSync === "edit" && s.scopeEdit) || (withSync && s.scopeSync) || s.scope || "openid email https://www.googleapis.com/auth/calendar.readonly",
             include_granted_scopes: true,
             ux_mode: "popup",
             select_account: true,
@@ -207,7 +208,8 @@
                 busy(wasLinked ? "Turning on…" : "Linking…");
                 try {
                     let r;
-                    try { r = await call("/connect", { method: "POST", body: JSON.stringify({ code: resp.code, sync: Boolean(withSync) }) }); }
+                    const body = withSync === "edit" ? { code: resp.code, edit: true, sync: Boolean(st.status && st.status.sync) } : { code: resp.code, sync: Boolean(withSync) };
+                    try { r = await call("/connect", { method: "POST", body: JSON.stringify(body) }); }
                     catch (e) {
                         if (e.code !== "scope_write") throw e;
                         // linked, but the "add to Google" box wasn't ticked
@@ -217,7 +219,9 @@
                     }
                     if (!wasLinked) { st.fetched = []; st.events = {}; }
                     st.connected = true; st.email = r.email || st.email;
-                    st.status = { ...(st.status || {}), connected: true, email: st.email, canWrite: Boolean(r.canWrite) || Boolean(st.status && st.status.canWrite), sync: Boolean(r.sync) };
+                    st.status = { ...(st.status || {}), connected: true, email: st.email, canWrite: Boolean(r.canWrite) || Boolean(st.status && st.status.canWrite), sync: Boolean(r.sync), canEdit: Boolean(r.canEdit) };
+                    st.editNote = r.editNote || "";
+                    if (withSync === "edit" && r.canEdit) { st.fetched = []; if (C()) C().toast("You can now drag and edit your Google events in Planora ✅", "success"); redraw(); paintButton(); paintPanel(); return; }
                     saveCache();
                     st.syncNote = r.syncNote || "";
                     if (r.sync) { resetSnapshot(); schedulePush(0); }
@@ -316,6 +320,84 @@
             </div>`;
     }
 
+    /* ---------------- changing Google events from Planora ---------------- */
+    const canEdit = () => Boolean(st.connected && signedIn() && st.status && st.status.canEdit);
+    function editSection() {
+        const s = st.status || {};
+        if (!s.scopeEdit) return "";
+        if (s.canEdit) return `<div class="gcal-sync is-on"><p class="gcal-sync-t"><i class="ti ti-hand-move" aria-hidden="true"></i><span><strong>You can change your Google events here.</strong> Drag them, or open one and tap Edit. Changes are saved in Google Calendar.</span></p></div>`;
+        const ready = Boolean(editClient);
+        return `<div class="gcal-sync">
+                <p class="gcal-sync-t"><i class="ti ti-hand-move" aria-hidden="true"></i><span><strong>Change Google events from Planora</strong> — drag them to a new time or day, or edit the name and time. Planora saves the change in Google Calendar.</span></p>
+                ${st.editNote ? `<p class="gcal-sub gcal-warn" role="alert">${esc(st.editNote)}</p>` : ""}
+                <button type="button" class="btn-secondary gcal-sync-on" data-g="edit-on" ${ready ? "" : "disabled"}>${ready ? "Allow" : "Loading Google…"}</button>
+            </div>`;
+    }
+
+    // date/start/end are the new values; old values are kept for Undo
+    async function moveEvent(ev, change) {
+        const core = C();
+        const before = { date: ev.date, start: ev.start, end: ev.end, title: ev.title };
+        // show it straight away, then ask Google
+        const list = st.events[ev.date] || [];
+        st.events[ev.date] = list.filter(x => x !== ev);
+        const moved = { ...ev, date: change.date || ev.date, start: change.start !== undefined ? change.start : ev.start, end: change.end !== undefined ? change.end : ev.end, title: change.title || ev.title };
+        if (!moved.start) moved.end = "";
+        (st.events[moved.date] = st.events[moved.date] || []).push(moved);
+        redraw();
+        try {
+            await call("/move", { method: "POST", body: JSON.stringify({
+                tz: tz(), cal: ev.cal, gid: ev.gid, date: moved.date, start: ev.allDay && !change.start ? "" : moved.start, end: change.end || "",
+                oldStart: before.start, resize: Boolean(change.resize), ...(change.title ? { title: change.title } : {}) }) });
+            st.fetched = []; saveCache();
+            const from = core.addDays(moved.date < before.date ? moved.date : before.date, -1), to = core.addDays(moved.date > before.date ? moved.date : before.date, 1);
+            fetchRange(from, to, { force: true });
+            return true;
+        } catch (e) {
+            st.events[moved.date] = (st.events[moved.date] || []).filter(x => x !== moved);
+            (st.events[before.date] = st.events[before.date] || []).push(ev);
+            redraw();
+            if (e.code === "scope_edit" && st.status) st.status.canEdit = false;
+            core.toast(e.message || "Google Calendar didn't save that change.", "error");
+            return false;
+        }
+    }
+
+    /* edit name / date / time from the event's details */
+    let editing = null;
+    function openEventEditor() {
+        const ev = editing; if (!ev || !overlay) return;
+        const body = overlay.querySelector(".gcal-body");
+        body.innerHTML = `
+            <form class="gcal-edit" onsubmit="return false">
+                <label>Name<input type="text" name="title" maxlength="200" value="${esc(ev.title)}" required></label>
+                <label>Date<input type="date" name="date" value="${esc(ev.date)}" required></label>
+                ${ev.allDay ? `<p class="gcal-hint">All-day event</p>` : `<div class="gcal-edit-row">
+                    <label>Starts<input type="time" name="start" value="${esc(ev.start)}" required></label>
+                    <label>Ends<input type="time" name="end" value="${esc(ev.end)}" required></label></div>`}
+                <p class="auth-error gcal-err" role="alert" hidden></p>
+                <div class="gcal-actions"><span class="labels-spacer"></span>
+                    <button type="button" class="btn-secondary" data-g="close">Cancel</button>
+                    <button type="button" class="btn-primary" data-g="ev-save">Save to Google</button></div>
+            </form>`;
+        const f = body.querySelector("input"); if (f) f.focus();
+    }
+    async function saveEventEditor() {
+        const ev = editing; if (!ev || !overlay) return;
+        const f = overlay.querySelector(".gcal-edit");
+        const v = n => (f.querySelector(`[name=${n}]`) || {}).value || "";
+        const err = overlay.querySelector(".gcal-err");
+        const title = v("title").trim(), date = v("date"), start = v("start"), end = v("end");
+        if (!title) { err.textContent = "Give the event a name."; err.hidden = false; return; }
+        if (!ev.allDay && end <= start) { err.textContent = "The end time must be after the start."; err.hidden = false; return; }
+        const btn = overlay.querySelector("[data-g=ev-save]"); btn.disabled = true; btn.textContent = "Saving…";
+        const change = { title: title !== ev.title ? title : undefined, date };
+        if (!ev.allDay) { change.start = start; change.end = end; change.resize = true; }
+        closePanel();
+        const ok = await moveEvent(ev, change);
+        if (ok && C()) C().toast(`Saved "${title}" in Google Calendar.`, "success");
+    }
+
     /* ---------------- panel ---------------- */
     let overlay = null, lastFocus = null, confirmUnlink = false;
     function openPanel() {
@@ -343,6 +425,7 @@
             paintPanel();
             if (s && s.configured && !s.connected) loadGis().then(() => { codeClient = makeCodeClient(false); syncClient = makeCodeClient(true); paintPanel(); }).catch(e => showError(e.message));
             if (s && s.connected && !s.canWrite && !s.needsUpdate) loadGis().then(() => { syncClient = makeCodeClient(true); paintPanel(); }).catch(() => {});
+            if (s && s.connected && !s.canEdit && s.scopeEdit) loadGis().then(() => { editClient = makeCodeClient("edit"); paintPanel(); }).catch(() => {});
             if (s && s.connected && C()) fetchRange(C().today(), C().addDays(C().today(), 6), { force: !st.calendars.length });
         });
     }
@@ -423,6 +506,7 @@
                     </label>`).join("") : `<p class="gcal-note">${st.syncing ? "Loading your calendars…" : "Your calendars will show here after the first sync."}</p>`}
             </fieldset>
             ${syncSection()}
+            ${editSection()}
             <p class="gcal-hint">Google events are read-only in Planora. To change one, open it in Google Calendar.</p>
             <div class="gcal-actions">
                 <button type="button" class="gcal-unlink${confirmUnlink ? " is-confirm" : ""}" data-g="unlink">${confirmUnlink ? "Tap again to unlink" : "Unlink"}</button>
@@ -470,6 +554,13 @@
             if (!syncClient) { showError("Google's window isn't ready yet. Please try again in a moment."); return; }
             syncClient.requestCode();
         }
+        else if (act === "edit-on") {
+            if (!editClient) editClient = makeCodeClient("edit");
+            if (!editClient) { showError("Google's window isn't ready yet. Please try again in a moment."); return; }
+            editClient.requestCode();
+        }
+        else if (act === "ev-edit") { openEventEditor(); return; }
+        else if (act === "ev-save") { saveEventEditor(); return; }
         else if (act === "sync-off") {
             busy("Turning off…");
             try { await call("/sync-setting", { method: "POST", body: JSON.stringify({ on: false }) }); st.status = { ...(st.status || {}), sync: false }; if (C()) C().toast("Stopped adding Planora tasks to Google Calendar.", "success"); }
@@ -521,6 +612,7 @@
         const ev = find(id);
         if (!ev) return;
         closePanel();
+        editing = ev;
         lastFocus = document.activeElement;
         const core = C();
         const day = new Date(ev.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
@@ -538,9 +630,10 @@
                     <p class="gcal-row"><i class="ti ti-clock" aria-hidden="true"></i><span>${esc(when)}</span></p>
                     ${ev.location ? `<p class="gcal-row"><i class="ti ti-map-pin" aria-hidden="true"></i><span>${esc(ev.location)}</span></p>` : ""}
                     <p class="gcal-row"><i class="ti ti-brand-google" aria-hidden="true"></i><span>${esc(ev.calName || "Google Calendar")}</span></p>
-                    <p class="gcal-hint">From Google Calendar. Change it there and it updates here.</p>
+                    <p class="gcal-hint">${canEdit() && ev.w ? "From Google Calendar. Changes you make here are saved there too." : "From Google Calendar. Change it there and it updates here."}</p>
                     <div class="gcal-actions">
                         <span class="labels-spacer"></span>
+                        ${canEdit() && ev.w && !ev.multi ? `<button type="button" class="btn-secondary" data-g="ev-edit"><i class="ti ti-pencil" aria-hidden="true"></i> Edit</button>` : ""}
                         ${ev.link ? `<a class="btn-secondary gcal-open" href="${esc(ev.link)}" target="_blank" rel="noopener noreferrer"><i class="ti ti-external-link" aria-hidden="true"></i> Open in Google Calendar</a>` : ""}
                         <button type="button" class="btn-primary" data-g="close">Close</button>
                     </div>
@@ -559,6 +652,7 @@
             const b = e.target.closest("[data-gcal]");
             if (b) { e.preventDefault(); openPanel(); return; }
             const g = e.target.closest("[data-open-gevent]");
+            if (g && window.PlanoraCalendar && PlanoraCalendar.justDragged) return;   // that was the end of a drag
             if (g) { e.preventDefault(); e.stopPropagation(); openEvent(g.dataset.openGevent); }
         }, true);
         // keep fresh: when you come back to the tab
@@ -572,6 +666,7 @@
             loadCache(); paintButton(); redraw();
             if (signedIn()) refreshStatus().then(() => {
                 paintButton();
+                if (st.connected) redraw();               // now we know if Google events can be dragged
                 schedulePush(800);
                 // the next month, so Ask Planora and "free time" can plan around Google events
                 if (st.connected && Date.now() - st.lastSync > 15 * 60 * 1000 && C()) fetchRange(C().today(), C().addDays(C().today(), 30));
@@ -581,7 +676,8 @@
     }
 
     window.PlanoraGCal = {
-        itemsFor, openPanel, openEvent, buttonHTML,
+        itemsFor, openPanel, openEvent, buttonHTML, find, moveEvent,
+        get canEdit() { return canEdit(); },
         get connected() { return st.connected && signedIn(); },
         _state: st
     };

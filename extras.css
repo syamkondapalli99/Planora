@@ -1951,3 +1951,11 @@ body.cv-dragging, body.cv-dragging * { cursor: grabbing !important; }
 .tg-head.is-drop .tg-allday { display: flex !important; min-height: 28px; border-radius: 8px; outline: 2px dashed #6C5CE7; outline-offset: 1px; background: #EFEDFF; }
 .blk-ghost.is-anytime { position: relative !important; top: auto !important; height: auto !important; min-height: 24px; left: auto !important; width: auto !important; padding: 2px 6px; display: flex; flex-direction: row; gap: 6px; align-items: center; }
 .blk-ghost.is-anytime .blk-time { font-size: 10.5px; }
+
+/* Google event editor */
+.gcal-edit { display: flex; flex-direction: column; gap: 12px; }
+.gcal-edit label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--pl-muted, #4F4A6B); }
+.gcal-edit input { font: inherit; font-size: 15px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--purple-100, #D8D3FA); color: var(--pl-text, #1E1A4D); background: #fff; }
+.gcal-edit input:focus { outline: none; border-color: var(--purple-400, #6C5CE7); box-shadow: 0 0 0 3px var(--purple-50, #EFEDFF); }
+.gcal-edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.blk.is-google[data-drag] { cursor: grab; }
