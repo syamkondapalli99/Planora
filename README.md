@@ -173,6 +173,7 @@ screen, the two settings above on the server, and the SQL run once.
 | `planora-config.js` | Public settings: Supabase URL + anon key, production URL, `apiBase` |
 | `supabase/schema.sql` | The one table + Row Level Security + delete-my-account function |
 | `supabase/google-calendar.sql` | Google Calendar link table + Row Level Security |
+| `doc-plan-server.js` | Ask Planora 📎: reads an attached syllabus/timetable/photo (PDF, image, .docx, .txt) and plans only from the dates in it (`/api/plan-from-doc`). Photos and PDFs need `OPENAI_API_KEY`. |
 | `gcal-server.js` + `gcal.js` | Google Calendar link: server (code swap, encrypted permission, events) and app (panel, events in the calendar) |
 | `vendor/supabase.js` | Supabase JS SDK (v2.117.2, MIT) |
 | `reset-password.html` | Choose a new password from the email link |

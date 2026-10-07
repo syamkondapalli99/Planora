@@ -1959,3 +1959,33 @@ body.cv-dragging, body.cv-dragging * { cursor: grabbing !important; }
 .gcal-edit input:focus { outline: none; border-color: var(--purple-400, #6C5CE7); box-shadow: 0 0 0 3px var(--purple-50, #EFEDFF); }
 .gcal-edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .blk.is-google[data-drag] { cursor: grab; }
+
+/* =========================================================
+   ASK PLANORA: 📎 PLAN FROM A DOCUMENT (7 Oct 2026)
+   ========================================================= */
+.sp-attach {
+  flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--purple-100, #D8D3FA);
+  background: #fff; color: var(--purple-600, #5145CD); display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 19px; transition: background .15s, border-color .15s;
+}
+.sp-attach:hover { background: var(--purple-50, #EFEDFF); border-color: var(--purple-200, #B4ABF5); }
+.sp-attach:focus-visible { outline: 3px solid var(--purple-200, #B4ABF5); outline-offset: 2px; }
+.sp-attach.is-on { background: var(--purple-50, #EFEDFF); border-color: var(--purple-400, #6C5CE7); }
+.sp-attach[disabled] { opacity: .5; cursor: progress; }
+.sp-attached { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 8px 2px 0; }
+.sp-attached[hidden] { display: none; }
+.sp-file-chip {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 6px 6px 6px 10px; border-radius: 10px;
+  background: var(--purple-50, #EFEDFF); border: 1px solid var(--purple-100, #D8D3FA); color: var(--pl-text, #1E1A4D); font-size: 13.5px; font-weight: 600;
+}
+.sp-file-chip i { font-size: 17px; color: var(--purple-600, #5145CD); flex-shrink: 0; }
+.sp-file-chip .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.sp-file-chip.in-bubble { background: rgba(255,255,255,.6); padding-right: 10px; }
+.sp-file-x { border: none; background: none; width: 26px; height: 26px; border-radius: 8px; color: var(--pl-muted, #4F4A6B); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.sp-file-x:hover { background: var(--purple-100, #D8D3FA); }
+.sp-file-hint { font-size: 12.5px; color: var(--pl-muted, #4F4A6B); }
+.sp-reading { font-size: 13px; color: var(--pl-muted, #4F4A6B); }
+.sp-root.sp-drop { outline: 2px dashed var(--purple-400, #6C5CE7); outline-offset: 4px; }
+@media (max-width: 699px) { .sp-attach { width: 42px; height: 42px; } }
+.sp-task-src { display: flex; gap: 6px; align-items: flex-start; margin-top: 6px; font-size: 12.5px; color: var(--pl-muted, #4F4A6B); font-style: italic; }
+.sp-task-src i { font-size: 14px; color: var(--purple-600, #5145CD); font-style: normal; margin-top: 1px; flex-shrink: 0; }

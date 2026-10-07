@@ -1108,7 +1108,9 @@
                     <div class="sp-task-meta"><i class="ti ${kind === "update" ? "ti-arrow-right" : "ti-clock"}" aria-hidden="true"></i><span>${meta}</span></div>
                     ${extras.length ? `<div class="sp-task-extra">${extras.join(" · ")}</div>` : ""}
                     ${goalName ? `<div class="sp-task-goal"><i class="ti ti-target-arrow" aria-hidden="true"></i>${esc(goalName)}</div>` : ""}
-                    ${item.notes ? `<div class="sp-task-note"><i class="ti ti-info-circle" aria-hidden="true"></i>${esc(item.notes)}</div>` : ""}
+                    ${item.notes ? (/^From your document/.test(item.notes)
+                        ? `<div class="sp-task-src"><i class="ti ti-file-text" aria-hidden="true"></i>${esc(item.notes.replace(/^From your document:\s*/, ""))}</div>`
+                        : `<div class="sp-task-note"><i class="ti ti-info-circle" aria-hidden="true"></i>${esc(item.notes)}</div>`) : ""}
                 </div>
                 <div class="sp-task-btns">
                     ${item.remove ? "" : `<button type="button" data-act="edit" data-key="${esc(key)}" aria-label="Edit ${esc(item.title)}"><i class="ti ti-pencil"></i></button>`}
