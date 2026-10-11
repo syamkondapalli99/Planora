@@ -1989,3 +1989,32 @@ body.cv-dragging, body.cv-dragging * { cursor: grabbing !important; }
 @media (max-width: 699px) { .sp-attach { width: 42px; height: 42px; } }
 .sp-task-src { display: flex; gap: 6px; align-items: flex-start; margin-top: 6px; font-size: 12.5px; color: var(--pl-muted, #4F4A6B); font-style: italic; }
 .sp-task-src i { font-size: 14px; color: var(--purple-600, #5145CD); font-style: normal; margin-top: 1px; flex-shrink: 0; }
+
+/* =========================================================
+   PHONE DAY BAR (Today's schedule, one day at a time)
+   Phones/tablets use the day bar; the website keeps the week strip.
+   ========================================================= */
+.day-bar { display: none; }
+html:not(.web-mode) #schedule-card .week-calendar { display: none !important; }
+html:not(.web-mode) .day-bar {
+    display: flex; align-items: center; gap: 8px;
+    background: #F4F2FF; border-radius: 16px; padding: 6px; margin: 4px 0 14px;
+}
+.day-bar-btn {
+    flex: 0 0 42px; width: 42px; height: 44px; border: 0; border-radius: 12px;
+    background: #fff; color: #5145CD; font-size: 20px; padding: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 2px rgba(30, 26, 77, .08); position: relative;
+}
+.day-bar-btn:active { background: #EFEDFF; }
+.day-bar-pick input {
+    position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%;
+    border: 0; padding: 0; pointer-events: none;
+}
+.day-bar-mid { flex: 1; min-width: 0; text-align: center; line-height: 1.25; }
+.day-bar-mid strong { display: block; font-size: 17px; font-weight: 700; color: #1E1A4D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-bar-mid span { font-size: 13px; color: #66617F; white-space: nowrap; }
+.day-bar-today {
+    border: 0; background: none; padding: 0; font: inherit; font-weight: 700;
+    color: #5145CD; text-decoration: underline; cursor: pointer;
+}

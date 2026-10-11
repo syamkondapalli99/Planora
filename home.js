@@ -375,6 +375,7 @@
         const isToday = day === core.today();
         const title = $("schedule-title");
         if (title) title.textContent = isToday ? "Today's schedule" : core.dayLabel(day);
+        renderDayBar(day, visible, isToday);
         el.hidden = visible > 0;
         if (visible) return;
         const brandNew = !core.getTasks().length;   // the first-day card already offers help
@@ -385,6 +386,59 @@
                <div class="empty-actions"><button type="button" class="btn-primary" data-empty="plan">Plan my day</button><button type="button" class="btn-secondary" data-quick-add-empty>Add a task</button></div>`
             : `<p>Nothing planned for ${core.esc(core.dayLabel(day))}.</p>
                <div class="empty-actions"><button type="button" class="btn-secondary" data-quick-add-empty>Add a task</button></div>`;
+    }
+
+    /* ---------------- phone day bar: one day at a time ---------------- */
+
+    function renderDayBar(day, count, isToday) {
+        const core = C();
+        const d = $("day-bar-date"), sub = $("day-bar-sub"), inp = $("day-bar-input");
+        if (!d || !sub) return;
+        const dt = new Date(day + "T00:00:00");
+        d.textContent = dt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+        const items = count ? count + (count === 1 ? " item" : " items") : "Nothing planned";
+        // the card title already says Today / Tomorrow / the day, so this line stays short
+        sub.innerHTML = core.esc(items) + (isToday ? "" : ' · <button type="button" class="day-bar-today" id="day-bar-today">Today</button>');
+        if (inp) inp.value = day;
+    }
+
+    function goToDay(day) {
+        if (!day || typeof selectedDate === "undefined") return;
+        const core = C();
+        selectedDate = day;
+        // keep the website's week strip on the same week
+        const monday = s => { const x = new Date(s + "T00:00:00"); const k = (x.getDay() + 6) % 7; x.setDate(x.getDate() - k); return x; };
+        if (typeof currentWeekOffset !== "undefined") currentWeekOffset = Math.round((monday(day) - monday(core.today())) / (7 * 864e5));
+        if (typeof generateWeekCalendar === "function") generateWeekCalendar();
+        if (typeof showTasksForDate === "function") window.showTasksForDate(day);
+        if (typeof updateScheduleTitle === "function") window.updateScheduleTitle();
+        if (typeof renderHomeOverview === "function") renderHomeOverview();
+    }
+
+    function wireDayBar() {
+        const bar = $("day-bar");
+        if (!bar || bar._wired) return;
+        bar._wired = true;
+        const step = n => goToDay(C().addDays(selectedDate || C().today(), n));
+        $("day-prev").addEventListener("click", () => step(-1));
+        $("day-next").addEventListener("click", () => step(1));
+        const inp = $("day-bar-input");
+        bar.querySelector(".day-bar-pick").addEventListener("click", e => {
+            if (e.target === inp) return;
+            e.preventDefault();
+            try { inp.showPicker(); } catch { inp.focus(); inp.click(); }
+        });
+        inp.addEventListener("change", () => { if (inp.value) goToDay(inp.value); });
+        bar.addEventListener("click", e => { if (e.target.closest("#day-bar-today")) goToDay(C().today()); });
+        // swipe left/right on the schedule to change day (phones)
+        const card = $("schedule-card");
+        let sx = null, sy = 0;
+        card.addEventListener("touchstart", e => { if (e.touches.length === 1 && !e.target.closest("button,input,a,.task-item.dragging")) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; } else sx = null; }, { passive: true });
+        card.addEventListener("touchend", e => {
+            if (sx === null) return;
+            const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
+            if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 2 && document.documentElement.classList.contains("app-mode")) step(dx < 0 ? 1 : -1);
+        }, { passive: true });
     }
 
     /* Events in Today's schedule: same box, calendar icon, no checkbox */
@@ -617,6 +671,7 @@
         };
         window.addEventListener("storage", e => { if (e.key === "planora_tasks") scheduleRender(true); });
 
+        wireDayBar();
         render();
         // keep "now"-based text fresh
         setInterval(render, 5 * 60 * 1000);
