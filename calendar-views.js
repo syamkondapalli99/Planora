@@ -376,9 +376,11 @@
         const hours = Array.from({ length: 24 }, (_, h) => h);
         const label = h => h === 0 ? "" : `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`;
 
-        host.innerHTML = `
+        const strip = phone && single ? weekStrip(days[0]) : "";
+        const noAny = phone && single && !all.some(x => core.toMin(x.start) === null);
+        host.innerHTML = `${strip}
             <div class="tg-scroll" tabindex="-1">
-                <div class="tg ${single ? "is-day" : "is-week"}" style="--hour:${HOUR}px;--days:${days.length};--colmin:${single ? 0 : phone ? (DEVICE() === "tablet" ? 76 : 104) : 0}px">
+                <div class="tg ${single ? "is-day" : "is-week"}${phone && single ? " is-phone-day" : ""}${noAny ? " no-anytime" : ""}" style="--hour:${HOUR}px;--days:${days.length};--colmin:${single ? 0 : phone ? (DEVICE() === "tablet" ? 76 : 104) : 0}px">
                     <div class="tg-corner"><span>Anytime</span></div>
                     ${days.map(d => {
                         const untimed = all.filter(x => x.date === d && core.toMin(x.start) === null);
@@ -422,6 +424,19 @@
             }
         }
         scrollMemo = null;
+    }
+
+    // phone Day view: S–S row of the week, tap a day to open it
+    function weekStrip(d) {
+        const core = C();
+        const t = core.today();
+        const sun = core.addDays(d, -parse(d).getDay());
+        const wk = Array.from({ length: 7 }, (_, i) => core.addDays(sun, i));
+        const has = new Set(itemsFor(wk[0], wk[6]).map(x => x.date));
+        return `<div class="dv-strip" role="group" aria-label="This week">${wk.map((x, i) => `
+            <button type="button" class="dv-d${x === d ? " is-selected" : ""}${x === t ? " is-today" : ""}" data-pick-day="${x}" aria-label="${core.esc(fmt(x, { weekday: "long", month: "long", day: "numeric" }))}${x === t ? ", today" : ""}"${x === d ? ' aria-current="date"' : ""}>
+                <span class="dw">${"SMTWTFS"[i]}</span><span class="dn">${Number(x.slice(8))}</span><i class="${has.has(x) ? "on" : ""}" aria-hidden="true"></i>
+            </button>`).join("")}</div>`;
     }
 
     function allDayChip(x) {
@@ -915,11 +930,14 @@
         host.addEventListener("contextmenu", e => { if (e.target.closest("[data-drag]")) e.preventDefault(); });
         // phone month: swipe the grid left/right for the next/previous month
         let sw = null;
-        host.addEventListener("touchstart", e => { sw = (state.view === "month" && e.touches.length === 1 && e.target.closest(".mv-phone")) ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; }, { passive: true });
+        host.addEventListener("touchstart", e => { sw = (e.touches.length === 1 && ((state.view === "month" && e.target.closest(".mv-phone")) || (state.view === "day" && e.target.closest(".dv-strip")))) ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; }, { passive: true });
         host.addEventListener("touchend", e => {
             if (!sw) return;
             const t = e.changedTouches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y; sw = null;
-            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.8) { suppressClick = true; setTimeout(() => { suppressClick = false; }, 350); step(dx < 0 ? 1 : -1); }
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.8) {
+                suppressClick = true; setTimeout(() => { suppressClick = false; }, 350);
+                if (state.view === "day") go(C().addDays(state.date, dx < 0 ? 7 : -7)); else step(dx < 0 ? 1 : -1);
+            }
         }, { passive: true });
         document.addEventListener("keydown", onKey);
 
