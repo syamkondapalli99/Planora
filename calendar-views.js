@@ -228,7 +228,7 @@
 
     /* ---------- month ---------- */
     function renderMonth(host) {
-        if (isPhone()) return renderMonthPhone(host);
+        return renderMonthPhone(host);   // one design everywhere (12 Oct 2026); the old grid below is kept for reference
         const core = C();
         const m = monthStart(state.date);
         const first = mondayOf(m);
@@ -270,10 +270,12 @@
         const all = itemsFor(days[0], days[days.length - 1]);
         const t = core.today();
         const sel = state.date;
+        const wide = !isPhone();                                            // bigger screens keep the item chips (drag to move)
         const order = (a, b) => (a.start || "").localeCompare(b.start || "") || (a.kind !== "task" ? -1 : 1);
         host.dataset.key = "month";
         host.innerHTML = `
-            <div class="mv mv-phone" role="grid" aria-label="${core.esc(fmt(m, { month: "long", year: "numeric" }))}">
+            <div class="mv-wrap${wide ? " is-wide" : ""}">
+            <div class="mv mv-phone${wide ? " mv-wide" : ""}" role="grid" aria-label="${core.esc(fmt(m, { month: "long", year: "numeric" }))}">
                 <div class="mv-dow" role="row">${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(x => `<span role="columnheader" aria-label="${x}">${x[0]}</span>`).join("")}</div>
                 <div class="mv-grid" style="--weeks:${weeks}">
                     ${days.map(d => {
@@ -282,12 +284,14 @@
                         return `
                         <div class="${cls}" role="gridcell" data-day="${d}"${d === sel ? ' aria-selected="true"' : ""}>
                             <button type="button" class="mv-num" data-pick-day="${d}" aria-label="${core.esc(fmt(d, { weekday: "long", month: "long", day: "numeric" }))}${d === t ? ", today" : ""}${list.length ? `, ${list.length} item${list.length === 1 ? "" : "s"}` : ""}">${Number(d.slice(8))}</button>
-                            ${list.length ? `<div class="mv-dots" aria-hidden="true">${list.slice(0, 3).map(x => `<i class="${x.kind !== "task" ? "is-event" : "is-task"}${x.raw.completed ? " is-done" : ""}" style="--c:${colorOf(x).color}"></i>`).join("")}${list.length > 3 ? `<b>+${list.length - 3}</b>` : ""}</div>` : ""}
+                            ${wide ? list.slice(0, 3).map(x => chip(x)).join("") + (list.length > 3 ? `<button type="button" class="mv-more" data-open-day="${d}">+${list.length - 3} more</button>` : "") :
+                            list.length ? `<div class="mv-dots" aria-hidden="true">${list.slice(0, 3).map(x => `<i class="${x.kind !== "task" ? "is-event" : "is-task"}${x.raw.completed ? " is-done" : ""}" style="--c:${colorOf(x).color}"></i>`).join("")}${list.length > 3 ? `<b>+${list.length - 3}</b>` : ""}</div>` : ""}
                         </div>`;
                     }).join("")}
                 </div>
             </div>
-            ${agendaHTML(sel, all.filter(x => x.date === sel).sort(order))}`;
+            ${agendaHTML(sel, all.filter(x => x.date === sel).sort(order))}
+            </div>`;
     }
     function agendaHTML(d, list) {
         const core = C();
@@ -376,11 +380,11 @@
         const hours = Array.from({ length: 24 }, (_, h) => h);
         const label = h => h === 0 ? "" : `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`;
 
-        const strip = phone && single ? weekStrip(days[0]) : "";
-        const noAny = phone && single && !all.some(x => core.toMin(x.start) === null);
+        const strip = single ? weekStrip(days[0]) : "";
+        const noAny = single && !all.some(x => core.toMin(x.start) === null);
         host.innerHTML = `${strip}
             <div class="tg-scroll" tabindex="-1">
-                <div class="tg ${single ? "is-day" : "is-week"}${phone && single ? " is-phone-day" : ""}${noAny ? " no-anytime" : ""}" style="--hour:${HOUR}px;--days:${days.length};--colmin:${single ? 0 : phone ? (DEVICE() === "tablet" ? 76 : 104) : 0}px">
+                <div class="tg ${single ? "is-day" : "is-week"}${single ? " is-phone-day" : ""}${noAny ? " no-anytime" : ""}" style="--hour:${HOUR}px;--days:${days.length};--colmin:${single ? 0 : phone ? (DEVICE() === "tablet" ? 76 : 104) : 0}px">
                     <div class="tg-corner"><span>Anytime</span></div>
                     ${days.map(d => {
                         const untimed = all.filter(x => x.date === d && core.toMin(x.start) === null);
@@ -463,7 +467,7 @@
         const style = `top:${top}px;height:${h}px;left:calc(${pos.col * w}% + 1px);width:calc(${w}% - 3px);--c:${c.color};--s:${c.soft};--on:${onColor(c.color)}`;
         const series = it.raw.seriesId;
         const g = goalLabel(it);
-        const extra = [g ? g.text : "", single ? c.label : "", single && it.kind === "event" && it.raw.location ? it.raw.location : "", single && it.kind === "task" && it.raw.priority === "high" ? "High priority" : ""].filter(Boolean).join(" · ");
+        const extra = [g ? g.text : "", single && !(g && g.text.endsWith(": " + c.label)) ? c.label : "", single && it.kind === "event" && it.raw.location ? it.raw.location : "", single && it.kind === "task" && it.raw.priority === "high" ? "High priority" : ""].filter(Boolean).join(" · ");
         if (it.kind === "gevent") {
             const gEnd = it.raw.end ? core.time12(it.raw.end) : core.time12(endClock);
             const gExtra = [single ? (it.raw.calName || "") : "", single && it.raw.location ? it.raw.location : ""].filter(Boolean).join(" · ");
@@ -798,8 +802,10 @@
         if (ot) { core.openTaskSheet(ot.dataset.openTask); return; }
         const oe = e.target.closest("[data-open-event]");
         if (oe) { core.openEventSheet(oe.dataset.openEvent); return; }
+        const od0 = e.target.closest("[data-open-day]");
+        if (od0) { state.date = od0.dataset.openDay; syncLegacy(); setView("day"); return; }
         const pick = e.target.closest("[data-pick-day]");
-        if (pick || (isPhone() && state.view === "month" && e.target.closest(".mv-day"))) {
+        if (pick || (state.view === "month" && e.target.closest(".mv-day"))) {
             go(pick ? pick.dataset.pickDay : e.target.closest(".mv-day").dataset.day);
             return;
         }
