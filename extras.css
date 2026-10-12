@@ -2018,3 +2018,120 @@ html:not(.web-mode) .day-bar {
     border: 0; background: none; padding: 0; font: inherit; font-weight: 700;
     color: #5145CD; text-decoration: underline; cursor: pointer;
 }
+
+/* =========================================================
+   ASK PLANORA COMPOSER (12 Oct 2026)
+   Why it was narrow: the text box shared one row with three fixed
+   buttons (attach 44 + mic 46 + send 46 + gaps), so on a phone card
+   it got ~130px. Now, whenever the Ask box itself is narrow (phones,
+   or a narrow column on the website), the text box gets the full
+   width and the buttons sit in a row underneath, inside one box.
+   Wide boxes keep the single row.
+   ========================================================= */
+.sp-root { container-type: inline-size; container-name: ask; }
+.sp-send.is-empty { opacity: .45; }
+.sp-send.is-empty:hover { background: var(--purple-400); }
+
+@container ask (max-width: 560px) {
+  .sp-input-row {
+    flex-wrap: wrap; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid var(--purple-100, #D8D3FA); border-radius: 18px;
+    padding: 4px 6px 6px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .sp-input-row:focus-within { border-color: var(--purple-400, #6C5CE7); box-shadow: 0 0 0 3px var(--purple-50, #EFEDFF); }
+  .sp-input-row:has(.is-listening) { border-color: #E5484D; box-shadow: 0 0 0 3px rgba(229, 72, 77, .12); }
+  .sp-input {
+    flex: 1 1 100%; width: 100%; min-height: 50px; max-height: 40vh;
+    border: 0 !important; background: transparent !important; box-shadow: none !important;
+    padding: 10px 10px 4px; font-size: 16px; line-height: 1.45; border-radius: 12px; outline: none !important;
+  }
+  .sp-input-row .sp-attach,
+  .sp-input-row .mic-btn {
+    width: 44px; height: 44px; border-radius: 12px; border: 0;
+    background: var(--purple-50, #EFEDFF); color: var(--purple-600, #5145CD); font-size: 20px; align-self: center;
+  }
+  .sp-input-row .sp-attach.is-on { box-shadow: inset 0 0 0 1.5px var(--purple-400, #6C5CE7); }
+  .sp-input-row .sp-send { margin-left: auto; width: 52px; height: 44px; border-radius: 12px; align-self: center; }
+}
+
+/* =========================================================
+   PHONE CALENDAR (12 Oct 2026)
+   - one compact header:  ‹  October 2026 ⌄  ›        Today  [G]
+     then Month · Week · Day across the full width
+   - Month: Sun–Sat grid without boxes, selected day = filled purple
+     circle, today = purple ring, small dots for days with plans,
+     and the chosen day's list underneath (tap a day to change it)
+   ========================================================= */
+@media (max-width: 699px) {
+  .cal-toolbar { display: flex !important; flex-wrap: wrap; align-items: center; gap: 8px 2px; }
+  .cal-toolbar .cv-nav { display: contents; }
+  .cal-toolbar [data-nav="prev"] { order: 1; }
+  .cal-toolbar .cv-range { order: 2; flex: 0 1 auto; width: auto !important; min-width: 0; padding: 6px 2px; justify-content: center; font-size: 19px; font-weight: 700; white-space: nowrap; }
+  .cal-toolbar [data-nav="next"] { order: 3; }
+  .cal-toolbar [data-nav="today"] { order: 4; margin-left: auto; height: 40px; padding: 0 12px; border-radius: 999px; font-size: 14px; flex-shrink: 0; }
+  .cal-toolbar .cv-gcal { order: 5; margin-left: 4px !important; height: 40px; width: 40px; padding: 0; justify-content: center; flex-shrink: 0; }
+  .cal-toolbar .cv-switch { order: 6; flex: 1 0 100%; margin: 0 !important; width: 100%; display: grid; }
+  .cal-toolbar .cv-switch button { min-height: 38px; }
+  .cal-toolbar .cv-arrow { flex: 0 0 36px; width: 36px; height: 40px; min-width: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+  .cal-toolbar .cv-arrow:active { background: var(--purple-50, #EFEDFF); }
+  .cal-toolbar .cv-range span { overflow: hidden; text-overflow: ellipsis; }
+  .cal-toolbar .cv-range i { display: none; }
+
+  /* month grid */
+  .mv.mv-phone { border: 0 !important; background: transparent !important; border-radius: 0; overflow: visible; }
+  .mv-phone .mv-dow { border: 0 !important; background: transparent !important; padding: 2px 0 4px; }
+  .mv-phone .mv-dow span { font-size: 12.5px; font-weight: 600; color: #6F6A88; padding: 4px 0; }
+  .mv-phone .mv-grid { grid-auto-rows: 54px !important; background: transparent !important; }
+  .mv-phone .mv-day {
+    border: 0 !important; background: transparent !important; box-shadow: none !important;
+    padding: 3px 0 0 !important; gap: 3px !important; align-items: center; justify-content: flex-start; min-width: 0;
+  }
+  .mv-phone .mv-num {
+    width: 36px !important; height: 36px !important; margin: 0 !important; border-radius: 50% !important;
+    display: flex; align-items: center; justify-content: center; align-self: center !important;
+    font-size: 16px !important; font-weight: 600 !important; color: #1E1A4D !important; background: transparent !important;
+  }
+  .mv-phone .mv-day.is-out .mv-num { color: #B0ACC4 !important; font-weight: 500 !important; }
+  .mv-phone .mv-day.is-today .mv-num { box-shadow: inset 0 0 0 2px var(--purple-400, #6C5CE7); color: var(--purple-600, #5145CD) !important; font-weight: 700 !important; }
+  .mv-phone .mv-day.is-selected .mv-num { background: var(--purple-600, #5145CD) !important; color: #fff !important; box-shadow: 0 4px 10px rgba(81, 69, 205, .28); }
+  .mv-phone .mv-num:focus-visible { outline: 3px solid var(--purple-200, #B4ABF5); outline-offset: 1px; }
+  .mv-phone .mv-dots { justify-content: center; gap: 3px; padding: 0; min-height: 6px; flex-wrap: nowrap; }
+  .mv-phone .mv-dots i, .mv-phone .mv-dots i.is-task { width: 6px !important; height: 6px !important; border-width: 1.5px !important; }
+  .mv-phone .mv-dots b { font-size: 9px; line-height: 6px; }
+  .mv-phone .mv-day.is-out .mv-dots { opacity: .5; }
+
+  /* the chosen day's list */
+  .ag { border-top: 1px solid var(--purple-100, #D8D3FA); margin-top: 8px; padding-top: 14px; }
+  .ag-head { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .ag-h { flex: 1; min-width: 0; margin: 0; font-size: 17px; font-weight: 700; color: #1E1A4D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ag-day, .ag-add {
+    height: 40px; border-radius: 12px; border: 1px solid var(--purple-100, #D8D3FA); background: #fff; color: var(--purple-600, #5145CD);
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .ag-day { width: 40px; font-size: 19px; }
+  .ag-add { padding: 0 12px 0 10px; }
+  .ag-add i { font-size: 18px; }
+  .ag-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .ag-item {
+    display: flex; align-items: center; gap: 4px; min-height: 60px; padding: 4px 6px 4px 4px;
+    background: #fff; border: 1px solid var(--purple-100, #D8D3FA); border-left: 4px solid var(--c); border-radius: 14px;
+  }
+  .ag-item.is-event { background: linear-gradient(90deg, var(--s) 0%, #fff 75%); }
+  .ag-check, .ag-ico { flex: 0 0 44px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: none; padding: 0; font-size: 24px; color: var(--c); cursor: pointer; }
+  .ag-ico { font-size: 20px; cursor: default; }
+  .ag-main { flex: 1; min-width: 0; border: 0; background: none; text-align: left; padding: 6px 4px; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+  .ag-title { font-size: 15.5px; font-weight: 600; color: #1E1A4D; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .ag-meta { font-size: 13px; color: #66617F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ag-tag { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--purple-600, #5145CD); background: #EFEDFF; border-radius: 6px; padding: 1px 6px; margin-right: 6px; vertical-align: 2px; }
+  .ag-item.is-done .ag-title { text-decoration: line-through; color: #9C98B3; font-weight: 500; }
+  .ag-empty { text-align: center; padding: 18px 12px 8px; color: #66617F; }
+  .ag-empty p { margin: 0 0 12px; font-size: 15px; }
+}
+@media (max-width: 359px) {
+  .cal-toolbar .cv-range { font-size: 17px; }
+  .cal-toolbar .cv-arrow { flex-basis: 32px; width: 32px; }
+  .cal-toolbar [data-nav="today"] { padding: 0 10px; font-size: 13.5px; }
+  .cal-toolbar .cv-gcal { width: 38px; margin-left: 2px !important; }
+  .cal-toolbar .cv-arrow { flex-basis: 30px; width: 30px; }
+}

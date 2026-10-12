@@ -40,7 +40,7 @@
             </div>
             <form class="sp-input-row">
                 <label class="sr-only" for="sp-input-${uidSuffix}">${esc(placeholder)}</label>
-                <textarea class="sp-input" id="sp-input-${uidSuffix}" rows="1" placeholder="${esc(placeholder)}"></textarea>
+                <textarea class="sp-input" id="sp-input-${uidSuffix}" rows="1" enterkeyhint="send" placeholder="${esc(placeholder)}"></textarea>
                 <button type="button" class="sp-attach" aria-label="Attach a document or photo (syllabus, timetable, assignment)" title="Attach a document or photo"><i class="ti ti-paperclip" aria-hidden="true"></i></button>
                 <input type="file" class="sp-file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.pdf,application/pdf,.docx,.txt,.md,.csv" hidden>
                 <button type="submit" class="sp-send" aria-label="Send to Planora"><i class="ti ti-send" aria-hidden="true"></i></button>
@@ -205,6 +205,7 @@
                 <span class="sp-file-hint">Planora will plan only from the dates in this file. You'll see the plan before anything is added.</span>` : "";
             const x = attachedEl.querySelector(".sp-file-x");
             if (x) x.onclick = () => { state.file = null; showAttached(); input.focus(); };
+            syncSend();
         }
         const readAsDataURL = file => new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => bad(r.error); r.readAsDataURL(file); });
         // photos: shrink big ones and turn HEIC/odd formats into JPEG (the browser does it, nothing is uploaded yet)
@@ -338,6 +339,13 @@
         function autoGrow() {
             input.style.height = "auto";
             input.style.height = Math.min(160, input.scrollHeight) + "px";
+            syncSend();
+        }
+        // send looks inactive until there's something to send (text or an attached file)
+        function syncSend() {
+            const empty = !input.value.trim() && !state.file;
+            sendBtn.classList.toggle("is-empty", empty);
+            sendBtn.setAttribute("aria-disabled", String(empty));
         }
 
         // Show a plan made elsewhere (planners, recommendations) in this box
@@ -365,6 +373,7 @@
         });
         input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
         input.addEventListener("input", autoGrow);
+        syncSend();
         input.addEventListener("focus", () => document.body.classList.add("sp-typing"));
         input.addEventListener("blur", () => document.body.classList.remove("sp-typing"));
         exampleRow.querySelectorAll(".sp-example").forEach(b => b.addEventListener("click", () => send(b.textContent)));

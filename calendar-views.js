@@ -45,8 +45,13 @@
 
     function rangeLabel() {
         const ds = state.date;
-        if (state.view === "day") return fmt(ds, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-        if (state.view === "month") return fmt(ds, { month: "long", year: "numeric" });
+        const small = isPhone();
+        if (state.view === "day") return fmt(ds, small ? { weekday: "short", month: "short", day: "numeric" } : { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+        if (state.view === "week" && small) {
+            const a = mondayOf(ds), b = C().addDays(a, 6);
+            return a.slice(0, 7) === b.slice(0, 7) ? `${fmt(a, { month: "short", day: "numeric" })} – ${Number(b.slice(8))}` : `${fmt(a, { month: "short", day: "numeric" })} – ${fmt(b, { month: "short", day: "numeric" })}`;
+        }
+        if (state.view === "month") return fmt(ds, { month: isPhone() && window.innerWidth < 400 ? "short" : "long", year: "numeric" });
         const a = mondayOf(ds), b = C().addDays(a, 6);
         const sameYear = a.slice(0, 4) === b.slice(0, 4);
         return `${fmt(a, { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) })} – ${fmt(b, { month: "short", day: "numeric", year: "numeric" })}`;
@@ -223,6 +228,7 @@
 
     /* ---------- month ---------- */
     function renderMonth(host) {
+        if (isPhone()) return renderMonthPhone(host);
         const core = C();
         const m = monthStart(state.date);
         const first = mondayOf(m);
@@ -253,6 +259,74 @@
                 </div>
             </div>`;
     }
+    /* ---------- month on a phone: Sun–Sat grid on top, the chosen day's list underneath ---------- */
+    function renderMonthPhone(host) {
+        const core = C();
+        const m = monthStart(state.date);
+        const first = C().addDays(m, -parse(m).getDay());                 // the Sunday on/before the 1st
+        const lastDay = C().addDays(addMonths(m, 1), -1);
+        const weeks = Math.ceil((parse(m).getDay() + Number(lastDay.slice(8))) / 7);
+        const days = Array.from({ length: weeks * 7 }, (_, i) => C().addDays(first, i));
+        const all = itemsFor(days[0], days[days.length - 1]);
+        const t = core.today();
+        const sel = state.date;
+        const order = (a, b) => (a.start || "").localeCompare(b.start || "") || (a.kind !== "task" ? -1 : 1);
+        host.dataset.key = "month";
+        host.innerHTML = `
+            <div class="mv mv-phone" role="grid" aria-label="${core.esc(fmt(m, { month: "long", year: "numeric" }))}">
+                <div class="mv-dow" role="row">${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(x => `<span role="columnheader" aria-label="${x}">${x[0]}</span>`).join("")}</div>
+                <div class="mv-grid" style="--weeks:${weeks}">
+                    ${days.map(d => {
+                        const list = all.filter(x => x.date === d).sort(order);
+                        const cls = ["mv-day", d.slice(0, 7) !== m.slice(0, 7) ? "is-out" : "", d === t ? "is-today" : "", d === sel ? "is-selected" : ""].filter(Boolean).join(" ");
+                        return `
+                        <div class="${cls}" role="gridcell" data-day="${d}"${d === sel ? ' aria-selected="true"' : ""}>
+                            <button type="button" class="mv-num" data-pick-day="${d}" aria-label="${core.esc(fmt(d, { weekday: "long", month: "long", day: "numeric" }))}${d === t ? ", today" : ""}${list.length ? `, ${list.length} item${list.length === 1 ? "" : "s"}` : ""}">${Number(d.slice(8))}</button>
+                            ${list.length ? `<div class="mv-dots" aria-hidden="true">${list.slice(0, 3).map(x => `<i class="${x.kind !== "task" ? "is-event" : "is-task"}${x.raw.completed ? " is-done" : ""}" style="--c:${colorOf(x).color}"></i>`).join("")}${list.length > 3 ? `<b>+${list.length - 3}</b>` : ""}</div>` : ""}
+                        </div>`;
+                    }).join("")}
+                </div>
+            </div>
+            ${agendaHTML(sel, all.filter(x => x.date === sel).sort(order))}`;
+    }
+    function agendaHTML(d, list) {
+        const core = C();
+        const rel = core.dayLabel(d);
+        const head = (["Today", "Tomorrow", "Yesterday"].includes(rel) ? rel : fmt(d, { weekday: "long" })) + " · " + fmt(d, { day: "numeric", month: "long" });
+        const when = x => {
+            if (!x.start) return x.kind === "gevent" && x.raw.allDay ? "All day" : "Anytime";
+            const s = core.toMin(x.start);
+            return `${core.time12(x.start)} – ${core.time12(core.toClock(Math.min(24 * 60 - 1, s + Math.max(SNAP, x.dur || 0))))}`;
+        };
+        const row = x => {
+            const c = colorOf(x);
+            const meta = [when(x)];
+            if (x.kind === "task") { const g = goalLabel(x); if (g) meta.push(g.text); }
+            if (x.kind === "gevent") meta.push(x.raw.calName || "Google Calendar");
+            const open = x.kind === "task" ? `data-open-task="${core.esc(x.id)}"` : x.kind === "event" ? `data-open-event="${core.esc(x.id)}"` : `data-open-gevent="${core.esc(x.id)}"`;
+            const lead = x.kind === "task"
+                ? `<button type="button" class="ag-check" data-check="${core.esc(x.id)}" aria-label="${x.raw.completed ? "Mark not done" : "Mark done"}: ${core.esc(x.title)}"><i class="ti ${x.raw.completed ? "ti-circle-check-filled" : "ti-circle"}" aria-hidden="true"></i></button>`
+                : `<span class="ag-ico" aria-hidden="true"><i class="ti ${x.kind === "gevent" ? "ti-brand-google" : "ti-calendar-event"}"></i></span>`;
+            return `<li class="ag-item is-${x.kind === "task" ? "task" : "event"}${x.raw.completed ? " is-done" : ""}" style="--c:${c.color};--s:${c.soft || "#EEEDFE"}">
+                ${lead}
+                <button type="button" class="ag-main" ${open}>
+                    <span class="ag-title">${x.kind !== "task" ? `<span class="ag-tag">${x.kind === "gevent" ? "Google" : "Event"}</span>` : ""}${core.esc(x.title)}</span>
+                    <span class="ag-meta">${core.esc(meta.join(" · "))}</span>
+                </button>
+            </li>`;
+        };
+        return `
+            <section class="ag" aria-label="${core.esc(head)}">
+                <div class="ag-head">
+                    <h2 class="ag-h">${core.esc(head)}</h2>
+                    <button type="button" class="ag-day" data-ag-dayview aria-label="Open this day in Day view"><i class="ti ti-layout-rows" aria-hidden="true"></i></button>
+                    <button type="button" class="ag-add" data-ag-add aria-label="Add a task or event on this day"><i class="ti ti-plus" aria-hidden="true"></i><span>Add</span></button>
+                </div>
+                ${list.length ? `<ul class="ag-list">${list.map(row).join("")}</ul>`
+                : `<div class="ag-empty"><p>Nothing planned${d === core.today() ? " today" : " for this day"}.</p><button type="button" class="btn-secondary" data-ag-add>Add a task or event</button></div>`}
+            </section>`;
+    }
+
     function chip(x) {
         const core = C();
         const c = colorOf(x);
@@ -709,6 +783,13 @@
         if (ot) { core.openTaskSheet(ot.dataset.openTask); return; }
         const oe = e.target.closest("[data-open-event]");
         if (oe) { core.openEventSheet(oe.dataset.openEvent); return; }
+        const pick = e.target.closest("[data-pick-day]");
+        if (pick || (isPhone() && state.view === "month" && e.target.closest(".mv-day"))) {
+            go(pick ? pick.dataset.pickDay : e.target.closest(".mv-day").dataset.day);
+            return;
+        }
+        if (e.target.closest("[data-ag-add]")) { create(); return; }
+        if (e.target.closest("[data-ag-dayview]")) { setView("day"); return; }
         const od = e.target.closest("[data-open-day]");
         if (od) { state.date = od.dataset.openDay; syncLegacy(); setView("day"); return; }
         const cell = e.target.closest(".mv-day");
@@ -832,6 +913,14 @@
         host.addEventListener("touchend", onTouchEnd, { passive: false });
         host.addEventListener("touchcancel", () => finish(true));
         host.addEventListener("contextmenu", e => { if (e.target.closest("[data-drag]")) e.preventDefault(); });
+        // phone month: swipe the grid left/right for the next/previous month
+        let sw = null;
+        host.addEventListener("touchstart", e => { sw = (state.view === "month" && e.touches.length === 1 && e.target.closest(".mv-phone")) ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; }, { passive: true });
+        host.addEventListener("touchend", e => {
+            if (!sw) return;
+            const t = e.changedTouches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y; sw = null;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.8) { suppressClick = true; setTimeout(() => { suppressClick = false; }, 350); step(dx < 0 ? 1 : -1); }
+        }, { passive: true });
         document.addEventListener("keydown", onKey);
 
         const redraw = () => { if (!op) { refreshLegacy(); render(); } };
