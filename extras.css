@@ -2199,7 +2199,20 @@ body.cv-dragging, body.cv-dragging * { cursor: grabbing !important; }
   .cal-toolbar .cv-switch { flex: 0 0 auto !important; width: auto !important; order: 7 !important; margin-left: 12px !important; display: inline-grid !important; }
   .cal-toolbar .cv-switch button { padding: 7px 18px; }
 }
-/* first-day card = an Ask Planora box (13 Oct 2026) */
-.first-day-card .sp-root { padding: 0; border: 0; box-shadow: none; background: transparent; }
-.first-day-card .first-day-sub { margin: -4px 0 2px; }
-.first-day-card .first-day-actions { margin-top: 6px; }
+/* first-day card: looks like an Ask Planora box, opens the Ask Planora pop-up (13 Oct 2026) */
+.first-day-card { display: flex; flex-direction: column; gap: 10px; }
+.first-day-card[hidden] { display: none; }
+.fd-head { display: flex; align-items: center; gap: 8px; }
+.fd-head i { color: var(--purple-400, #6C5CE7); font-size: 20px; }
+.fd-head .card-title { margin: 0; }
+.first-day-card .first-day-sub { margin: 0; }
+.fd-compose { background: #fff; border: 1px solid var(--purple-100, #D8D3FA); border-radius: 18px; padding: 4px 6px 6px; display: flex; flex-direction: column; gap: 4px; }
+.fd-type { border: 0; background: none; text-align: left; font: inherit; font-size: 16px; color: #8A85A3; padding: 12px 10px 14px; min-height: 50px; cursor: text; border-radius: 12px; }
+.fd-type:focus-visible { outline: 3px solid var(--purple-200, #B4ABF5); }
+.fd-tools { display: flex; align-items: center; gap: 6px; }
+.fd-tool { width: 44px; height: 44px; border: 0; border-radius: 12px; background: var(--purple-50, #EFEDFF); color: var(--purple-600, #5145CD); font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.fd-send { margin-left: auto; width: 52px; height: 44px; border: 0; border-radius: 12px; background: var(--purple-400, #6C5CE7); color: #fff; font-size: 18px; opacity: .45; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.fd-ideas { display: flex; flex-wrap: wrap; gap: 6px; }
+.first-day-card .first-day-actions { margin-top: 0; }
+/* while the Ask Planora pop-up is open it is the only thing on screen */
+body.ask-open .fab, body.ask-open .install-banner, body.ask-open #pwa-install, body.ask-open .bottom-nav { visibility: hidden; }

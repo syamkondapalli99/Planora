@@ -566,12 +566,24 @@
 
     /* ---------------- first day ---------------- */
 
+    // The first-day card looks like an Ask Planora box, but everything happens in the
+    // Ask Planora pop-up, so the conversation and the plan never clutter Home.
     function wireFirstDay() {
         const card = $("first-day");
-        if (!card) return;
-        // put the short explanation under the card's title, above the text box
-        const sub = card.querySelector(".first-day-sub"), head = card.querySelector(".sp-head");
-        if (sub && head) head.after(sub);
+        if (!card || card._wired) return;
+        card._wired = true;
+        card.addEventListener("click", e => {
+            const pop = $("ask-pop");
+            const idea = e.target.closest("[data-fd-idea]");
+            if (idea && window.PlanoraAsk) { window.PlanoraAsk.send(idea.textContent.trim()); return; }   // opens the pop-up
+            const b = e.target.closest("[data-fd]");
+            if (!b || !pop) return;
+            openAsk();
+            const what = b.dataset.fd;
+            if (what === "attach") { const f = pop.querySelector(".sp-file"); if (f) f.click(); }
+            else if (what === "mic") { const m = pop.querySelector(".mic-btn"); if (m) m.click(); }
+            else { const i = pop.querySelector(".sp-input"); if (i) i.focus(); }
+        });
     }
 
 

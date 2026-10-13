@@ -1092,11 +1092,25 @@
                     <div class="home-left">
 
                         <!-- FIRST TIME: nothing planned yet -->
-                        <section class="card first-day-card" id="first-day" hidden aria-label="Let's build your first day">
-                            <!-- an Ask Planora box (type, 📎 attach a file, 🎤 speak) with starter ideas -->
-                            <div data-smart-planner data-title="Let's build your first day" data-placeholder="What do you need to do today?"
-                                 data-examples="Finish an assignment today|Go to the gym today|Read 20 pages today|Reply to emails today|Plan my day"></div>
+                        <section class="card first-day-card" id="first-day" hidden aria-labelledby="first-day-title">
+                            <!-- looks like an Ask Planora box; tapping anything opens the Ask Planora pop-up -->
+                            <div class="fd-head"><i class="ti ti-sparkles" aria-hidden="true"></i><h2 class="card-title" id="first-day-title">Let's build your first day</h2></div>
                             <p class="card-sub first-day-sub">Type what you need to do, attach a timetable, or tap an idea. Planora finds the time and shows you the plan first.</p>
+                            <div class="fd-compose">
+                                <button type="button" class="fd-type" data-fd="type">What do you need to do today?</button>
+                                <div class="fd-tools">
+                                    <button type="button" class="fd-tool" data-fd="attach" aria-label="Attach a document or photo"><i class="ti ti-paperclip" aria-hidden="true"></i></button>
+                                    <button type="button" class="fd-tool" data-fd="mic" aria-label="Speak to Planora"><i class="ti ti-microphone" aria-hidden="true"></i></button>
+                                    <button type="button" class="fd-send" data-fd="type" aria-label="Open Ask Planora"><i class="ti ti-send" aria-hidden="true"></i></button>
+                                </div>
+                            </div>
+                            <div class="fd-ideas" role="group" aria-label="Ideas to start with">
+                                <button type="button" class="sp-example" data-fd-idea>Finish an assignment today</button>
+                                <button type="button" class="sp-example" data-fd-idea>Go to the gym today</button>
+                                <button type="button" class="sp-example" data-fd-idea>Read 20 pages today</button>
+                                <button type="button" class="sp-example" data-fd-idea>Reply to emails today</button>
+                                <button type="button" class="sp-example" data-fd-idea>Plan my day</button>
+                            </div>
                             <div class="first-day-actions">
                                 <button type="button" class="btn-ghost" data-quick-add>Add my own task</button>
                             </div>
