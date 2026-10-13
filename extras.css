@@ -2231,3 +2231,36 @@ body.ask-open .fab, body.ask-open .install-banner, body.ask-open #pwa-install, b
 .ask-pop .sp-head { min-height: 40px; margin-bottom: 6px; }
 .ask-pop-close { top: 16px; right: 16px; }
 .ask-pop { max-width: none !important; width: auto !important; margin: 0 !important; }
+
+/* =========================================================
+   SECTION COLOURS (13 Oct 2026) — each part of Home has its own colour
+   purple = Planora / asking · green = your day · blue = calendar
+   orange = journal · teal-green = goals
+   ========================================================= */
+#first-day {
+  background: linear-gradient(140deg, #EEEBFF 0%, #E2DCFF 100%) !important;
+  border: 1px solid #D3CBFF !important; box-shadow: 0 6px 18px rgba(81, 69, 205, .12) !important;
+}
+#first-day .card-title { color: #3A2FA0 !important; }
+#first-day .fd-head i { color: #5145CD !important; }
+#first-day .first-day-sub { color: #4A4566 !important; }
+#first-day .fd-compose { border-color: #fff; box-shadow: 0 2px 8px rgba(58, 47, 160, .10); }
+#first-day .fd-send { opacity: 1; background: #6C5CE7; }
+
+#schedule-card { border-top: 3px solid #4CB894 !important; }
+#schedule-card .card-title::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #4CB894; margin-right: 8px; vertical-align: 2px; }
+#schedule-card .day-bar { background: #EAF7F1 !important; }
+#schedule-card .day-bar-btn { color: #1F8A66 !important; }
+
+.home-links a, .home-links button { border: 0 !important; }
+.home-links a[href="calendar.html"] { background: #EAF2FC !important; }
+.home-links a[href="calendar.html"] i { color: #2F7FD6 !important; }
+.home-links a[href^="planner.html"] { background: #E8F6F0 !important; }
+.home-links a[href^="planner.html"] i { color: #1F8A66 !important; }
+.home-links a[href="journal.html"] { background: #FFF2E8 !important; }
+.home-links a[href="journal.html"] i { color: #E06A1F !important; }
+.home-links button[data-quick-add] { background: #EFEDFF !important; }
+.home-links button[data-quick-add] i { color: #5145CD !important; }
+
+.journal-nudge { background: #FFF6EF !important; border-color: #FBDCC4 !important; }
+.journal-nudge > i:first-child { color: #E06A1F !important; background: #FFE6D3 !important; }
