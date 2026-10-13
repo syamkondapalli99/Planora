@@ -12,7 +12,7 @@
    - Account and AI requests (/api, /auth) are never cached.
    ========================================================= */
 
-const VERSION = "planora-2026-10-13-firstpop";
+const VERSION = "planora-2026-10-13-fresh";
 const SHELL = [
     "/offline.html",
     "/style.css", "/extras.css", "/devices.css", "/desktop.css", "/fonts/figtree-latin-wght-normal.woff2", "/fonts/bricolage-grotesque-latin-wght-normal.woff2",
@@ -55,9 +55,12 @@ self.addEventListener("fetch", event => {
     if (req.mode === "navigate") {
         event.respondWith((async () => {
             try {
-                const res = await fetch(req);
+                // ask the server every time (a quick "not changed" check), so a new version
+                // shows on the next open instead of up to 10 minutes later
+                let res = await fetch(url.href, { cache: "no-cache", credentials: "same-origin" });
+                if (res.redirected) return Response.redirect(res.url, 302);
                 // Only keep real pages (not "please sign in" redirects)
-                if (res.ok && !res.redirected) {
+                if (res.ok) {
                     const cache = await caches.open(VERSION);
                     cache.put(url.pathname, res.clone());
                 }
@@ -75,7 +78,7 @@ self.addEventListener("fetch", event => {
         event.respondWith((async () => {
             const cache = await caches.open(VERSION);
             try {
-                const res = await fetch(req);
+                const res = await fetch(req, { cache: "no-cache" });
                 if (res.ok) cache.put(req, res.clone());
                 return res;
             } catch (e) {
