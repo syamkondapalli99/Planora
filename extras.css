@@ -1362,9 +1362,9 @@ body.ask-open .fab { opacity: 0; pointer-events: none; }
   /* one column: shortcuts first (easy to reach), then suggestions, schedule, journal */
   .home-left, .home-right { display: contents; }
   #first-day { order: 1; }
-  .home-links { order: 2; }
-  #home-recs { order: 3; }
-  #schedule-card { order: 4; }
+  #home-recs { order: 2; }
+  #schedule-card { order: 3; }
+  .home-links { order: 4; }
   #journal-nudge { order: 5; }
   .home-grid > * { width: 100%; box-sizing: border-box; }
 }
