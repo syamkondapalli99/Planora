@@ -2216,3 +2216,18 @@ body.cv-dragging, body.cv-dragging * { cursor: grabbing !important; }
 .first-day-card .first-day-actions { margin-top: 0; }
 /* while the Ask Planora pop-up is open it is the only thing on screen */
 body.ask-open .fab, body.ask-open .install-banner, body.ask-open #pwa-install, body.ask-open .bottom-nav { visibility: hidden; }
+
+/* Ask Planora pop-up fills almost the whole screen (13 Oct 2026) */
+.ask-pop { align-items: center; padding: 3vh 16px; }
+.ask-pop-panel { width: min(820px, 100%); height: 92vh; display: flex; }
+.ask-pop .home-ask { flex: 1; height: 100%; max-height: none !important; display: flex; flex-direction: column; padding: 24px 24px 20px; }
+.ask-pop .home-ask > .sp-root { flex: 1; min-height: 0; }
+.ask-pop .sp-input { min-height: 72px; }
+@media (max-width: 699px) {
+  .ask-pop { align-items: flex-end; padding: 0; }
+  .ask-pop-panel { width: 100%; height: calc(100dvh - 28px); }
+  .ask-pop .home-ask { border-radius: 24px 24px 0 0; padding: 20px 16px calc(16px + env(safe-area-inset-bottom)); }
+}
+.ask-pop .sp-head { min-height: 40px; margin-bottom: 6px; }
+.ask-pop-close { top: 16px; right: 16px; }
+.ask-pop { max-width: none !important; width: auto !important; margin: 0 !important; }
