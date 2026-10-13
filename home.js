@@ -569,19 +569,9 @@
     function wireFirstDay() {
         const card = $("first-day");
         if (!card) return;
-        const btn = $("first-day-plan");
-        const update = () => {
-            const n = card.querySelectorAll("input:checked").length;
-            btn.disabled = n === 0;
-            btn.textContent = n ? `Plan ${n === 1 ? "this" : "these " + n} for me` : "Plan these for me";
-        };
-        card.addEventListener("change", update);
-        btn.addEventListener("click", () => {
-            const picks = Array.from(card.querySelectorAll("input:checked")).map(i => i.value.toLowerCase());
-            if (!picks.length || !window.PlanoraAsk) return;
-            const text = picks.length === 1 ? picks[0] : picks.slice(0, -1).join(", ") + " and " + picks[picks.length - 1];
-            window.PlanoraAsk.send(`${text.charAt(0).toUpperCase() + text.slice(1)} today`);
-        });
+        // put the short explanation under the card's title, above the text box
+        const sub = card.querySelector(".first-day-sub"), head = card.querySelector(".sp-head");
+        if (sub && head) head.after(sub);
     }
 
 

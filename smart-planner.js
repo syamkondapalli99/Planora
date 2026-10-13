@@ -388,7 +388,8 @@
         document.querySelectorAll("[data-smart-planner]").forEach((el, i) => {
             if (el._smartPlanner) return;
             el._smartPlanner = SmartPlanner(el);
-            if (i === 0) window.PlanoraAsk = el._smartPlanner;
+            // the main Ask Planora box (data-primary, or the first one) is the one other parts of the app talk to
+            if (el.hasAttribute("data-primary") || !window.PlanoraAsk) window.PlanoraAsk = el._smartPlanner;
         });
     }
 

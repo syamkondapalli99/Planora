@@ -1092,17 +1092,12 @@
                     <div class="home-left">
 
                         <!-- FIRST TIME: nothing planned yet -->
-                        <section class="card first-day-card" id="first-day" hidden aria-labelledby="first-day-title">
-                            <h2 class="card-title" id="first-day-title">Let's build your first day</h2>
-                            <p class="card-sub">Pick a few things to start with. Planora will find the time and show you the plan first.</p>
-                            <div class="first-day-options" role="group" aria-label="Starter tasks">
-                                <label class="pick-chip"><input type="checkbox" value="Finish an assignment"><span>Finish an assignment</span></label>
-                                <label class="pick-chip"><input type="checkbox" value="Go to the gym"><span>Go to the gym</span></label>
-                                <label class="pick-chip"><input type="checkbox" value="Read 20 pages"><span>Read 20 pages</span></label>
-                                <label class="pick-chip"><input type="checkbox" value="Reply to emails"><span>Reply to emails</span></label>
-                            </div>
+                        <section class="card first-day-card" id="first-day" hidden aria-label="Let's build your first day">
+                            <!-- an Ask Planora box (type, 📎 attach a file, 🎤 speak) with starter ideas -->
+                            <div data-smart-planner data-title="Let's build your first day" data-placeholder="What do you need to do today?"
+                                 data-examples="Finish an assignment today|Go to the gym today|Read 20 pages today|Reply to emails today|Plan my day"></div>
+                            <p class="card-sub first-day-sub">Type what you need to do, attach a timetable, or tap an idea. Planora finds the time and shows you the plan first.</p>
                             <div class="first-day-actions">
-                                <button type="button" class="btn-primary" id="first-day-plan" disabled>Plan these for me</button>
                                 <button type="button" class="btn-ghost" data-quick-add>Add my own task</button>
                             </div>
                         </section>
@@ -1180,7 +1175,7 @@
                     <div class="ask-pop-panel">
                         <button type="button" class="ask-pop-close" id="ask-pop-close" aria-label="Close Ask Planora"><i class="ti ti-x" aria-hidden="true"></i></button>
                         <section class="task-input-panel home-ask" aria-label="Ask Planora">
-                            <div data-smart-planner data-placeholder="What do you need help with?"></div>
+                            <div data-smart-planner data-primary data-placeholder="What do you need help with?"></div>
                         </section>
                     </div>
                 </div>

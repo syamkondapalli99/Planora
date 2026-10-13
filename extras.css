@@ -2199,3 +2199,7 @@ body.cv-dragging, body.cv-dragging * { cursor: grabbing !important; }
   .cal-toolbar .cv-switch { flex: 0 0 auto !important; width: auto !important; order: 7 !important; margin-left: 12px !important; display: inline-grid !important; }
   .cal-toolbar .cv-switch button { padding: 7px 18px; }
 }
+/* first-day card = an Ask Planora box (13 Oct 2026) */
+.first-day-card .sp-root { padding: 0; border: 0; box-shadow: none; background: transparent; }
+.first-day-card .first-day-sub { margin: -4px 0 2px; }
+.first-day-card .first-day-actions { margin-top: 6px; }
