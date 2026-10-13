@@ -2264,3 +2264,6 @@ body.ask-open .fab, body.ask-open .install-banner, body.ask-open #pwa-install, b
 
 .journal-nudge { background: #FFF6EF !important; border-color: #FBDCC4 !important; }
 .journal-nudge > i:first-child { color: #E06A1F !important; background: #FFE6D3 !important; }
+/* lighter (13 Oct 2026, 2): first-day very light (Today's schedule stays green) */
+#first-day { background: linear-gradient(140deg, #FCFBFF 0%, #F6F4FF 100%) !important; border: 1px solid #ECE8FF !important; box-shadow: 0 2px 8px rgba(81, 69, 205, .06) !important; }
+#first-day .fd-compose { border: 1px solid #E6E1FF; box-shadow: none; }
