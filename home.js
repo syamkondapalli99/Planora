@@ -422,13 +422,15 @@
         const step = n => goToDay(C().addDays(selectedDate || C().today(), n));
         $("day-prev").addEventListener("click", () => step(-1));
         $("day-next").addEventListener("click", () => step(1));
-        const inp = $("day-bar-input");
-        bar.querySelector(".day-bar-pick").addEventListener("click", e => {
-            if (e.target === inp) return;
-            e.preventDefault();
-            try { inp.showPicker(); } catch { inp.focus(); inp.click(); }
-        });
-        inp.addEventListener("change", () => { if (inp.value) goToDay(inp.value); });
+        const inp = $("day-bar-input"), pickBtn = bar.querySelector(".day-bar-pick");   // date picker (removed 13 Oct; kept working if it comes back)
+        if (pickBtn && inp) {
+            pickBtn.addEventListener("click", e => {
+                if (e.target === inp) return;
+                e.preventDefault();
+                try { inp.showPicker(); } catch { inp.focus(); inp.click(); }
+            });
+            inp.addEventListener("change", () => { if (inp.value) goToDay(inp.value); });
+        }
         bar.addEventListener("click", e => { if (e.target.closest("#day-bar-today")) goToDay(C().today()); });
         // swipe left/right on the schedule to change day (phones)
         const card = $("schedule-card");
