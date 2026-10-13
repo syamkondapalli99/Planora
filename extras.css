@@ -2269,3 +2269,5 @@ body.ask-open .fab, body.ask-open .install-banner, body.ask-open #pwa-install, b
 #first-day .fd-compose { border: 1px solid #E6E1FF; box-shadow: none; }
 /* lighter page background on phones/tablets (13 Oct 2026) */
 html:not(.web-mode) body { background: linear-gradient(180deg, #F5F9FE 0%, #F8F7FF 100%) !important; }
+/* first-day card a touch deeper (13 Oct 2026, 3) */
+#first-day { background: linear-gradient(140deg, #F4F1FF 0%, #EAE5FF 100%) !important; border: 1px solid #DDD6FF !important; }
