@@ -145,6 +145,7 @@
                         history: state.history.slice(-6),
                         draft: draftForServer(),
                         recent: state.recent,
+                        ...(PlanoraCore.labelContext ? PlanoraCore.labelContext() : {}),
                         attachGoal: opts.attachGoal || null
                     })
                 });

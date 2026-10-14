@@ -902,6 +902,21 @@
         return { tasks, goals, events };
     }
 
+    // The user's labels, and how they've used them, so Ask Planora can label new tasks the same way
+    function labelContext() {
+        const labels = customCategories().map(c => ({ id: c.id, label: c.label }));
+        if (!labels.length) return { labels: [], labelExamples: [] };
+        const ids = new Set(labels.map(l => l.id));
+        const seen = new Set();
+        const labelExamples = getTasks().concat(getEvents())
+            .filter(x => x && x.category && ids.has(x.category) && x.title)
+            .sort((a, b) => String(b.updatedAt || b.createdAt || b.date || "").localeCompare(String(a.updatedAt || a.createdAt || a.date || "")))
+            .filter(x => { const k = x.title.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; })
+            .slice(0, 60)
+            .map(x => ({ title: x.title, category: x.category }));
+        return { labels, labelExamples };
+    }
+
     // Timed tasks and events further ahead than aiContext() covers (days 31-120), so long goal
     // plans are fitted around them too. Times only — this isn't sent to the AI model.
     function busySlots() {
@@ -990,7 +1005,7 @@
         let createdEvents = 0;
         const addedEvents = [];
         newEvents.forEach(e => {
-            const data = { title: e.title, date: e.date, start: e.start, end: e.end || toClock(toMin(e.start) + (Number(e.duration) || 60)), category: e.category, location: e.location, notes: e.eventNotes || "", source: e.source || source };
+            const data = { title: e.title, date: e.date, start: e.start, end: e.end || toClock(toMin(e.start) + (Number(e.duration) || 60)), category: e.noCat ? "" : ((categoryInfo(e.category) || {}).id || categoryOf(e) || ""), location: e.location, notes: e.eventNotes || "", source: e.source || source };
             if (e.repeat && e.repeat.type) createEventSeries({ ...data, repeat: e.repeat });
             else addedEvents.push(...addEvents([data]));
             createdEvents++;
@@ -1004,7 +1019,7 @@
             goalId: (t.goalRef && goalIds[t.goalRef]) || t.goalId || null,
             deadline: t.deadline || null,
             priority: t.priority || null,
-            category: t.category || null,
+            category: t.noCat ? null : (t.category || (t.goalRef || t.goalId ? null : categoryOf(t)) || null),
             source: t.source || source
         }));
         const added = newTasks.length ? addTasks(newTasks) : [];
@@ -1066,6 +1081,7 @@
                         <label>Day<input type="date" class="sp-f-date" value="${esc(item.date)}"></label>
                         <label>Start<input type="time" class="sp-f-start" value="${esc(item.start)}"></label>
                         <label>${item.type === "event" ? "Length" : "Duration"}<select class="sp-f-dur">${d.map(x => `<option value="${x}" ${x === item.duration ? "selected" : ""}>${durLabel(x)}</option>`).join("")}</select></label>
+                        ${kind === "task" && !item.goalRef && !item.goalId && CATS().length ? `<label>Label<select class="sp-f-cat">${categoryOptions(item.noCat ? "" : (item.category || categoryOf(item)))}</select></label>` : ""}
                     </div>
                     <div class="sp-edit-actions">
                         <button type="button" class="btn-secondary" data-act="cancel">Cancel</button>
@@ -1079,7 +1095,7 @@
                 : kind === "update"
                 ? `<span class="sp-from">${esc(shortDate(item.from && item.from.date))}${item.from && item.from.start ? " " + esc(time12(item.from.start)) : ""}</span> → <strong>${esc(dayLabel(item.date))} ${esc(time12(item.start))}</strong> · ${durLabel(item.duration)}`
                 : `${esc(time12(item.start))} – ${esc(time12(item.end))}${item.type === "event" ? "" : " · " + durLabel(item.duration)}`;
-            const cat = kind === "task" ? categoryInfo(item.category || categoryOf(item)) : null;
+            const cat = kind === "task" && !item.noCat ? categoryInfo(item.category || categoryOf(item)) : null;
             const isEvent = item.type === "event";
             // Colour of the row: the goal's colour for goal tasks, otherwise the category's
             let rowColor = null;
@@ -1207,6 +1223,8 @@
                 item.start = rowEl.querySelector(".sp-f-start").value || item.start;
                 item.duration = Number(rowEl.querySelector(".sp-f-dur").value) || item.duration;
                 item.end = toClock(toMin(item.start) + item.duration);
+                const catSel = rowEl.querySelector(".sp-f-cat");
+                if (catSel) { item.category = catSel.value || ""; item.noCat = !catSel.value; }
                 item.notes = "";
                 editing = null;
                 render();
@@ -2677,6 +2695,7 @@
         // colours
         openLabelsManager, voiceSupported, attachMic, taskColor, eventColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
         // utils
+        labelContext,
         today, addDays, nowMin, nowClock, toMin, toClock, time12, durLabel, dayLabel, shortDate, esc, uid, taskDuration, loadJSON, saveJSON,
         migrate
     };

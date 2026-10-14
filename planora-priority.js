@@ -298,7 +298,7 @@
      * Returns "task" | "event" | "ambiguous".
      */
     const EVENT_WORDS = /\b(appointment|appt|meeting|meet with|meetup|call with|class|lecture|tutorial|seminar|lesson|birthday|bday|conference|dinner|lunch|brunch|breakfast with|party|wedding|concert|flight|interview|webinar|workshop|doctor|dentist|clinic|check-?up|haircut|match|movie|date with|catch up with|catch-up with|coffee with|ceremony|service|church|mass|recital|performance|show at|tuition class|orientation|standup|stand-up|sync with)\b/i;
-    const TASK_WORDS = /\b(finish|complete|submit|send|write|read|study|studying|revise|review|prepare|prep|practice|practise|work on|clean|tidy|buy|pay|email|call (?!with)|text|reply|fix|do|draft|plan|organi[sz]e|remind me|to-?do|assignment|homework|report|essay|project|gym|workout|exercise|run|session|chores|laundry|groceries|book (a|an|the)|apply|learn|finish off)\b/i;
+    const TASK_WORDS = /\b(finish|complete|submit|send|write|read|study|studying|revise|review|prepare|prep|practice|practise|work on|clean|tidy|buy|pay|email|call (?!with)|text|reply|fix|do|draft|plan|organi[sz]e|remind me|to-?do|assignment|homework|report|essay|project|gym|workout|exercise|run|session|chores|laundry|groceries|book (a|an|the)|apply|learn|finish off|update|walk|walking|wake up|stretch|meditate|code|coding|build|design|edit|research|cook|shower|tidy up|go for a)\b/i;
     function kindOf(text) {
         const t = String(text || "");
         if (/\bas an? event\b|\badd (it )?to (my )?calendar\b/i.test(t)) return "event";

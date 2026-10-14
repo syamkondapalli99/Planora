@@ -377,6 +377,88 @@ function splitItems(message) {
         .filter(s => s && s.replace(/[^a-z]/gi, "").length > 1);
 }
 
+/* ---------------------------------------------------------
+   Reading how people actually type (14 Oct 2026)
+   "8.30-9.30" → 8:30–9:30 · "(8.30-9.30)" · "wake up+ walking"
+   --------------------------------------------------------- */
+function normaliseMessage(message) {
+    return String(message || "")
+        // 8.30 → 8:30 when it's a time (next to a dash, "to", am/pm, a bracket or the end of a part)
+        .replace(/(?<![$€£¥\d.,])\b(\d{1,2})\.([0-5]\d)(?![\d%])(?=\s*(?:-|–|—|to\b|till\b|until\b|am\b|pm\b|\)|,|;|$|\s+(?!(?:dollars?|bucks|sgd|usd|percent|kg|km|hours?|hrs?|mins?|minutes?)\b)[a-z]))/gi, (m, h, mm) => Number(h) <= 23 ? `${h}:${mm}` : m)
+        .replace(/(-|–|—|\bto\s|\bat\s|\bfrom\s)\s*(\d{1,2})\.([0-5]\d)\b/gi, (m, pre, h, mm) => Number(h) <= 23 ? `${pre}${h}:${mm}` : m)
+        .replace(/\s*\+\s*/g, " + ");
+}
+
+// "tmr wake up, 9-10 read, 11-12 email": every item without its own day gets the day said before it
+function carryDates(items, today) {
+    let last = null;
+    return items.map(raw => {
+        const w = findDate(raw, today);
+        if (w) { last = w.deadline ? null : w; return raw; }
+        return last && last.match ? `${raw} ${last.match}` : raw;
+    });
+}
+
+/* The user's own labels: give each new task/event the label that fits.
+   1. the label's name is in the title ("Research", "Planora")
+   2. tasks they labelled before with similar words
+   3. the kind of activity → a label named for it (walking → "Health"/"Fitness") */
+const LABEL_GROUPS = [
+    { name: /\b(health|fitness|fit|gym|exercise|sports?|wellness|well-?being|body|workout|move|movement|active)\b/i,
+      act: /\b(walk|walking|run|running|jog|gym|workout|work out|exercise|yoga|pilates|swim|swimming|stretch\w*|sport|training|cycle|cycling|hike|badminton|tennis|football|basketball|physio|doctor|dentist|meditat\w*|sleep)\b/i },
+    { name: /\b(study|studies|school|uni|university|college|class|classes|education|learning|learn|research|academic|course|homework|exam|exams|revision)\b/i,
+      act: /\b(read|reading|research|study|studying|revise|revision|homework|assignment|lecture|tutorial|class|exam|quiz|paper|chapter|thesis|essay|notes|course)\b/i },
+    { name: /\b(work|job|office|career|business|startup|company|projects?|dev|coding|app)\b/i,
+      act: /\b(update|meeting|email|emails|report|project|app|client|deploy|code|coding|build|design|fix|bug|release|launch|website|presentation|proposal|invoice|pitch)\b/i },
+    { name: /\b(personal|life|home|family|self|routine|chores?|errands?|social|me|daily|morning)\b/i,
+      act: /\b(wake|wake up|shower|breakfast|cook\w*|grocer\w*|laundry|clean\w*|tidy|family|mum|mom|dad|friend\w*|dinner|lunch|haircut|shopping|bills?|chores?)\b/i }
+];
+const LABEL_STOP = new Set("the a an and or for to of in on at my with from into this that your our up out task tasks".split(" "));
+function labelWords(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(w => w.length >= 3 && !LABEL_STOP.has(w)); }
+function sanitiseLabels(body) {
+    const labels = (Array.isArray(body.labels) ? body.labels : []).slice(0, 40)
+        .filter(l => l && l.id && l.label).map(l => ({ id: String(l.id).slice(0, 60), label: String(l.label).slice(0, 30) }));
+    const ids = new Set(labels.map(l => l.id));
+    const examples = (Array.isArray(body.labelExamples) ? body.labelExamples : []).slice(0, 80)
+        .filter(e => e && e.title && ids.has(String(e.category))).map(e => ({ title: String(e.title).slice(0, 100), category: String(e.category) }));
+    return { labels, examples };
+}
+function pickLabel(title, L, hint) {
+    if (!L || !L.labels.length) return null;
+    const t = String(title || "");
+    // the AI's (or Planora's) suggestion, by id or by name
+    if (hint) {
+        const h = String(hint).toLowerCase();
+        const byHint = L.labels.find(l => l.id === hint) || L.labels.find(l => l.label.toLowerCase() === h);
+        if (byHint) return byHint.id;
+    }
+    // 1. a label's name appears in the title
+    const named = L.labels.filter(l => new RegExp(`\\b${l.label.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(t))
+        .sort((a, b) => b.label.length - a.label.length)[0];
+    if (named) return named.id;
+    // 2. like something they labelled before
+    const words = new Set(labelWords(t));
+    let best = null, bestScore = 0;
+    L.examples.forEach(e => {
+        const score = labelWords(e.title).filter(w => words.has(w)).length;
+        if (score > bestScore) { best = e.category; bestScore = score; }
+    });
+    if (best && bestScore >= 1) return best;
+    // 3. the kind of activity
+    for (const g of LABEL_GROUPS) {
+        if (!g.act.test(t)) continue;
+        const fit = L.labels.find(l => g.name.test(l.label));
+        if (fit) return fit.id;
+    }
+    // a hint like "health" that matches a label named for that kind of thing
+    if (hint) {
+        const g = LABEL_GROUPS.find(x => x.name.test(String(hint)));
+        const fit = g && L.labels.find(l => g.name.test(l.label));
+        if (fit) return fit.id;
+    }
+    return null;
+}
+
 function preferredStartFromPrefs(prefs) {
     const times = (prefs && prefs.productiveTimes) || [];
     const map = { "Morning": "09:00", "Early morning": "07:30", "Late morning": "10:00", "Afternoon": "14:00", "Evening": "19:00", "Night owl": "21:00" };
@@ -385,7 +467,7 @@ function preferredStartFromPrefs(prefs) {
 }
 
 function localPlan(message, today, prefs, now, forceGoal = false) {
-    const items = splitItems(message);
+    const items = carryDates(splitItems(normaliseMessage(message)), today);
     const nowMin = toMin(now);
     const lateToday = nowMin !== null && DAY_END - nowMin < 90;   // less than 1.5h left today
     const DOW_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -397,11 +479,13 @@ function localPlan(message, today, prefs, now, forceGoal = false) {
     // If the whole message is one sentence mentioning a goal verb + deadline, treat as one goal
     items.forEach((raw, i) => {
         const when = findDate(raw, today);
-        const time = findTime(raw);
-        const dur = findDuration(raw);
+        const range = findRange(raw);                       // "9:30-10:30", "11-12", "(8:30-9:30)"
+        const time = range ? { start: range.start, match: range.match, exact: true } : findTime(raw);
+        const dur = range ? { minutes: toMin(range.end) - toMin(range.start), match: "" } : findDuration(raw);
         const rep = findRepeat(raw);
 
-        let title = cleanTitle(raw, [when && when.match, time && time.match, dur && dur.match, rep && rep.match]) || "Task";
+        let title = (cleanTitle(raw.replace(/\(\s*\)|\[\s*\]/g, " "), [when && when.match, time && time.match, dur && dur.match, rep && rep.match]) || "Task")
+            .replace(/\(\s*\)|\[\s*\]/g, "").replace(/\s{2,}/g, " ").trim() || "Task";
         const horizon = when ? daysBetween(today, when.date) : 0;
         // An upcoming exam/test/interview a few days away = something to prepare for (a study goal)
         const isEvent = /\b(exam|exams|test|quiz|finals|midterm|mid-term|interview|presentation|recital|audition|competition)\b/i.test(raw) &&
@@ -686,7 +770,8 @@ function schedule(items, { today, now, existing }) {
             notes: note || "",
             goalRef: t.goalRef || null,
             sourceId: t.sourceId || null,
-            deadline: t.deadline && isDate(t.deadline) ? t.deadline : null
+            deadline: t.deadline && isDate(t.deadline) ? t.deadline : null,
+            ...(t.category ? { category: String(t.category).slice(0, 60) } : {})
         };
     });
 
@@ -1226,12 +1311,17 @@ function contextText(ctx, today) {
     return `THE USER'S TASKS (real data, never invent others):\n${tasks}\n\nTHE USER'S EVENTS (fixed commitments: never schedule tasks over them, never move or change them):\n${events}\n\nTHE USER'S GOALS:\n${goals}`;
 }
 
-async function aiRequest({ message, mode, today, now, ctx, history, draft, prefs, attachGoal }) {
+async function aiRequest({ message, mode, today, now, ctx, history, draft, prefs, attachGoal, labels }) {
+    const L = labels && labels.labels && labels.labels.length ? labels : null;
+    const labelText = L ? `The user's own labels (id: name): ${L.labels.map(l => `${l.id}: ${l.label}`).join("; ")}.
+${L.examples.length ? `How they labelled earlier tasks: ${L.examples.slice(0, 25).map(e => `"${e.title}" → ${e.category}`).join("; ")}.` : ""}
+Give every task a "category": the id of the label that clearly fits it (by its name, or like the earlier examples), or null if none fits. Never invent labels.` : "";
     const system =
 `You are Planora, a calm, practical personal productivity assistant. Today is ${today} (${WEEKDAYS[dayOfWeek(today)]}), the time is ${now || "unknown"} in the user's timezone.
 ${contextText(ctx, today)}
 ${prefs && prefs.productiveTimes && prefs.productiveTimes.length ? `The user is most productive: ${prefs.productiveTimes.join(", ")}.` : ""}
 ${attachGoal ? `The user wants practice sessions for their EXISTING goal "${attachGoal.title}"${attachGoal.date ? ` (target ${attachGoal.date})` : ""}. Put all sessions under goalRef "g1" and return one goal with ref "g1" (same title) plus 3-5 milestones.` : ""}
+${labelText}
 ${draft && (draft.tasks || []).length ? `The user is reviewing this DRAFT plan; if they ask for changes return the FULL revised plan:\n${JSON.stringify(draft)}` : ""}
 
 ${mode === "question"
@@ -1245,10 +1335,10 @@ Respond with ONLY valid JSON:
 {
   "reply": "1-3 short friendly sentences. If you made a plan, end by asking them to confirm or say what to change.",
   "goals": [ { "ref": "g1", "title": "…", "date": "YYYY-MM-DD", "milestones": [ { "text": "…", "date": "YYYY-MM-DD" } ] } ],
-  "tasks": [ { "title": "…", "date": "YYYY-MM-DD", "start": "HH:MM", "duration": 60, "goalRef": "g1 or null", "flexible": true, "deadline": "YYYY-MM-DD or null" } ],
+  "tasks": [ { "title": "…", "date": "YYYY-MM-DD", "start": "HH:MM", "duration": 60, "goalRef": "g1 or null", "flexible": true, "deadline": "YYYY-MM-DD or null", "category": "label id or null" } ],
   "updates": [ { "id": "existing task id", "date": "YYYY-MM-DD", "start": "HH:MM", "duration": 60, "remove": false } ]
 }
-"flexible": false ONLY when the user gave an exact time. At most 25 tasks.`;
+"flexible": false ONLY when the user gave an exact time or a time range (then use exactly that start and length). A day word at the start ("tmr", "Monday") applies to every item after it unless an item names its own day. Keep the user's wording for titles (e.g. "Read research R-008"), without the times. At most 25 tasks.`;
 
     const messages = [{ role: "system", content: system }];
     (history || []).slice(-6).forEach(h => {
@@ -1392,7 +1482,7 @@ function eventFromText(raw, today, now) {
 }
 
 function extractEvents(message, today, now) {
-    const items = splitItems(message);
+    const items = carryDates(splitItems(normaliseMessage(message)), today);
     const events = [], ambiguous = [], rest = [];
     items.forEach(raw => {
         const kind = Priority.kindOf(raw);
@@ -1488,8 +1578,9 @@ function install(app, requireAuth) {
     });
 
     app.post("/api/smart-plan", requireAuth, limiter, express.json({ limit: "2mb" }), async (req, res) => {
-        const message = String(req.body.message || "").trim().slice(0, 2000);
+        const message = normaliseMessage(String(req.body.message || "").trim().slice(0, 2000));
         if (!message) return res.status(400).json({ error: "Tell me what you'd like to get done." });
+        const L = sanitiseLabels(req.body);           // the user's own labels (name + id) and how they've used them
 
         const today = isDate(req.body.today) ? req.body.today : new Date().toLocaleDateString("en-CA");
         const now = /^\d{1,2}:\d{2}$/.test(req.body.now || "") ? req.body.now : null;
@@ -1501,7 +1592,14 @@ function install(app, requireAuth) {
         const attachGoal = req.body.attachGoal && req.body.attachGoal.title ? req.body.attachGoal : null;
         const mode = attachGoal ? "plan" : classify(message, Boolean(draft));
 
-        const respond = (payload) => res.json({ tasks: [], goals: [], updates: [], events: [], actions: [], suggestion: null, ...payload, mode });
+        const withLabels = list => (list || []).map(t => {
+            if (!L.labels.length || t.goalRef) return t;       // goal sessions show their goal's colour
+            const id = pickLabel(t.title, L, t.category);
+            const { category, ...rest } = t;
+            return id ? { ...rest, category: id } : rest;
+        });
+        const respond = (payload) => res.json({ tasks: [], goals: [], updates: [], events: [], actions: [], suggestion: null, ...payload,
+            tasks: withLabels(payload.tasks), events: withLabels(payload.events), mode });
 
         try {
             /* 0. Quick, deterministic answers that use the user's real data */
@@ -1592,7 +1690,7 @@ function install(app, requireAuth) {
 
             if (process.env.OPENAI_API_KEY) {
                 try {
-                    understood = await aiRequest({ message, mode: "plan", today, now, ctx, history: req.body.history, draft, prefs, attachGoal });
+                    understood = await aiRequest({ message, mode: "plan", today, now, ctx, history: req.body.history, draft, prefs, attachGoal, labels: L });
                     source = "openai";
                 } catch (error) {
                     console.error("Planora AI failed, using built-in planner:", error.message);
