@@ -30,6 +30,35 @@ const addDays = (ds, n) => { const d = new Date(ds + "T00:00:00Z"); d.setUTCDate
 const addMin = (hhmm, n) => { const [h, m] = hhmm.split(":").map(Number); const t = Math.min(23 * 60 + 59, h * 60 + m + n); return String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); };
 const norm = s => String(s || "").toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[^a-z0-9]+/g, " ").trim();
 
+/* ---------- "remove commute, lunch and dinner": things the person doesn't want ---------- */
+const LEAVE_OUT = /\b(?:remove|delete|drop|skip|exclude|excluding|except|ignore|omit|leave out|take out|minus|(?:don'?t|do not|dont|no need to)\s+(?:add|include|plan|put|need|want|schedule))\b\s*(?:the\s+|my\s+|any\s+)?([^.;!?\n]*)/gi;
+function leaveOut(note) {
+    const terms = [];
+    String(note || "").replace(LEAVE_OUT, (_, list) => {
+        // stop where the sentence moves on: "skip dinner but add gym", "remove class then plan"
+        list = list.split(/\b(?:but|then|so|because|and (?:plan|add|make|put|keep|schedule)|plan|add)\b/i)[0];
+        list.split(/\s*(?:,|&|\/|\+|\band\b|\bor\b)\s*/i).forEach(t => {
+            t = norm(t).replace(/^(the|my|a|an|any|all)\s+/, "").replace(/\s+(items?|events?|tasks?|ones?|parts?|bits?|time|from (it|the plan|the list)|please)$/, "").trim();
+            if (t.length >= 3 && !/^(it|them|that|this|those|these|everything)$/.test(t)) terms.push(t);
+        });
+        return "";
+    });
+    return [...new Set(terms)].slice(0, 20);
+}
+const squash = s => norm(s).replace(/\s+/g, "");
+function isLeftOut(title, terms) {
+    const t = squash(title), words = norm(title).split(" ");
+    return terms.some(x => {
+        const q = squash(x), qs = q.replace(/s$/, "");
+        if (!q) return false;
+        if (t === q || t === qs || t.replace(/s$/, "") === qs) return true;          // "pack up" = "packup", "classes" = "class"
+        if ((" " + words.join(" ") + " ").includes(" " + x + " ")) return true;       // "commute" in "Commute home", "lab report" in "Lab report 2"
+        if (words.some((w, i) => i && words[i - 1] + w === q)) return true;           // "packup" = "pack up"
+        const same = (a, b) => a === b || a === b + "s" || a === b + "es" || b === a + "s" || b === a + "es";
+        return x.split(" ").length === 1 && words.some(w => same(w, x));
+    });
+}
+
 /* ---------- .docx → text (a .docx is a zip; we only need word/document.xml) ---------- */
 function docxText(buf) {
     // find the central directory entry for word/document.xml
@@ -113,7 +142,8 @@ Rules:
 - quote: the exact short text from the document that shows this item (max 160 characters).
 - Skip items with no date. If nothing is dated, return an empty list.
 Reply with JSON only: {"about":"one short line saying what the document is","items":[{"title":"","kind":"exam|deadline|event","date":"YYYY-MM-DD","time":null,"end":null,"quote":""}]}`;
-    const parts = [{ type: "text", text: `Document name: ${name}.${note ? ` The person also said: "${note.slice(0, 300)}" (use this only to choose which of the document's items they want; never to add new ones).` : ""}` }];
+    const out = leaveOut(note);
+    const parts = [{ type: "text", text: `Document name: ${name}.${note ? ` The person also said: "${note.slice(0, 300)}" (use this only to choose which of the document's items they want; never to add new ones). If they ask to remove, skip or leave out something, do NOT list it.` : ""}${out.length ? ` Leave out anything that is: ${out.join(", ")}.` : ""}` }];
     if (kind === "image") parts.push({ type: "image_url", image_url: { url: `data:${mime};base64,${b64}`, detail: "high" } });
     else if (kind === "pdf") parts.push({ type: "file", file: { filename: name.slice(0, 120) || "document.pdf", file_data: `data:application/pdf;base64,${b64}` } });
     else parts.push({ type: "text", text: "DOCUMENT TEXT:\n" + String(text).slice(0, 60000) });
@@ -240,24 +270,34 @@ function install(app, requireAuth) {
             if (it.date < today) { past.push(it); return false; }
             return true;
         }).slice(0, 15);
+        // what the person said to leave out ("remove commute, lunch and dinner") never goes in the plan
+        const outTerms = leaveOut(note), removed = [];
+        for (let i = items.length - 1; i >= 0; i--) if (isLeftOut(items[i].title, outTerms)) removed.unshift(items.splice(i, 1)[0]);
+        const removedNote = removed.length ? ` I left out ${removed.map(r => `**${r.title}**`).join(", ")}, as you asked.` : "";
 
         const fmt = ds => SP.friendly(ds, today);
         if (!items.length) {
             return res.json({
                 reply: past.length
                     ? `I read **${name}**. The dates in it have already passed (${past.slice(0, 3).map(p => `${p.title}, ${fmt(p.date)}`).join("; ")}), so there's nothing to plan.`
+                    : removed.length ? `I read **${name}**.${removedNote} That leaves nothing else with a date to plan.`
                     : `I read **${name}** but couldn't find any exams, deadlines or events with a date in it. Check that the dates are written in the document (photos need to be clear and not blurry).`,
                 tasks: [], goals: [], events: [], source, doc: { name, about, items: [] }
             });
         }
         const plan = planFromItems(items, { today, now, prefs, existing });
         const list = items.map(it => `**${it.title}** (${it.kind === "exam" ? "exam" : it.kind === "deadline" ? "due" : "event"}, ${fmt(it.date)}${it.time ? " " + it.time : ""})`).join(", ");
-        const reply = `I read **${name}**${about ? ` (${about.replace(/\*/g, "")})` : ""} and found ${items.length === 1 ? "1 date" : items.length + " dates"}: ${list}. `
-            + `I've planned ${plan.goals.length ? "study sessions before each exam" : ""}${plan.goals.length && plan.tasks.some(t => !t.goalRef) ? " and " : ""}${plan.tasks.some(t => !t.goalRef) ? "work sessions before each deadline" : ""}${plan.events.length ? `${plan.tasks.length ? ", and " : ""}added ${plan.events.length === 1 ? "the event" : "the events"} with a time` : ""}, fitted around your calendar. `
+        const did = [];
+        if (plan.goals.length) did.push("planned study sessions before each exam");
+        if (plan.tasks.some(t => !t.goalRef)) did.push("planned work sessions before each deadline");
+        if (plan.events.length) did.push(`added ${plan.events.length === 1 ? "the event" : "the events"} at ${plan.events.length === 1 ? "its time" : "their times"}`);
+        const didText = did.length > 1 ? did.slice(0, -1).join(", ") + " and " + did[did.length - 1] : did[0];
+        const reply = `I read **${name}**${about ? ` (${about.replace(/\*/g, "")})` : ""} and found ${items.length === 1 ? "1 item" : items.length + " items"}: ${list}.${removedNote} `
+            + `I've ${didText}, fitted around your calendar. `
             + `Everything comes only from your document. Nothing is added until you confirm.`
             + (past.length ? ` (Skipped ${past.length} date${past.length === 1 ? "" : "s"} that already passed.)` : "");
         res.json({ reply, tasks: plan.tasks, goals: plan.goals, events: plan.events, source, doc: { name, about, items } });
     });
 }
 
-module.exports = { install, docxText, localExtract, findDateLoose, planFromItems };
+module.exports = { install, docxText, localExtract, findDateLoose, planFromItems, leaveOut, isLeftOut };
