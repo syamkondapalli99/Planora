@@ -2271,3 +2271,8 @@ body.ask-open .fab, body.ask-open .install-banner, body.ask-open #pwa-install, b
 html:not(.web-mode) body { background: linear-gradient(180deg, #F5F9FE 0%, #F8F7FF 100%) !important; }
 /* first-day card a touch deeper (13 Oct 2026, 3) */
 #first-day { background: linear-gradient(140deg, #F4F1FF 0%, #EAE5FF 100%) !important; border: 1px solid #DDD6FF !important; }
+/* Today's schedule: blue card (15 Oct 2026) */
+#schedule-card { background: linear-gradient(140deg, #F1F7FE 0%, #E7F1FD 100%) !important; border: 1px solid #D5E6FA !important; border-top: 3px solid #4A90E2 !important; }
+#schedule-card .card-title::before { background: #4A90E2 !important; }
+#schedule-card .day-bar { background: #FFFFFF !important; }
+#schedule-card .day-bar-btn { color: #2F6FBF !important; }
