@@ -296,7 +296,14 @@ function install(app, requireAuth) {
             + `I've ${didText}, fitted around your calendar. `
             + `Everything comes only from your document. Nothing is added until you confirm.`
             + (past.length ? ` (Skipped ${past.length} date${past.length === 1 ? "" : "s"} that already passed.)` : "");
-        res.json({ reply, tasks: plan.tasks, goals: plan.goals, events: plan.events, source, doc: { name, about, items } });
+        // your labels: "Planora amendments" → your "Planora" label (same rules as typed plans)
+        const L = SP.sanitiseLabels(b);
+        const withLabels = list => (list || []).map(t => {
+            if (!L.labels.length || t.goalRef) return t;
+            const id = SP.pickLabel(t.title, L, t.category);
+            return id ? { ...t, category: id } : t;
+        });
+        res.json({ reply, tasks: withLabels(plan.tasks), goals: plan.goals, events: withLabels(plan.events), source, doc: { name, about, items } });
     });
 }
 

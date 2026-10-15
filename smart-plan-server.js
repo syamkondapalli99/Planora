@@ -1744,4 +1744,4 @@ function install(app, requireAuth) {
     });
 }
 
-module.exports = { install, sanitiseGoals, sanitiseContext, friendly, extractEvents, eventFromText, findRange, localPlan, schedule, classify, localAnswer, localEdit, planDay, parseTask, whatNowAnswer, planWeek, limitedTime, behindOn, moveUnfinished, breakDown, goalStatus };
+module.exports = { install, sanitiseGoals, sanitiseContext, friendly, extractEvents, eventFromText, findRange, localPlan, schedule, classify, localAnswer, localEdit, planDay, parseTask, whatNowAnswer, planWeek, limitedTime, behindOn, moveUnfinished, breakDown, goalStatus, sanitiseLabels, pickLabel };

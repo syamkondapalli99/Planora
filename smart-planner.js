@@ -263,7 +263,8 @@
                 const response = await fetch("/api/plan-from-doc", {
                     method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ file: f, message, today: PlanoraCore.today(), now: PlanoraCore.nowClock(),
-                        context: PlanoraCore.aiContext(), existing: PlanoraCore.busySlots ? PlanoraCore.busySlots() : [] })
+                        context: PlanoraCore.aiContext(), existing: PlanoraCore.busySlots ? PlanoraCore.busySlots() : [],
+                        ...(PlanoraCore.labelContext ? PlanoraCore.labelContext() : {}) })
                 });
                 const data = await response.json().catch(() => ({}));
                 thinking.remove();

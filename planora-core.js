@@ -230,6 +230,7 @@
         "#E09A1A", "#F07A54", "#D64545", "#D4537E", "#C2489B", "#4F5BD5"
     ];
 
+    const LABEL_SWATCHES = SWATCHES.slice(1).concat(SWATCHES[0]);   // purple last: it's the "no label" colour
     function validColor(c) { return typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c); }
     function softOf(hex) {
         const known = GOAL_COLORS.find(x => x.color.toLowerCase() === String(hex).toLowerCase());
@@ -565,7 +566,8 @@
         document.body.appendChild(overlay);
         const list = overlay.querySelector(".labels-list");
         const err = overlay.querySelector(".auth-error");
-        const freeColor = () => SWATCHES.find(c => !rows.some(r => r.color.toLowerCase() === c.toLowerCase())) || SWATCHES[rows.length % SWATCHES.length];
+        // a new label never starts in Planora's own purple, or it looks the same as a task with no label
+        const freeColor = () => LABEL_SWATCHES.find(c => !rows.some(r => r.color.toLowerCase() === c.toLowerCase())) || LABEL_SWATCHES[rows.length % LABEL_SWATCHES.length];
 
         const render = focusIndex => {
             list.innerHTML = rows.length ? rows.map((r, i) => `
@@ -657,7 +659,7 @@
         if (!name) throw new Error("Please name the category.");
         const existing = CATS().find(c => c.label.toLowerCase() === name.toLowerCase());
         if (existing) return existing;
-        const cat = { id: "c-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 16) + "-" + Math.random().toString(36).slice(2, 6), label: name, color: validColor(color) ? color : SWATCHES[0] };
+        const cat = { id: "c-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 16) + "-" + Math.random().toString(36).slice(2, 6), label: name, color: validColor(color) ? color : (LABEL_SWATCHES.find(c => !customCategories().some(x => x.color.toLowerCase() === c.toLowerCase())) || LABEL_SWATCHES[0]) };
         const list = loadJSON(CAT_KEY, []);
         saveJSON(CAT_KEY, (Array.isArray(list) ? list : []).concat(cat));
         notifyChange();
@@ -2720,7 +2722,7 @@
         box.className = "cat-new";
         box.innerHTML = `
             <input type="text" maxlength="24" placeholder="New category name (e.g. Uni, Side hustle)" aria-label="New category name">
-            ${swatchesHTML("cat-new-color", SWATCHES[(customCategories().length + 6) % SWATCHES.length])}
+            ${swatchesHTML("cat-new-color", LABEL_SWATCHES[(customCategories().length + 5) % LABEL_SWATCHES.length])}
             <p class="auth-error" hidden></p>
             <div class="cat-new-actions">
                 <button type="button" class="btn-secondary" data-cat="cancel">Cancel</button>
