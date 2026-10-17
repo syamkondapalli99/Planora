@@ -28,7 +28,7 @@
     function rich(t) { return esc(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"); }
 
     function SmartPlanner(root) {
-        const placeholder = root.dataset.placeholder || "What do you need to get done?";
+        const placeholder = root.dataset.placeholder || "Ask AI to plan your day";
         const examples = root.dataset.examples ? root.dataset.examples.split("|") : EXAMPLES;
         const state = { history: [], plan: null, review: null, busy: false, recent: [], lastMessage: "", attachGoal: null, file: null };
 

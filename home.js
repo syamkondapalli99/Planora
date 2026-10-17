@@ -88,12 +88,15 @@
         const focus = core.focusTasks(3);
         const first = $("first-day");
 
+        const bar = $("ask-bar");
         if (!tasks.length) {
             section.hidden = true;
             if (first) first.hidden = false;
+            if (bar) bar.hidden = true;          // the first-day card is already an ask box
             return;
         }
         if (first) first.hidden = true;
+        if (bar) bar.hidden = false;
 
         // "Things to focus on today" is switched off: Today's schedule is the one task list on Home.
         section.hidden = true;
@@ -571,7 +574,9 @@
     // The first-day card looks like an Ask Planora box, but everything happens in the
     // Ask Planora pop-up, so the conversation and the plan never clutter Home.
     function wireFirstDay() {
-        const card = $("first-day");
+        ["first-day", "ask-bar"].forEach(id => wireLauncher($(id)));
+    }
+    function wireLauncher(card) {
         if (!card || card._wired) return;
         card._wired = true;
         card.addEventListener("click", e => {

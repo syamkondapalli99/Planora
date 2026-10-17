@@ -2301,3 +2301,12 @@ html:not(.web-mode) body { background: linear-gradient(180deg, #F5F9FE 0%, #F8F7
 .busy-times > div { display: flex; flex-direction: column; gap: 10px; }
 .busy-times input { width: 100%; }
 .busy-del { color: #C53030 !important; display: inline-flex !important; align-items: center; justify-content: center; gap: 6px; }
+/* Ask bar above Today's schedule — website (17 Oct 2026) */
+.ask-bar { padding: 12px !important; background: linear-gradient(140deg, #F4F1FF 0%, #EAE5FF 100%) !important; border: 1px solid #DDD6FF !important; box-shadow: 0 2px 8px rgba(81, 69, 205, .06) !important; }
+.ask-bar[hidden], html:not(.web-mode) .ask-bar { display: none !important; }
+.ask-bar .fd-compose { border: 1px solid #E6E1FF; box-shadow: none; flex-direction: row; align-items: center; gap: 6px; padding: 6px; }
+.ask-bar .fd-type { flex: 1; min-width: 0; min-height: 44px; padding: 10px 10px; display: flex; align-items: center; gap: 8px; color: #6E6890; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ask-bar .fd-type i { color: #6C5CE7; font-size: 19px; flex: 0 0 auto; }
+.ask-bar .fd-send { margin-left: 0; opacity: 1; background: #6C5CE7; }
+@media (max-width: 899px) { #ask-bar { order: 3; } }
+@media (max-width: 420px) { .ask-bar .fd-tool { width: 40px; } .ask-bar .fd-send { width: 46px; } }

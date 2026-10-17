@@ -1095,7 +1095,7 @@
                             <div class="fd-head"><i class="ti ti-sparkles" aria-hidden="true"></i><h2 class="card-title" id="first-day-title">Let's build your first day</h2></div>
                             <p class="card-sub first-day-sub">Type what you need to do, or attach a timetable. Planora finds the time and shows you the plan first.</p>
                             <div class="fd-compose">
-                                <button type="button" class="fd-type" data-fd="type">What do you need to do today?</button>
+                                <button type="button" class="fd-type" data-fd="type">Ask AI to plan your day</button>
                                 <div class="fd-tools">
                                     <button type="button" class="fd-tool" data-fd="attach" aria-label="Attach a document or photo"><i class="ti ti-paperclip" aria-hidden="true"></i></button>
                                     <button type="button" class="fd-tool" data-fd="mic" aria-label="Speak to Planora"><i class="ti ti-microphone" aria-hidden="true"></i></button>
@@ -1112,6 +1112,18 @@
 
                         <!-- PLANORA RECOMMENDATIONS (0-2, only when genuinely useful) -->
                         <div id="home-recs" class="home-recs"></div>
+
+                        <!-- ASK BAR (website): always there above Today's schedule; opens the Ask Planora pop-up -->
+                        <section class="card ask-bar" id="ask-bar" aria-label="Ask AI to plan your day">
+                            <div class="fd-compose">
+                                <button type="button" class="fd-type" data-fd="type"><i class="ti ti-sparkles" aria-hidden="true"></i>Ask AI to plan your day</button>
+                                <div class="fd-tools">
+                                    <button type="button" class="fd-tool" data-fd="attach" aria-label="Attach a document or photo"><i class="ti ti-paperclip" aria-hidden="true"></i></button>
+                                    <button type="button" class="fd-tool" data-fd="mic" aria-label="Speak to Planora"><i class="ti ti-microphone" aria-hidden="true"></i></button>
+                                    <button type="button" class="fd-send" data-fd="type" aria-label="Open Ask Planora"><i class="ti ti-send" aria-hidden="true"></i></button>
+                                </div>
+                            </div>
+                        </section>
 
                         <!-- TODAY'S SCHEDULE -->
                         <section class="card schedule-card" id="schedule-card" aria-labelledby="schedule-title">
@@ -1176,7 +1188,7 @@
                     <div class="ask-pop-panel">
                         <button type="button" class="ask-pop-close" id="ask-pop-close" aria-label="Close Ask Planora"><i class="ti ti-x" aria-hidden="true"></i></button>
                         <section class="task-input-panel home-ask" aria-label="Ask Planora">
-                            <div data-smart-planner data-primary data-placeholder="What do you need help with?"></div>
+                            <div data-smart-planner data-primary data-placeholder="Ask AI to plan your day"></div>
                         </section>
                     </div>
                 </div>
