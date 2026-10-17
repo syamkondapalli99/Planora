@@ -2378,3 +2378,36 @@ html:not(.web-mode) .rec-x { width: 32px !important; height: 32px !important; fo
 .cc-name { font-size: 14px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cc-act { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: #5145CD; }
 .edit-color-field:not(.cc-collapsed) .color-current { margin-bottom: 4px; }
+/* Phone/tablet: today card = "Let's plan your day" + ask box + status + small actions (17 Oct 2026) */
+.tb-plan { display: none; }
+html:not(.web-mode) .today-bar:not([hidden]) {
+  display: flex !important; flex-direction: column; align-items: stretch; gap: 10px;
+  padding: 16px !important; border-radius: 20px !important;
+  background: linear-gradient(140deg, #F4F1FF 0%, #EAE5FF 100%) !important; border: 1px solid #DDD6FF !important;
+  box-shadow: 0 2px 8px rgba(81, 69, 205, .06) !important;
+}
+html:not(.web-mode) .tb-plan { display: flex; flex-direction: column; gap: 10px; }
+html:not(.web-mode) .tb-plan .card-title { color: #3A2FA0 !important; font-size: 17px; }
+html:not(.web-mode) .tb-plan .fd-head i { color: #5145CD; }
+html:not(.web-mode) .tb-compose { border: 1px solid #E6E1FF; box-shadow: none; flex-direction: row; align-items: center; gap: 6px; padding: 6px; background: #fff; }
+html:not(.web-mode) .tb-compose .fd-type { flex: 1; min-width: 0; min-height: 44px; padding: 10px; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html:not(.web-mode) .tb-compose .fd-tool { width: 40px; height: 40px; font-size: 18px; }
+html:not(.web-mode) .tb-compose .fd-send { margin-left: 0; width: 44px; height: 40px; opacity: 1; background: #6C5CE7; }
+html:not(.web-mode) .today-bar .wl { font-size: 13px; line-height: 1.4; gap: 6px; padding: 0 2px; }
+html:not(.web-mode) .today-bar .wl-text { color: #4A4566; }
+html:not(.web-mode) .today-actions { display: flex !important; flex-wrap: nowrap; gap: 6px !important; width: 100%; }
+html:not(.web-mode) .today-actions > button { flex: 1 1 0; min-width: 0; width: auto !important; height: 36px; padding: 0 8px !important; font-size: 13px !important; font-weight: 600;
+  border-radius: 999px !important; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap;
+  background: rgba(255,255,255,.75) !important; color: #4B3FC4 !important; border: 1px solid #DCD5FF !important; box-shadow: none !important; }
+html:not(.web-mode) .today-actions > button[hidden] { display: none !important; }
+html:not(.web-mode) .today-actions > button:first-child { background: #6C5CE7 !important; color: #fff !important; border-color: #6C5CE7 !important; }
+html:not(.web-mode) .today-actions .lbl-long { display: none; }
+html:not(.web-mode) .today-actions .lbl-short { display: inline; }
+html:not(.web-mode) .tb-plan, html:not(.web-mode) .tb-compose { width: 100%; max-width: 100%; box-sizing: border-box; min-width: 0; }
+html:not(.web-mode) .tb-compose .fd-type { flex: 1 1 0; }
+html:not(.web-mode) .tb-compose .fd-tools { flex: 0 0 auto; gap: 6px; }
+html:not(.web-mode) .tb-plan .card-title { font-weight: 700; }
+html:not(.web-mode) .tb-compose .fd-type { font-size: 14.5px; padding: 10px 6px 10px 10px; }
+html:not(.web-mode) .tb-compose .fd-tool { width: 36px; height: 38px; font-size: 17px; }
+html:not(.web-mode) .tb-compose .fd-send { width: 42px; height: 38px; }
+html:not(.web-mode) .tb-compose .fd-tools { gap: 4px; }

@@ -583,7 +583,7 @@
     // The first-day card looks like an Ask Planora box, but everything happens in the
     // Ask Planora pop-up, so the conversation and the plan never clutter Home.
     function wireFirstDay() {
-        ["first-day", "ask-bar"].forEach(id => wireLauncher($(id)));
+        ["first-day", "ask-bar", "today-bar"].forEach(id => wireLauncher($(id)));
     }
     function wireLauncher(card) {
         if (!card || card._wired) return;
