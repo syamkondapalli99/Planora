@@ -2339,3 +2339,22 @@ html:not(.web-mode) body { background: linear-gradient(180deg, #F5F9FE 0%, #F8F7
 .tp-clear { background: none; color: #6E6890; margin-right: auto; }
 .tp-done { background: #EFEDFF; color: #4B3FC4; }
 .tp-done:hover { background: #E3DFFF; }
+/* Home suggestions: short one-line strips on phones and tablets (17 Oct 2026) */
+.rec-short { display: none; }
+.rec-x-alt { display: none; }
+html:not(.web-mode) .home-recs { gap: 8px; }
+html:not(.web-mode) .rec-card {
+  grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
+  padding: 8px 6px 8px 12px; border-radius: 14px; border: 1px solid #E6E2FA; border-left: 3px solid #6C5CE7;
+  background: #fff; box-shadow: none;
+}
+html:not(.web-mode) .rec-long { display: none; }
+html:not(.web-mode) .rec-short { display: inline; }
+html:not(.web-mode) .rec-icon { font-size: 17px; margin: 0; color: #6C5CE7; }
+html:not(.web-mode) .rec-card p { font-size: 13px; line-height: 1.35; font-weight: 500; color: #2E2A4A;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+html:not(.web-mode) .rec-actions { grid-column: 3; grid-row: 1; margin: 0; gap: 2px; }
+html:not(.web-mode) .rec-actions .btn-primary { padding: 6px 12px !important; font-size: 12.5px !important; border-radius: 999px !important; min-height: 0; height: 32px; white-space: nowrap; font-weight: 600; }
+html:not(.web-mode) .rec-later { display: none; }
+html:not(.web-mode) .rec-x-alt { display: inline-flex; }
+html:not(.web-mode) .rec-x { width: 32px !important; height: 32px !important; font-size: 15px; }

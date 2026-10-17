@@ -213,6 +213,7 @@
                 text: overdue.length === 1
                     ? `"${overdue[0].title}" from ${core.dayLabel(overdue[0].date).toLowerCase()} isn't done yet. Move it to today?`
                     : `${overdue.length} tasks from earlier days aren't done yet. Move them to today?`,
+                short: overdue.length === 1 ? `"${overdue[0].title}" from earlier isn't done` : `${overdue.length} tasks from earlier aren't done`,
                 action: "Move to today",
                 run: () => reschedule(overdue, t, "Move to today")
             });
@@ -229,6 +230,7 @@
                     id: "morning",
                     icon: "ti-sun",
                     text: `Good morning. You have ${todayCount} task${todayCount === 1 ? "" : "s"} today. "${urgent.title}" is ${due}, so I'd start with it.`,
+                    short: `Start with "${urgent.title}" (${due})`,
                     action: needsTime ? "Plan it" : null,
                     run: needsTime ? () => reschedule([urgent], t, "Plan it") : null
                 });
@@ -243,7 +245,9 @@
                 id: "evening",
                 icon: "ti-moon",
                 text: `You have ${leftPassed.length} unfinished task${leftPassed.length === 1 ? "" : "s"}. Would you like me to organize ${leftPassed.length === 1 ? "it" : "them"} for tomorrow?`,
+                short: `${leftPassed.length} unfinished today`,
                 action: "Organize tomorrow",
+                shortAction: "Plan tomorrow",
                 run: () => core.organizeTomorrow(leftPassed),
                 secondary: "I'll handle them"
             });
@@ -258,7 +262,9 @@
                 id: "overloaded",
                 icon: "ti-alert-triangle",
                 text: `Today is overloaded: ${w.text.replace(/^You have /, "")} Move "${drop.title}" to tomorrow?`,
+                short: `Too much today. Move "${drop.title}"?`,
                 action: "Move to tomorrow",
+                shortAction: "Move",
                 run: () => reschedule([drop], core.addDays(t, 1), "Move to tomorrow")
             });
         }
@@ -272,7 +278,9 @@
                     id: "goal-" + g.id,
                     icon: "ti-target-arrow",
                     text: `"${g.title}" is due ${core.dayLabel(g.date).toLowerCase()} and has no session planned in the next few days.`,
+                    short: `"${g.title}" has no session soon`,
                     action: "Plan next session",
+                    shortAction: "Plan",
                     run: () => core.planGoalSessions(g)
                 });
                 return true;
@@ -302,6 +310,7 @@
                         id: "window",
                         icon: "ti-clock-hour-4",
                         text: `You have ${gap.minutes >= 60 ? core.durLabel(Math.min(gap.minutes, 240)).replace(/^(\d+)h$/, "$1-hour") : gap.minutes + " minutes"} free at ${when}. ${why} Want me to schedule it?`,
+                        short: `Free at ${when}: fit in "${pick.title}"?`,
                         action: "Plan it",
                         run: () => reschedule([pick], t, "Plan it", gap.start)
                     });
@@ -356,11 +365,11 @@
             return `
             <div class="rec-card" role="note">
                 <i class="ti ${r.icon} rec-icon" aria-hidden="true"></i>
-                <p>${C().esc(r.text)}</p>
+                <p><span class="rec-long">${C().esc(r.text)}</span><span class="rec-short" aria-hidden="true">${C().esc(r.short || r.text)}</span></p>
                 <div class="rec-actions">
-                    ${r.action ? `<button type="button" class="btn-primary rec-go" data-rec="${r.id}">${C().esc(r.action)}</button>` : ""}
-                    ${r.secondary ? `<button type="button" class="btn-ghost" data-dismiss="${r.id}">${C().esc(r.secondary)}</button>`
-                                  : `<button type="button" class="rec-x" data-dismiss="${r.id}" aria-label="Dismiss suggestion"><i class="ti ti-x" aria-hidden="true"></i></button>`}
+                    ${r.action ? `<button type="button" class="btn-primary rec-go" data-rec="${r.id}" aria-label="${C().esc(r.action)}"><span class="rec-long">${C().esc(r.action)}</span><span class="rec-short">${C().esc(r.shortAction || r.action)}</span></button>` : ""}
+                    ${r.secondary ? `<button type="button" class="btn-ghost rec-later" data-dismiss="${r.id}">${C().esc(r.secondary)}</button>` : ""}
+                    <button type="button" class="rec-x${r.secondary ? " rec-x-alt" : ""}" data-dismiss="${r.id}" aria-label="Dismiss suggestion"><i class="ti ti-x" aria-hidden="true"></i></button>
                 </div>
             </div>`;
         }).join("");
