@@ -245,14 +245,23 @@
             if (s !== null && e !== null && e > s && s < now && e > now) work += e - now;   // in progress
             else work += dur;
         });
-        let eventMin = 0;
-        (ctx.events || []).forEach(e => {
+        // events and busy hours (work, college) take time out of the day; overlaps count once
+        const spans = [];
+        (ctx.events || []).concat(ctx.busy || []).forEach(e => {
             if (!e || e.date !== today) return;
             const s = toMin(e.start), en = toMin(e.end);
             if (s === null) return;
             const end = en !== null && en > s ? en : s + 60;
-            eventMin += Math.max(0, Math.min(end, dayEnd) - Math.max(s, now, dayStart));
+            const a = Math.max(s, now, dayStart), b = Math.min(end, dayEnd);
+            if (b > a) spans.push([a, b]);
         });
+        spans.sort((x, y) => x[0] - y[0]);
+        let eventMin = 0, cur = null;
+        spans.forEach(([a, b]) => {
+            if (cur && a <= cur[1]) cur[1] = Math.max(cur[1], b);
+            else { if (cur) eventMin += cur[1] - cur[0]; cur = [a, b]; }
+        });
+        if (cur) eventMin += cur[1] - cur[0];
         const windowLeft = Math.max(0, dayEnd - Math.max(now, dayStart) - eventMin);
         const available = Math.max(0, Math.min(windowLeft, budget - done));
         let status, label;

@@ -851,7 +851,7 @@
         const goalsById = {};
         getGoals().forEach(g => { goalsById[g.id] = g; });
         const t = today();
-        return { today: t, nowMin: nowMin(), goalsById, events: getEvents().filter(e => e.date === t) };
+        return { today: t, nowMin: nowMin(), goalsById, events: getEvents().filter(e => e.date === t), busy: routineBusy(t, t) };
     }
 
     function focusTasks(limit = 3) {
@@ -866,6 +866,27 @@
 
     // Google Calendar events last synced on this device (gcal.js) — read-only,
     // so plans and free-time checks work around them. Never includes tokens.
+    /* Busy hours from Profile (work, college, regular meetings): the same times every week */
+    function routine() {
+        const u = window.PlanoraAuth && PlanoraAuth.user;
+        const list = u && u.prefs && Array.isArray(u.prefs.routine) ? u.prefs.routine : [];
+        return list.filter(r => r && toMin(r.start) !== null && toMin(r.end) !== null && Array.isArray(r.days) && r.days.length)
+            .map(r => ({ id: String(r.id || ""), name: String(r.name || "Busy").slice(0, 40), days: r.days.map(Number), start: r.start, end: r.end }));
+    }
+    function routineBusy(from, to) {
+        const list = routine(), out = [];
+        if (!list.length) return out;
+        for (let d = from; d <= to && out.length < 400; d = addDays(d, 1)) {
+            const dow = new Date(d + "T00:00:00").getDay();
+            list.forEach(r => {
+                const over = toMin(r.end) <= toMin(r.start);
+                if (r.days.includes(dow)) out.push({ date: d, start: r.start, end: over ? "23:59" : r.end, title: r.name, routine: true });
+                if (over && r.days.includes((dow + 6) % 7) && r.end !== "00:00") out.push({ date: d, start: "00:00", end: r.end, title: r.name, routine: true });
+            });
+        }
+        return out;
+    }
+
     function googleBusy(from, to) {
         try {
             const c = JSON.parse(localStorage.getItem("planora-gcal-cache") || "null");
@@ -937,6 +958,7 @@
             .map(t => [toMin(t.start), toMin(t.end) !== null && toMin(t.end) > toMin(t.start) ? toMin(t.end) : toMin(t.start) + 30])
             .concat(getEvents().filter(e => e.date === date && toMin(e.start) !== null).map(e => [toMin(e.start), toMin(e.start) + eventDuration(e)]))
             .concat(googleBusy(date, date).filter(e => toMin(e.end) > toMin(e.start)).map(e => [toMin(e.start), toMin(e.end)]))
+            .concat(routineBusy(date, date).map(e => [toMin(e.start), toMin(e.end)]))
             .sort((a, b) => a[0] - b[0]);
         const gaps = [];
         let cursor = Math.max(fromMin, 7 * 60);
@@ -965,7 +987,7 @@
             method: "POST",
             credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ items, today: today(), now: nowClock(), existing })
+            body: JSON.stringify({ items, today: today(), now: nowClock(), existing, routine: routine() })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || "Planora couldn't schedule that right now. Your existing tasks are safe.");
@@ -2697,7 +2719,7 @@
         // colours
         openLabelsManager, voiceSupported, attachMic, taskColor, eventColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
         // utils
-        labelContext,
+        labelContext, routine, routineBusy,
         today, addDays, nowMin, nowClock, toMin, toClock, time12, durLabel, dayLabel, shortDate, esc, uid, taskDuration, loadJSON, saveJSON,
         migrate
     };

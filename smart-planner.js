@@ -145,7 +145,7 @@
                         history: state.history.slice(-6),
                         draft: draftForServer(),
                         recent: state.recent,
-                        ...(PlanoraCore.labelContext ? PlanoraCore.labelContext() : {}),
+                        ...(PlanoraCore.labelContext ? PlanoraCore.labelContext() : {}), routine: PlanoraCore.routine ? PlanoraCore.routine() : [],
                         attachGoal: opts.attachGoal || null
                     })
                 });
@@ -264,7 +264,7 @@
                     method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ file: f, message, today: PlanoraCore.today(), now: PlanoraCore.nowClock(),
                         context: PlanoraCore.aiContext(), existing: PlanoraCore.busySlots ? PlanoraCore.busySlots() : [],
-                        ...(PlanoraCore.labelContext ? PlanoraCore.labelContext() : {}) })
+                        ...(PlanoraCore.labelContext ? PlanoraCore.labelContext() : {}), routine: PlanoraCore.routine ? PlanoraCore.routine() : [] })
                 });
                 const data = await response.json().catch(() => ({}));
                 thinking.remove();

@@ -2276,3 +2276,28 @@ html:not(.web-mode) body { background: linear-gradient(180deg, #F5F9FE 0%, #F8F7
 #schedule-card .card-title::before { background: #4A90E2 !important; }
 #schedule-card .day-bar { background: #FFFFFF !important; }
 #schedule-card .day-bar-btn { color: #2F6FBF !important; }
+/* Profile: When are you busy? (17 Oct 2026) */
+.busy-card { border-top: 3px solid #E09A1A !important; }
+.busy-sub { margin: -4px 0 12px; font-size: 13.5px; color: var(--pl-muted, #6B6880); line-height: 1.45; }
+.busy-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.busy-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 14px; border-radius: 14px; border: 1px solid #F4E3C4; background: #FFF8EC; cursor: pointer; font: inherit; color: inherit; }
+.busy-row:hover { border-color: #EBCB91; }
+.busy-ico { width: 36px; height: 36px; border-radius: 10px; background: #FCEBCB; color: #B9770E; display: grid; place-items: center; font-size: 19px; flex: 0 0 auto; }
+.busy-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.busy-text strong { font-size: 14.5px; font-weight: 600; }
+.busy-text small { font-size: 12.5px; color: var(--pl-muted, #6B6880); }
+.busy-edit { color: #B9770E; font-size: 17px; }
+.busy-empty { margin: 0; padding: 12px 14px; border-radius: 14px; border: 1px dashed #EBCB91; background: #FFFBF4; font-size: 13px; color: var(--pl-muted, #6B6880); }
+.busy-add { display: inline-flex !important; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+.busy-kinds { display: flex; flex-wrap: wrap; gap: 6px; }
+.busy-chip, .busy-presets button { border: 1px solid #E4E1F5; background: #fff; color: #3F3A60; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.busy-chip.on { background: #EFEDFF; border-color: #6C5CE7; color: #4B3FC4; font-weight: 600; }
+.busy-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.busy-day { height: 40px; border-radius: 12px; border: 1px solid #E4E1F5; background: #fff; font: inherit; font-size: 13px; font-weight: 600; color: #3F3A60; cursor: pointer; }
+.busy-day.on { background: #6C5CE7; border-color: #6C5CE7; color: #fff; }
+.busy-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: -2px; }
+.busy-presets button { font-size: 12px; padding: 4px 10px; color: #5145CD; }
+.busy-times { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.busy-times > div { display: flex; flex-direction: column; gap: 10px; }
+.busy-times input { width: 100%; }
+.busy-del { color: #C53030 !important; display: inline-flex !important; align-items: center; justify-content: center; gap: 6px; }

@@ -546,11 +546,112 @@
             row.addEventListener("click", fn);
             row.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } });
         });
+        const addBusy = $("busy-add");
+        if (addBusy) addBusy.addEventListener("click", () => openBusySheet(-1));
         const edit = document.querySelector(".profile-edit-btn");
         if (edit) edit.addEventListener("click", openEditInfo);
     }
 
+    /* ---- busy hours (work, college, regular meetings) ---- */
+    const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];          // Mon first
+    function busyList() {
+        const u = window.PlanoraAuth && PlanoraAuth.user;
+        return u && u.prefs && Array.isArray(u.prefs.routine) ? u.prefs.routine.slice() : [];
+    }
+    function daysText(days) {
+        const d = [...days].map(Number).sort((a, b) => a - b).join(",");
+        if (d === "1,2,3,4,5") return "Mon–Fri";
+        if (d === "0,1,2,3,4,5,6") return "Every day";
+        if (d === "0,6") return "Weekends";
+        return DAY_ORDER.filter(x => days.map(Number).includes(x)).map(x => DAY_SHORT[x]).join(", ");
+    }
+    function time12(hhmm) {
+        const [h, m] = String(hhmm).split(":").map(Number);
+        return `${h % 12 || 12}${m ? ":" + String(m).padStart(2, "0") : ""} ${h < 12 ? "AM" : "PM"}`;
+    }
+    function busyIcon(name) {
+        const n = String(name).toLowerCase();
+        return /college|uni|school|class|lecture|study/.test(n) ? "ti-school" : /meeting|call/.test(n) ? "ti-users" : /commute|travel|drive/.test(n) ? "ti-bus" : /gym|sport|training/.test(n) ? "ti-barbell" : "ti-briefcase";
+    }
+    function renderBusy() {
+        const box = $("busy-list");
+        if (!box) return;
+        const list = busyList();
+        box.innerHTML = list.length ? list.map((r, i) => `
+            <button type="button" class="busy-row" data-busy="${i}" aria-label="Edit ${escapeHtml(r.name)}">
+                <i class="ti ${busyIcon(r.name)} busy-ico" aria-hidden="true"></i>
+                <span class="busy-text"><strong>${escapeHtml(r.name)}</strong><small>${escapeHtml(daysText(r.days))} · ${time12(r.start)} – ${time12(r.end)}</small></span>
+                <i class="ti ti-pencil busy-edit" aria-hidden="true"></i>
+            </button>`).join("")
+            : `<p class="busy-empty">Nothing added yet. For example: Work, Mon–Fri, 9 AM – 6 PM.</p>`;
+        box.querySelectorAll("[data-busy]").forEach(b => b.addEventListener("click", () => openBusySheet(Number(b.dataset.busy))));
+    }
+    async function saveBusy(list) {
+        await PlanoraAuth.updateProfile({ prefs: { routine: list } });
+        renderBusy();
+        document.dispatchEvent(new CustomEvent("planora:data-changed"));
+    }
+    function openBusySheet(index) {
+        const list = busyList();
+        const editing = index >= 0 && list[index];
+        const cur = editing ? { ...list[index], days: list[index].days.map(Number) } : { name: "", days: [1, 2, 3, 4, 5], start: "09:00", end: "18:00" };
+        const kinds = ["Work", "College", "School", "Meetings", "Classes", "Commute"];
+        openSheet(editing ? "Edit busy time" : "Add busy time", "ti-briefcase", `
+            <label for="bz-name">What is it?</label>
+            <div class="busy-kinds">${kinds.map(k => `<button type="button" class="busy-chip" data-kind="${k}">${k}</button>`).join("")}</div>
+            <input type="text" id="bz-name" maxlength="40" placeholder="e.g. Work, College, Team meeting">
+            <label>Which days?</label>
+            <div class="busy-days" role="group" aria-label="Days">${DAY_ORDER.map(d => `<button type="button" class="busy-day" data-day="${d}" aria-pressed="false" aria-label="${DAY_SHORT[d]}">${DAY_SHORT[d].slice(0, 2)}</button>`).join("")}</div>
+            <div class="busy-presets"><button type="button" data-preset="1,2,3,4,5">Weekdays</button><button type="button" data-preset="0,1,2,3,4,5,6">Every day</button><button type="button" data-preset="0,6">Weekends</button></div>
+            <div class="busy-times">
+                <div><label for="bz-start">From</label><input type="time" id="bz-start" step="900"></div>
+                <div><label for="bz-end">To</label><input type="time" id="bz-end" step="900"></div>
+            </div>
+            <p class="auth-error" id="bz-error" hidden></p>
+            <button type="submit" class="btn-primary">${editing ? "Save" : "Add"}</button>
+            ${editing ? `<button type="button" class="btn-secondary busy-del" id="bz-del"><i class="ti ti-trash"></i>Remove</button>` : ""}
+        `, form => {
+            const name = form.querySelector("#bz-name");
+            let days = new Set(cur.days);
+            name.value = cur.name;
+            form.querySelector("#bz-start").value = cur.start;
+            form.querySelector("#bz-end").value = cur.end;
+            const paint = () => {
+                form.querySelectorAll("[data-day]").forEach(b => { const on = days.has(Number(b.dataset.day)); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
+                form.querySelectorAll("[data-kind]").forEach(b => b.classList.toggle("on", b.dataset.kind.toLowerCase() === name.value.trim().toLowerCase()));
+            };
+            form.querySelectorAll("[data-kind]").forEach(b => b.addEventListener("click", () => { name.value = b.dataset.kind; paint(); }));
+            name.addEventListener("input", paint);
+            form.querySelectorAll("[data-day]").forEach(b => b.addEventListener("click", () => { const d = Number(b.dataset.day); days.has(d) ? days.delete(d) : days.add(d); paint(); }));
+            form.querySelectorAll("[data-preset]").forEach(b => b.addEventListener("click", () => { days = new Set(b.dataset.preset.split(",").map(Number)); paint(); }));
+            paint();
+            form.addEventListener("submit", async () => {
+                const err = form.querySelector("#bz-error");
+                const start = form.querySelector("#bz-start").value, end = form.querySelector("#bz-end").value;
+                const show = m => { err.textContent = m; err.hidden = false; };
+                if (!name.value.trim()) return show("Give it a name, like Work or College.");
+                if (!days.size) return show("Pick at least one day.");
+                if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) return show("Choose a start and end time.");
+                if (start === end) return show("The end time must be different from the start time.");
+                const item = { id: cur.id || "b-" + Math.random().toString(36).slice(2, 9), name: name.value.trim().slice(0, 40), days: [...days].sort((a, b) => a - b), start, end };
+                const next = busyList();
+                if (editing) next[index] = item; else next.push(item);
+                if (next.length > 12) return show("You can add up to 12 busy times.");
+                try { await saveBusy(next); closeSheet(); PlanoraAuth.toast(editing ? "Saved." : `Added. Planora won't plan tasks during ${item.name}.`, "success"); }
+                catch (e) { show(e.message); }
+            });
+            const del = form.querySelector("#bz-del");
+            if (del) del.addEventListener("click", async () => {
+                const next = busyList(); next.splice(index, 1);
+                try { await saveBusy(next); closeSheet(); PlanoraAuth.toast("Removed.", "success"); }
+                catch (e) { PlanoraAuth.toast(e.message, "error"); }
+            });
+        });
+    }
+
     function renderProfile() {
+        renderBusy();
         renderProfileHeader();
         renderWeekChart();
         renderRealHeatmap();

@@ -660,11 +660,11 @@ function refineDraft(message, draft, today) {
 
 function schedule(items, { today, now, existing }) {
     const busy = {}; // date -> [[start,end]]
-    const addBusy = (date, s, e) => { (busy[date] = busy[date] || []).push([s, e]); };
+    const addBusy = (date, s, e, routine) => { (busy[date] = busy[date] || []).push([s, e, Boolean(routine)]); };
 
     (existing || []).forEach(t => {
         const s = toMin(t.start), e = toMin(t.end);
-        if (isDate(t.date) && s !== null) addBusy(t.date, s, e !== null && e > s ? e : s + 30);
+        if (isDate(t.date) && s !== null) addBusy(t.date, s, e !== null && e > s ? e : s + 30, t.routine);
     });
 
     const nowMin = toMin(now);
@@ -718,7 +718,8 @@ function schedule(items, { today, now, existing }) {
                 placed = findSlot(date, nowMin, duration);
             } else {
                 placed = pref;
-                const clash = (busy[date] || []).some(([bs, be]) => pref < be && pref + duration > bs);
+                // busy hours (work, college) don't count as a clash for a time the person chose
+                const clash = (busy[date] || []).some(([bs, be, r]) => (!r || t.goalRef) && pref < be && pref + duration > bs);
                 if (clash && t.goalRef) {
                     // goal sessions repeat: never stack them on other tasks — take the nearest free time that day
                     const near = findNear(date, pref, duration);
@@ -1320,6 +1321,7 @@ Give every task a "category": the id of the label that clearly fits it (by its n
 `You are Planora, a calm, practical personal productivity assistant. Today is ${today} (${WEEKDAYS[dayOfWeek(today)]}), the time is ${now || "unknown"} in the user's timezone.
 ${contextText(ctx, today)}
 ${prefs && prefs.productiveTimes && prefs.productiveTimes.length ? `The user is most productive: ${prefs.productiveTimes.join(", ")}.` : ""}
+${routineText(ctx.routine)}
 ${attachGoal ? `The user wants practice sessions for their EXISTING goal "${attachGoal.title}"${attachGoal.date ? ` (target ${attachGoal.date})` : ""}. Put all sessions under goalRef "g1" and return one goal with ref "g1" (same title) plus 3-5 milestones.` : ""}
 ${labelText}
 ${draft && (draft.tasks || []).length ? `The user is reviewing this DRAFT plan; if they ask for changes return the FULL revised plan:\n${JSON.stringify(draft)}` : ""}
@@ -1393,6 +1395,42 @@ function sanitiseGoals(goals, today) {
     }));
 }
 
+/* ---------------------------------------------------------
+   Busy hours (Profile → "When are you busy?")
+   Work, college, regular meetings: the same times every week.
+   routine: [{ name, days:[0-6, 0=Sun], start:"HH:MM", end:"HH:MM" }]
+   Planora doesn't put flexible tasks in these hours. A time the person
+   asks for ("call at 10") is still kept, and isn't called a clash.
+   --------------------------------------------------------- */
+function sanitiseRoutine(list) {
+    const hhmm = v => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(v || ""));
+    return (Array.isArray(list) ? list : []).slice(0, 12).filter(r => r && hhmm(r.start) && hhmm(r.end) && r.start !== r.end).map(r => ({
+        name: String(r.name || "Busy").replace(/[\r\n]/g, " ").trim().slice(0, 40) || "Busy",
+        days: [...new Set((Array.isArray(r.days) ? r.days : []).map(Number).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort(),
+        start: r.start, end: r.end
+    })).filter(r => r.days.length);
+}
+function expandRoutine(routine, today, days = 120) {
+    const out = [];
+    for (let i = 0; i <= days && out.length < 1500; i++) {
+        const date = addDays(today, i), dow = dayOfWeek(date);
+        routine.forEach(r => {
+            if (r.end > r.start) { if (r.days.includes(dow)) out.push({ date, start: r.start, end: r.end, title: r.name, routine: true }); }
+            else {                                   // overnight, e.g. 22:00–06:00
+                if (r.days.includes(dow)) out.push({ date, start: r.start, end: "23:59", title: r.name, routine: true });
+                if (r.days.includes((dow + 6) % 7) && r.end > "00:00") out.push({ date, start: "00:00", end: r.end, title: r.name, routine: true });
+            }
+        });
+    }
+    return out;
+}
+function routineText(routine) {
+    if (!routine || !routine.length) return "";
+    const D = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    return "The user is busy at these times every week (work, college, meetings): " + routine.map(r => `${r.name} ${r.days.map(d => D[d]).join("/")} ${r.start}-${r.end}`).join("; ")
+        + ". Do not put tasks in these hours unless the user names that time.";
+}
+
 function sanitiseContext(body, today) {
     const ctx = body.context && typeof body.context === "object" ? body.context : {};
     const tasks = (Array.isArray(ctx.tasks) ? ctx.tasks : []).slice(0, 400).filter(t => t && t.id && isDate(t.date)).map(t => ({
@@ -1418,7 +1456,8 @@ function sanitiseContext(body, today) {
         .concat((Array.isArray(body.existing) ? body.existing : []).slice(0, 600)
             .filter(e => e && isDate(e.date) && /^\d{1,2}:\d{2}$/.test(e.start || ""))
             .map(e => ({ date: e.date, start: e.start, end: /^\d{1,2}:\d{2}$/.test(e.end || "") ? e.end : "", title: String(e.title || "").slice(0, 80) })));
-    return { ctx: { tasks, goals, events }, existing };
+    const routine = sanitiseRoutine(body.routine);
+    return { ctx: { tasks, goals, events, routine }, existing: existing.concat(expandRoutine(routine, today)) };
 }
 
 /* ---------------------------------------------------------
@@ -1565,7 +1604,8 @@ function install(app, requireAuth) {
             goalRef: it.goalRef || null,
             sourceId: it.sourceId ? String(it.sourceId) : null
         }));
-        const existing = (Array.isArray(req.body.existing) ? req.body.existing : []).slice(0, 500);
+        const existing = (Array.isArray(req.body.existing) ? req.body.existing : []).slice(0, 500)
+            .concat(expandRoutine(sanitiseRoutine(req.body.routine), today));
         res.json({ tasks: schedule(items, { today, now, existing }) });
     });
 
@@ -1744,4 +1784,4 @@ function install(app, requireAuth) {
     });
 }
 
-module.exports = { install, sanitiseGoals, sanitiseContext, friendly, extractEvents, eventFromText, findRange, localPlan, schedule, classify, localAnswer, localEdit, planDay, parseTask, whatNowAnswer, planWeek, limitedTime, behindOn, moveUnfinished, breakDown, goalStatus, sanitiseLabels, pickLabel };
+module.exports = { install, sanitiseGoals, sanitiseContext, friendly, extractEvents, eventFromText, findRange, localPlan, schedule, classify, localAnswer, localEdit, planDay, parseTask, whatNowAnswer, planWeek, limitedTime, behindOn, moveUnfinished, breakDown, goalStatus, sanitiseLabels, pickLabel, sanitiseRoutine, expandRoutine };
