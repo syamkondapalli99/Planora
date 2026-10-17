@@ -324,8 +324,21 @@
        - a row of plain colours for just this task / event, and "Default"
        - goal tasks show their goal's colour instead (all of a goal's tasks match)
        The form gets select[name=category] and input[name=color]. */
-    function mountColorChips(field, { selected = "", color = "", goal = null, allowNone = true, autoFrom = null, onChangeGoalColor } = {}) {
+    function mountColorChips(field, { selected = "", color = "", goal = null, allowNone = true, autoFrom = null, onChangeGoalColor, collapsed = false } = {}) {
         if (!field) return () => {};
+        // collapsed: one line "● Default  ✎ Change"; the labels and colours open when you tap it
+        let summary = null;
+        if (collapsed && !goal) {
+            field.classList.add("cc-collapsed");
+            summary = document.createElement("button");
+            summary.type = "button"; summary.className = "color-current"; summary.setAttribute("aria-expanded", "false");
+            field.querySelector(".edit-color-title").after(summary);
+            summary.onclick = () => {
+                const open = field.classList.toggle("cc-collapsed") === false;
+                summary.setAttribute("aria-expanded", String(open));
+                summary.querySelector(".cc-act").innerHTML = open ? `<i class="ti ti-chevron-up" aria-hidden="true"></i> Done` : `<i class="ti ti-pencil" aria-hidden="true"></i> Change`;
+            };
+        }
         const chips = field.querySelector(".edit-color-chips");
         const dots = field.querySelector(".edit-color-dots");
         const select = field.querySelector("select[name=category]");
@@ -366,6 +379,14 @@
 
         const draw = () => {
             const c = custom(), current = cat();
+            if (summary) {
+                const info = !c && current ? categoryInfo(current) : null;
+                const hex = c || (info ? info.color : DEFAULT_COLOR.color);
+                const name = c ? "Custom colour" : info ? info.label : "Default";
+                const open = !field.classList.contains("cc-collapsed");
+                summary.innerHTML = `<span class="cc-dot" style="background:${hex}" aria-hidden="true"></span><span class="cc-name">${esc(name)}</span><span class="cc-act">${open ? `<i class="ti ti-chevron-up" aria-hidden="true"></i> Done` : `<i class="ti ti-pencil" aria-hidden="true"></i> Change`}</span>`;
+                summary.setAttribute("aria-label", `Colour: ${name}. ${open ? "Close" : "Change"}`);
+            }
             const opts = Array.from(select.options).filter(o => o.value !== "__new" && o.value !== "");
             chips.innerHTML = opts.map(o => {
                 const info = categoryInfo(o.value);
@@ -2176,6 +2197,7 @@
                     color: editing ? editing.color : "",
                     goal: editing && editing.goalId ? getGoal(editing.goalId) : null,
                     autoFrom: editing ? null : f("title"),
+                    collapsed: true,
                     onChangeGoalColor: g => { closeSheet(); openGoalSheet({ id: g.id }); }
                 });
                 const said = form.querySelector(".pl-understood");
