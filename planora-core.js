@@ -2793,3 +2793,103 @@
     else renderNav();
 
 })();
+
+/* =========================================================
+   Time picker (17 Oct 2026)
+   Every <input type="time"> on a computer opens Planora's own
+   picker (hours, minutes, AM/PM) instead of the browser's boxy list.
+   The real input stays, so forms, typing and saving work as before.
+   Touch screens keep the phone's own picker.
+   ========================================================= */
+(function () {
+    if (window.PlanoraTimePicker) return;
+    const fine = () => window.matchMedia && matchMedia("(pointer: fine)").matches;
+    let pop = null, target = null;
+    const pad = n => String(n).padStart(2, "0");
+    const parse = v => { const m = /^(\d{1,2}):(\d{2})/.exec(v || ""); return m ? { h: +m[1], m: +m[2] } : null; };
+    const label = (h, m) => `${h % 12 || 12}:${pad(m)} ${h < 12 ? "AM" : "PM"}`;
+
+    function close() {
+        if (!pop) return;
+        pop.remove(); pop = null;
+        if (target) target.classList.remove("tp-open");
+        target = null;
+        document.removeEventListener("mousedown", outside, true);
+        window.removeEventListener("resize", close);
+    }
+    function outside(e) { if (pop && !pop.contains(e.target) && e.target !== target) close(); }
+
+    function set(h, m) {
+        if (!target) return;
+        target.value = `${pad(h)}:${pad(m)}`;
+        target.dispatchEvent(new Event("input", { bubbles: true }));
+        target.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function render() {
+        const cur = parse(target.value) || { h: 9, m: 0 };
+        const h12 = cur.h % 12 || 12, pm = cur.h >= 12;
+        const step = Number(target.getAttribute("step")) >= 900 ? 15 : 5;
+        const mins = []; for (let x = 0; x < 60; x += step) mins.push(x);
+        const extra = mins.includes(cur.m) ? null : cur.m;      // keep an odd minute that's already set (e.g. :07)
+        pop.innerHTML = `
+            <div class="tp-head"><span class="tp-now">${label(cur.h, cur.m)}</span>
+                <div class="tp-ampm" role="group" aria-label="AM or PM">
+                    <button type="button" data-ap="am" class="${pm ? "" : "on"}" aria-pressed="${!pm}">AM</button>
+                    <button type="button" data-ap="pm" class="${pm ? "on" : ""}" aria-pressed="${pm}">PM</button>
+                </div></div>
+            <div class="tp-label">Hour</div>
+            <div class="tp-grid tp-hours">${[12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(h => `<button type="button" data-h="${h}" class="${h === h12 ? "on" : ""}">${h}</button>`).join("")}</div>
+            <div class="tp-label">Minutes</div>
+            <div class="tp-grid tp-mins${step === 15 ? " four" : ""}">${mins.map(m => `<button type="button" data-m="${m}" class="${m === cur.m ? "on" : ""}">:${pad(m)}</button>`).join("")}${extra !== null ? `<button type="button" data-m="${extra}" class="on">:${pad(extra)}</button>` : ""}</div>
+            <div class="tp-foot">${target.required ? "" : `<button type="button" class="tp-clear" data-clear>Clear</button>`}<button type="button" class="tp-done" data-done>Done</button></div>`;
+    }
+
+    function place() {
+        const r = target.getBoundingClientRect(), w = pop.offsetWidth, hgt = pop.offsetHeight;
+        let left = Math.min(Math.max(8, r.left), window.innerWidth - w - 8);
+        let top = r.bottom + 6;
+        if (top + hgt > window.innerHeight - 8 && r.top - hgt - 6 > 8) top = r.top - hgt - 6;
+        pop.style.left = left + "px"; pop.style.top = Math.max(8, top) + "px";
+    }
+
+    function open(input) {
+        if (target === input) return;
+        close();
+        target = input;
+        input.classList.add("tp-open");
+        pop = document.createElement("div");
+        pop.className = "tp-pop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Choose a time");
+        document.body.appendChild(pop);
+        render(); place();
+        pop.addEventListener("mousedown", e => e.preventDefault());      // keep focus where it is
+        pop.addEventListener("click", e => {
+            const b = e.target.closest("button"); if (!b) return;
+            const cur = parse(target.value) || { h: 9, m: 0 };
+            let h = cur.h, m = cur.m;
+            if (b.dataset.h) { const v = +b.dataset.h % 12; h = (cur.h >= 12 ? 12 : 0) + v; }
+            else if (b.dataset.m) m = +b.dataset.m;
+            else if (b.dataset.ap) h = b.dataset.ap === "pm" ? (cur.h % 12) + 12 : cur.h % 12;
+            else if (b.hasAttribute("data-clear")) { target.value = ""; target.dispatchEvent(new Event("input", { bubbles: true })); target.dispatchEvent(new Event("change", { bubbles: true })); close(); return; }
+            else if (b.hasAttribute("data-done")) { close(); return; }
+            set(h, m); render();
+        });
+        setTimeout(() => document.addEventListener("mousedown", outside, true), 0);
+        window.addEventListener("resize", close);
+    }
+
+    document.addEventListener("mousedown", e => {
+        const input = e.target.closest && e.target.closest('input[type="time"]');
+        if (!input || input.disabled || input.readOnly || !fine() || input.classList.contains("hidden-time-input")) return;
+        open(input);
+    });
+    document.addEventListener("keydown", e => {
+        if (!pop) return;
+        if (e.key === "Escape") { e.stopPropagation(); close(); }
+        else if (e.key === "Tab") close();
+    }, true);
+    document.addEventListener("scroll", e => { if (pop && !pop.contains(e.target)) place(); }, true);
+    // typing in the box keeps the picker in step
+    document.addEventListener("input", e => { if (pop && e.target === target) render(); });
+    window.PlanoraTimePicker = { open, close };
+})();
