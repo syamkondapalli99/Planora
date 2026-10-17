@@ -2358,3 +2358,15 @@ html:not(.web-mode) .rec-actions .btn-primary { padding: 6px 12px !important; fo
 html:not(.web-mode) .rec-later { display: none; }
 html:not(.web-mode) .rec-x-alt { display: inline-flex; }
 html:not(.web-mode) .rec-x { width: 32px !important; height: 32px !important; font-size: 15px; }
+/* Add a task: name, date, time, colour — the rest under "More options" (17 Oct 2026) */
+.qa-main { grid-template-columns: 1fr 1fr !important; }
+.qa-more { border: 1px solid #ECE9FB; border-radius: 14px; background: #FAF9FF; }
+.qa-more > summary { list-style: none; display: flex; align-items: center; gap: 8px; padding: 12px 14px; cursor: pointer; font-size: 14px; font-weight: 600; color: #3F3A60; }
+.qa-more > summary::-webkit-details-marker { display: none; }
+.qa-more-sum { margin-left: auto; font-size: 12.5px; font-weight: 500; color: #8A85A3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qa-more > summary i { color: #8A85A3; transition: transform .15s; }
+.qa-more[open] > summary i { transform: rotate(180deg); }
+.qa-more-body { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+.sp-edit-grid.qa-main label:first-child { grid-column: auto; }
+.qa-more-body .sp-edit-grid label:first-child { grid-column: auto; }
+.sp-edit-grid.qa-main input { width: 100%; box-sizing: border-box; }

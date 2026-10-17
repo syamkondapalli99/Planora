@@ -2134,32 +2134,38 @@
                             placeholder="e.g. Finish my physics assignment tomorrow for 2 hours" value="${esc(d.title || "")}">
                     </label>
                     <p class="pl-understood" aria-live="polite" hidden></p>
-                    <div class="sp-edit-grid">
-                        <label>Day<input type="date" name="date" value="${esc(d.date || today())}"></label>
-                        <label>Start (optional)<input type="time" name="start" value="${esc(d.start || "")}"></label>
-                        <label>Duration<select name="duration">${dur.map(x => `<option value="${x}" ${x === Number(d.duration) ? "selected" : ""}>${durLabel(x)}</option>`).join("")}</select></label>
-                        <label>Priority<select name="priority">
-                            <option value="normal" ${d.priority !== "high" && d.priority !== "low" ? "selected" : ""}>Normal</option>
-                            <option value="high" ${d.priority === "high" ? "selected" : ""}>High</option>
-                            <option value="low" ${d.priority === "low" ? "selected" : ""}>Low</option></select></label>
+                    <div class="sp-edit-grid qa-main">
+                        <label>Date<input type="date" name="date" value="${esc(d.date || today())}"></label>
+                        <label>Time<input type="time" name="start" value="${esc(d.start || "")}"></label>
                     </div>
                     ${COLOR_FIELD_HTML}
-                    ${editing ? "" : `
-                    <label class="sp-lbl">Repeats
-                        <select name="repeat">
-                            <option value="">Never</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekdays">Weekdays</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="custom">Custom days…</option>
-                        </select>
-                    </label>
-                    <div class="pl-days" role="group" aria-label="Repeat on" hidden>
-                        ${[1, 2, 3, 4, 5, 6, 0].map(x => `<label class="day-chip"><input type="checkbox" value="${x}"><span>${DOW[x]}</span></label>`).join("")}
-                    </div>`}
+                    <details class="qa-more"${(d.priority && d.priority !== "normal") ? " open" : ""}>
+                        <summary><span>More options</span><small class="qa-more-sum"></small><i class="ti ti-chevron-down" aria-hidden="true"></i></summary>
+                        <div class="qa-more-body">
+                            <div class="sp-edit-grid">
+                                <label>How long<select name="duration">${dur.map(x => `<option value="${x}" ${x === Number(d.duration) ? "selected" : ""}>${durLabel(x)}</option>`).join("")}</select></label>
+                                <label>Priority<select name="priority">
+                                    <option value="normal" ${d.priority !== "high" && d.priority !== "low" ? "selected" : ""}>Normal</option>
+                                    <option value="high" ${d.priority === "high" ? "selected" : ""}>High</option>
+                                    <option value="low" ${d.priority === "low" ? "selected" : ""}>Low</option></select></label>
+                            </div>
+                            ${editing ? "" : `
+                            <label class="sp-lbl">Repeats
+                                <select name="repeat">
+                                    <option value="">Never</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="weekdays">Weekdays</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="custom">Custom days…</option>
+                                </select>
+                            </label>
+                            <div class="pl-days" role="group" aria-label="Repeat on" hidden>
+                                ${[1, 2, 3, 4, 5, 6, 0].map(x => `<label class="day-chip"><input type="checkbox" value="${x}"><span>${DOW[x]}</span></label>`).join("")}
+                            </div>`}
+                        </div>
+                    </details>
                     <p class="auth-error" hidden></p>
                     <button type="submit" class="btn-primary">${editing ? "Save changes" : "Add task"}</button>
-                    ${editing ? "" : `<p class="pl-hint">Type naturally, like "gym every Mon, Wed and Fri at 6pm" or "essay tomorrow for 2 hours". You can change anything before adding.</p>`}
                 </form>`,
             onReady(panel) {
                 const form = panel.querySelector("form");
@@ -2180,6 +2186,16 @@
                 const repeatSel = f("repeat");
                 const syncDays = () => { if (days) days.hidden = !repeatSel || repeatSel.value !== "custom"; };
                 if (repeatSel) repeatSel.addEventListener("change", syncDays);
+                // "More options · 1h · High · Weekly": what's set inside, without opening it
+                const moreSum = form.querySelector(".qa-more-sum");
+                const syncMore = () => {
+                    const bits = [durLabel(Number(f("duration").value))];
+                    if (f("priority").value !== "normal") bits.push(f("priority").value === "high" ? "High priority" : "Low priority");
+                    if (repeatSel && repeatSel.value) bits.push(repeatSel.options[repeatSel.selectedIndex].text.replace("…", ""));
+                    moreSum.textContent = bits.join(" · ");
+                };
+                ["duration", "priority", "repeat"].forEach(n => { const el = f(n); if (el) el.addEventListener("change", syncMore); });
+                syncMore();
 
                 let parsedTitle = null, timer = null, seq = 0;
                 const current = () => {
@@ -2217,6 +2233,8 @@
                                 days.querySelectorAll("input").forEach(i => { i.checked = (p.repeat.days || []).includes(Number(i.value)); });
                                 syncDays();
                             }
+                            syncMore();
+                            if (p.repeat && form.querySelector(".qa-more")) form.querySelector(".qa-more").open = true;
                             const v = current();
                             said.innerHTML = `<i class="ti ti-sparkles" aria-hidden="true"></i><span>${esc(understoodText(v))}${parsedTitle ? ` Title: <strong>${esc(parsedTitle)}</strong>.` : ""}</span>`;
                             said.hidden = false;
