@@ -367,9 +367,8 @@
         recActions = {};
         // phones: "Move to today" and "Plan tomorrow" are small buttons in the Let's plan your day card
         const chipBox = $("tb-recs");
-        const phone = !document.documentElement.classList.contains("web-mode");
         if (chipBox) {
-            const chips = phone ? recs.filter(r => r.chip && r.run) : [];
+            const chips = recs.filter(r => r.chip && r.run);
             chips.forEach(r => { recActions[r.id] = r.run; });
             chipBox.innerHTML = chips.map(r => `<button type="button" class="btn-secondary tb-rec" data-rec="${r.id}" aria-label="${C().esc(r.text)}"><i class="ti ${r.icon}" aria-hidden="true"></i> ${C().esc(r.chip)}</button>`).join("");
             recs = recs.filter(r => !chips.includes(r));
