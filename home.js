@@ -668,8 +668,10 @@
             if (e.target.closest("#btn-review")) { C().openDailyReview(); return; }
             if (e.target.closest("#btn-optimize")) {
                 const b = $("btn-optimize");
-                b.disabled = true;
-                C().optimizeDay().catch(err => C().toast(err.message || "Planora couldn't do that right now. Your existing tasks are safe.", "error")).finally(() => { b.disabled = false; });
+                if (b.classList.contains("is-busy")) return;
+                b.classList.add("is-busy"); b.setAttribute("aria-busy", "true");
+                C().optimizeDay().catch(err => C().toast(err.message || "Planora couldn't do that right now. Your existing tasks are safe.", "error"))
+                    .finally(() => { b.classList.remove("is-busy"); b.removeAttribute("aria-busy"); });
                 return;
             }
             if (e.target.closest("[data-plan-rest]") && window.PlanoraAsk) {
@@ -685,7 +687,14 @@
                 return;
             }
             const rec = e.target.closest("[data-rec]");
-            if (rec && recActions[rec.dataset.rec]) { recActions[rec.dataset.rec](); return; }
+            if (rec && recActions[rec.dataset.rec]) {
+                if (rec.classList.contains("is-busy")) return;
+                rec.classList.add("is-busy"); rec.setAttribute("aria-busy", "true");
+                Promise.resolve().then(() => recActions[rec.dataset.rec]())
+                    .catch(err => C().toast((err && err.message) || "Planora couldn't do that right now. Your tasks are safe.", "error"))
+                    .finally(() => { rec.classList.remove("is-busy"); rec.removeAttribute("aria-busy"); });
+                return;
+            }
             const dis = e.target.closest("[data-dismiss]");
             if (dis) { dismissed.add(dis.dataset.dismiss); saveDismissed(); renderRecs(); return; }
             if (e.target.closest("[data-empty=plan]") && window.PlanoraAsk) {

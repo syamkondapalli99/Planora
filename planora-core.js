@@ -1004,15 +1004,60 @@
             .map(t => ({ date: t.date, start: t.start, end: t.end, title: t.title }))
             .concat(getEvents().filter(e => e.date >= today()).map(e => ({ date: e.date, start: e.start, end: e.end, title: e.title, kind: "event" })))
             .concat(googleBusy(today(), addDays(today(), 60)).map(e => ({ date: e.date, start: e.start, end: e.end, title: e.title, kind: "event" })));
-        const response = await fetch("/api/schedule", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ items, today: today(), now: nowClock(), existing, routine: routine() })
+        // The server can be slow to wake up (or offline). After 12 seconds, or on any
+        // server/network error, Planora places the items on this device instead.
+        let response = null, data = {};
+        const ctrl = window.AbortController ? new AbortController() : null;
+        const timer = ctrl ? setTimeout(() => ctrl.abort(), 12000) : null;
+        try {
+            response = await fetch("/api/schedule", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ items, today: today(), now: nowClock(), existing, routine: routine() }),
+                ...(ctrl ? { signal: ctrl.signal } : {})
+            });
+            data = await response.json().catch(() => ({}));
+        } catch { response = null; }
+        finally { if (timer) clearTimeout(timer); }
+        if (response && response.ok && Array.isArray(data.tasks)) return data.tasks;
+        if (response && response.status === 401) throw new Error(data.error || "Your session has ended. Please sign in again.");
+        return scheduleLocally(items, existing.concat(routineBusy(today(), addDays(today(), 14))));
+    }
+
+    // Simple on-device scheduler: same rules as the server (7 AM–10:30 PM, 10-minute gaps,
+    // never in the past, never on top of something else, busy hours respected)
+    function scheduleLocally(items, existing) {
+        const t = today(), now = nowMin(), START = 7 * 60, END = 22 * 60 + 30, GAP = 10, STEP = 15;
+        const busy = {};
+        const add = (d, s, e) => { (busy[d] = busy[d] || []).push([s, e]); };
+        existing.forEach(x => { const s = toMin(x.start), e = toMin(x.end); if (x.date && s !== null) add(x.date, s, e !== null && e > s ? e : s + 30); });
+        const earliest = d => (d === t ? Math.max(START, Math.ceil((now + 15) / STEP) * STEP) : START);
+        const free = (d, s, len) => s >= earliest(d) && s + len <= END && !(busy[d] || []).some(([a, b]) => s < b + GAP && s + len + GAP > a);
+        const sorted = items.map((it, i) => ({ it, i })).sort((a, b) => (a.it.flexible === b.it.flexible ? 0 : a.it.flexible ? 1 : -1));
+        const out = [];
+        sorted.forEach(({ it, i }) => {
+            const len = Math.max(10, Math.min(480, Math.round(Number(it.duration) || 30)));
+            let date = it.date && it.date >= t ? it.date : t, start = toMin(it.start), note = "";
+            if (it.flexible === false && start !== null && !(date === t && start < now)) { /* keep the time asked for */ }
+            else {
+                let found = null;
+                const pref = start !== null ? start : null;
+                for (let k = 0; k < 14 && found === null; k++) {
+                    const d = addDays(date, k);
+                    if (it.deadline && d > it.deadline && k > 0) break;
+                    const from = Math.max(earliest(d), pref !== null && k === 0 ? Math.round(pref / STEP) * STEP : earliest(d));
+                    for (let s = from; s + len <= END; s += STEP) if (free(d, s, len)) { found = s; date = d; break; }
+                    if (found === null) for (let s = earliest(d); s < from; s += STEP) if (free(d, s, len)) { found = s; date = d; break; }
+                }
+                if (found === null) { found = earliest(date); note = "Couldn't find a free slot — pick a time that works."; }
+                else if (date !== (it.date || t) && (it.date || t) === t) note = "Not enough time left today — moved to " + dayLabel(date).toLowerCase() + ".";
+                start = found;
+            }
+            add(date, start, start + len);
+            out[i] = { title: it.title, date, start: toClock(start), end: toClock(Math.min(24 * 60 - 1, start + len)), duration: len, notes: note || it.notes || "", sourceId: it.sourceId || null, goalRef: it.goalRef || null, flexible: it.flexible !== false };
         });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || "Planora couldn't schedule that right now. Your existing tasks are safe.");
-        return data.tasks || [];
+        return out.filter(Boolean);
     }
 
 

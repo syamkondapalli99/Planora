@@ -2424,3 +2424,9 @@ html:not(.web-mode) .today-actions #btn-optimize { background: rgba(255,255,255,
 html:not(.web-mode) .tb-rec { height: 36px; padding: 0 12px !important; font-size: 13px !important; font-weight: 600; border-radius: 999px !important; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap;
   background: #6C5CE7 !important; color: #fff !important; border: 1px solid #6C5CE7 !important; box-shadow: none !important; width: auto !important; }
 html:not(.web-mode) .tb-rec { background: #DED8FF !important; color: #3A2FA0 !important; border-color: #D2CAFF !important; }
+/* Working… state on Home action buttons (17 Oct 2026) */
+.is-busy { position: relative; pointer-events: none; opacity: .75; }
+.is-busy > i.ti { visibility: hidden; }
+.is-busy::before { content: ""; position: absolute; left: 12px; top: 50%; width: 14px; height: 14px; margin-top: -7px; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent; animation: plSpin .7s linear infinite; }
+@keyframes plSpin { to { transform: rotate(360deg); } }
