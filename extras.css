@@ -2411,3 +2411,16 @@ html:not(.web-mode) .tb-compose .fd-type { font-size: 14.5px; padding: 10px 6px 
 html:not(.web-mode) .tb-compose .fd-tool { width: 36px; height: 38px; font-size: 17px; }
 html:not(.web-mode) .tb-compose .fd-send { width: 42px; height: 38px; }
 html:not(.web-mode) .tb-compose .fd-tools { gap: 4px; }
+/* Phone Home, calmer (17 Oct 2026, 2): summary under the date; one row of small actions */
+.sched-summary { display: none; }
+html:not(.web-mode) #ai-greeting-msg { display: none; }
+html:not(.web-mode) .sched-summary:not([hidden]) { display: block; margin: -2px 4px 12px; font-size: 13.5px; line-height: 1.45; color: #4A4566; }
+html:not(.web-mode) #btn-what-now, html:not(.web-mode) #btn-review { display: none !important; }
+.tb-recs { display: contents; }
+html.web-mode .tb-recs { display: none; }
+html:not(.web-mode) .today-actions { flex-wrap: wrap !important; }
+html:not(.web-mode) .today-actions > button, html:not(.web-mode) .tb-recs > button { flex: 1 1 auto !important; }
+html:not(.web-mode) .today-actions #btn-optimize { background: rgba(255,255,255,.75) !important; color: #4B3FC4 !important; border-color: #DCD5FF !important; }
+html:not(.web-mode) .tb-rec { height: 36px; padding: 0 12px !important; font-size: 13px !important; font-weight: 600; border-radius: 999px !important; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap;
+  background: #6C5CE7 !important; color: #fff !important; border: 1px solid #6C5CE7 !important; box-shadow: none !important; width: auto !important; }
+html:not(.web-mode) .tb-rec { background: #DED8FF !important; color: #3A2FA0 !important; border-color: #D2CAFF !important; }

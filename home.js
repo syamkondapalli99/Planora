@@ -49,7 +49,10 @@
     function renderHeader() {
         const core = C();
         const msg = $("ai-greeting-msg");
-        if (msg) msg.textContent = sentence();
+        const said = sentence();
+        if (msg) msg.textContent = said;
+        const sum = $("sched-summary");       // phones show it under the date in Today's schedule
+        if (sum) sum.textContent = said;
 
         const chip = $("home-week");
         if (chip) {
@@ -214,6 +217,7 @@
                     ? `"${overdue[0].title}" from ${core.dayLabel(overdue[0].date).toLowerCase()} isn't done yet. Move it to today?`
                     : `${overdue.length} tasks from earlier days aren't done yet. Move them to today?`,
                 short: overdue.length === 1 ? `"${overdue[0].title}" from earlier isn't done` : `${overdue.length} tasks from earlier aren't done`,
+                chip: `Move ${overdue.length} to today`,
                 action: "Move to today",
                 run: () => reschedule(overdue, t, "Move to today")
             });
@@ -246,6 +250,7 @@
                 icon: "ti-moon",
                 text: `You have ${leftPassed.length} unfinished task${leftPassed.length === 1 ? "" : "s"}. Would you like me to organize ${leftPassed.length === 1 ? "it" : "them"} for tomorrow?`,
                 short: `${leftPassed.length} unfinished today`,
+                chip: "Plan tomorrow",
                 action: "Organize tomorrow",
                 shortAction: "Plan tomorrow",
                 run: () => core.organizeTomorrow(leftPassed),
@@ -358,8 +363,17 @@
     function renderRecs() {
         const el = $("home-recs");
         if (!el) return;
-        const recs = recommendations().filter(r => !dismissed.has(r.id));
+        let recs = recommendations().filter(r => !dismissed.has(r.id));
         recActions = {};
+        // phones: "Move to today" and "Plan tomorrow" are small buttons in the Let's plan your day card
+        const chipBox = $("tb-recs");
+        const phone = !document.documentElement.classList.contains("web-mode");
+        if (chipBox) {
+            const chips = phone ? recs.filter(r => r.chip && r.run) : [];
+            chips.forEach(r => { recActions[r.id] = r.run; });
+            chipBox.innerHTML = chips.map(r => `<button type="button" class="btn-secondary tb-rec" data-rec="${r.id}" aria-label="${C().esc(r.text)}"><i class="ti ${r.icon}" aria-hidden="true"></i> ${C().esc(r.chip)}</button>`).join("");
+            recs = recs.filter(r => !chips.includes(r));
+        }
         el.innerHTML = recs.map(r => {
             if (r.run) recActions[r.id] = r.run;
             return `
@@ -385,6 +399,8 @@
         const day = selectedDate || core.today();
         const visible = core.getTasks().filter(x => x.date === day).length + (core.getEvents ? core.getEvents().filter(x => x.date === day).length : 0);
         const isToday = day === core.today();
+        const sum = $("sched-summary");
+        if (sum) sum.hidden = !isToday || !sum.textContent;
         const title = $("schedule-title");
         if (title) title.textContent = isToday ? "Today's schedule" : core.dayLabel(day);
         renderDayBar(day, visible, isToday);

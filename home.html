@@ -1095,6 +1095,7 @@
                         <button type="button" class="btn-primary" id="btn-what-now" aria-label="What should I do now?"><i class="ti ti-bolt" aria-hidden="true"></i> <span class="lbl-long">What should I do now?</span><span class="lbl-short" aria-hidden="true">What now?</span></button>
                         <button type="button" class="btn-secondary" id="btn-optimize" aria-label="Optimize my day"><i class="ti ti-wand" aria-hidden="true"></i> <span class="lbl-long">Optimize my day</span><span class="lbl-short" aria-hidden="true">Optimize</span></button>
                         <button type="button" class="btn-secondary" id="btn-review" hidden aria-label="Review today"><i class="ti ti-clipboard-check" aria-hidden="true"></i> <span class="lbl-long">Review today</span><span class="lbl-short" aria-hidden="true">Review</span></button>
+                        <span class="tb-recs" id="tb-recs"></span>
                     </div>
                 </section>
 
@@ -1161,6 +1162,8 @@
                                 </div>
                                 <button type="button" class="day-bar-btn" id="day-next" aria-label="Next day"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
                             </div>
+                            <!-- phones: "You have 5 things left today…" sits here, under the date -->
+                            <p class="sched-summary" id="sched-summary" hidden></p>
                             <div class="task-list" id="task-list"></div>
                             <div class="schedule-empty" id="schedule-empty" hidden></div>
                             <div class="completed-section" id="completed-section" style="display:none;">
