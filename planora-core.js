@@ -2992,3 +2992,156 @@
     document.addEventListener("input", e => { if (pop && e.target === target) render(); });
     window.PlanoraTimePicker = { open, close };
 })();
+
+/* =========================================================
+   Reminders on this device (18 Oct 2026)
+   - Morning summary at your chosen time: "Good morning! 3 things today: …"
+     or, if nothing is planned, "Let's plan your day".
+   - 15 minutes before each task and event.
+   The phone/browser's own push service delivers them, even when Planora is
+   closed. The app works out the next 14 days and sends them to Planora's
+   server, which sends each one on time. Turn on in Profile → Notifications.
+   ========================================================= */
+(function () {
+    if (window.PlanoraPush) return;
+    const C = () => window.PlanoraCore;
+    const DEFAULTS = { morning: true, morningTime: "07:30", before: true, minutes: 15 };
+    const supported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    const user = () => (window.PlanoraAuth && PlanoraAuth.user) || null;
+    const prefs = () => {
+        const u = user(), p = (u && u.prefs && u.prefs.push) || null;
+        return p ? { ...DEFAULTS, ...p } : { ...DEFAULTS, morning: false, before: false, never: true };
+    };
+    const wanted = p => Boolean(p && (p.morning || p.before));
+
+    function keyBytes(b64) {
+        const pad = "=".repeat((4 - b64.length % 4) % 4);
+        const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+        return Uint8Array.from(raw, ch => ch.charCodeAt(0));
+    }
+    async function api(path, body) {
+        const r = await fetch(path, { method: body === undefined ? "GET" : "POST", credentials: "same-origin",
+            headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) { const e = new Error(data.error || "Planora couldn't reach its server. Please try again."); e.status = r.status; throw e; }
+        return data;
+    }
+    async function registration() {
+        if (!supported()) return null;
+        const reg = await Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(() => r(null), 8000))]);
+        return reg || null;
+    }
+
+    async function status() {
+        if (!supported()) return "unsupported";
+        const u = user();
+        if (!u || u.guest) return "guest";
+        if (Notification.permission === "denied") return "denied";
+        const reg = await registration();
+        const sub = reg ? await reg.pushManager.getSubscription() : null;
+        return sub && Notification.permission === "granted" ? "on" : "off";
+    }
+
+    // Ask permission, get this device's push address, give it to Planora's server
+    async function enable() {
+        if (!supported()) throw new Error("This browser can't show reminders. Try Chrome, Edge or the Planora app.");
+        const u = user();
+        if (!u || u.guest) throw new Error("Please sign in to get reminders.");
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") throw new Error(perm === "denied"
+            ? "Notifications are blocked for Planora. Allow them in your phone or browser settings, then try again."
+            : "Planora needs permission to send reminders.");
+        const k = await api("/api/push/key");
+        if (!k.ready || !k.key) throw new Error("Reminders aren't switched on on Planora's server yet.");
+        const reg = await registration();
+        if (!reg) throw new Error("Planora couldn't start reminders on this device. Close and reopen the app, then try again.");
+        let sub = await reg.pushManager.getSubscription();
+        const want = keyBytes(k.key);
+        if (sub && sub.options && sub.options.applicationServerKey) {
+            const have = new Uint8Array(sub.options.applicationServerKey);
+            if (have.length !== want.length || have.some((b, i) => b !== want[i])) { await sub.unsubscribe().catch(() => {}); sub = null; }
+        }
+        if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: want });
+        await api("/api/push/subscribe", { subscription: sub.toJSON() });
+        return true;
+    }
+
+    async function disable() {
+        const reg = await registration();
+        const sub = reg ? await reg.pushManager.getSubscription() : null;
+        if (sub) {
+            await api("/api/push/unsubscribe", { endpoint: sub.endpoint }).catch(() => {});
+            await sub.unsubscribe().catch(() => {});
+        }
+        lastSent = "";
+        try { localStorage.removeItem("planora_push_sent"); } catch {}
+    }
+
+    const test = () => api("/api/push/test", {});
+
+    // The next 14 days of reminders, from your tasks and events
+    function buildItems(p = prefs()) {
+        const core = C(); if (!core) return [];
+        const out = [], now = Date.now(), t = core.today();
+        const at = (d, hhmm) => new Date(`${d}T${hhmm}:00`);
+        const tasks = core.getTasks(), events = core.getEvents ? core.getEvents() : [];
+        for (let k = 0; k < 14; k++) {
+            const d = core.addDays(t, k);
+            const dayTasks = tasks.filter(x => x.date === d && !x.completed);
+            const dayEvents = events.filter(e => e.date === d);
+            if (p.morning && /^\d{2}:\d{2}$/.test(p.morningTime || "")) {
+                const when = at(d, p.morningTime);
+                if (when.getTime() > now) {
+                    const all = dayTasks.map(x => ({ title: x.title, start: x.start || "" })).concat(dayEvents.map(e => ({ title: e.title, start: e.start || "" })))
+                        .sort((a, b) => (a.start || "99").localeCompare(b.start || "99"));
+                    if (all.length) {
+                        const names = all.slice(0, 3).map(x => x.title + (x.start ? ` (${core.time12(x.start).replace(":00", "")})` : "")).join(", ");
+                        out.push({ at: when.toISOString(), kind: "morning", tag: "planora-morning-" + d, url: "/home.html",
+                            title: `Good morning! ${all.length} thing${all.length === 1 ? "" : "s"} today`,
+                            body: names + (all.length > 3 ? ` +${all.length - 3} more` : "") });
+                    } else {
+                        out.push({ at: when.toISOString(), kind: "morning", tag: "planora-morning-" + d, url: "/home.html?ask=1",
+                            title: "Let's plan your day", body: "Nothing planned yet. Tap to tell Planora what you need to do today." });
+                    }
+                }
+            }
+            if (p.before) {
+                const mins = Number(p.minutes) || 15;
+                const timed = dayTasks.filter(x => /^\d{1,2}:\d{2}$/.test(x.start || "")).map(x => ({ kind: "task", id: x.id, title: x.title, start: x.start, end: x.end || "" }))
+                    .concat(dayEvents.filter(e => /^\d{1,2}:\d{2}$/.test(e.start || "")).map(e => ({ kind: "event", id: e.id, title: e.title, start: e.start, end: e.end || "", where: e.location || "" })));
+                timed.forEach(x => {
+                    const when = new Date(at(d, x.start.padStart(5, "0")).getTime() - mins * 60e3);
+                    if (when.getTime() <= now) return;
+                    out.push({ at: when.toISOString(), kind: x.kind, tag: `planora-${x.kind}-${x.id}-${d}`, url: "/home.html",
+                        title: `In ${mins} min: ${x.title}`,
+                        body: core.time12(x.start) + (x.end ? ` – ${core.time12(x.end)}` : "") + (x.where ? ` · ${x.where}` : "") });
+                });
+            }
+        }
+        return out.sort((a, b) => a.at.localeCompare(b.at)).slice(0, 200);
+    }
+
+    // Send the upcoming reminders to the server (only when they changed)
+    let lastSent = (() => { try { return localStorage.getItem("planora_push_sent") || ""; } catch { return ""; } })();
+    let timer = null;
+    async function sync(force) {
+        const u = user(), p = prefs();
+        if (!u || u.guest || p.never) return;
+        const items = wanted(p) ? buildItems(p) : [];
+        const sig = (u.id || "") + "|" + JSON.stringify(items);
+        if (!force && sig === lastSent) return;
+        try {
+            await api("/api/push/schedule", { items });
+            lastSent = sig;
+            try { localStorage.setItem("planora_push_sent", sig); } catch {}
+        } catch { /* try again on the next change */ }
+    }
+    const soon = () => { clearTimeout(timer); timer = setTimeout(() => sync(false), 4000); };
+    document.addEventListener("planora:data-changed", soon);
+    document.addEventListener("planora:plan-added", soon);
+    window.addEventListener("storage", e => { if (e.key === "planora_tasks" || e.key === "planora_events") soon(); });
+    const start = () => setTimeout(() => sync(false), 3000);
+    if (window.PlanoraAuth && PlanoraAuth.ready && PlanoraAuth.ready.then) PlanoraAuth.ready.then(start, start); else start();
+
+    window.PlanoraPush = { supported, status, enable, disable, test, sync, buildItems, prefs, DEFAULTS };
+})();

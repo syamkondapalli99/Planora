@@ -428,33 +428,63 @@
     }
 
     function openNotifications() {
-        const user = PlanoraAuth.user || {};
-        const prefs = user.prefs || {};
-        const supported = "Notification" in window;
-        openSheet("Notifications", "ti-bell", `
+        const P = window.PlanoraPush;
+        const cur = P ? P.prefs() : { morning: false, morningTime: "07:30", before: false };
+        const first = !(PlanoraAuth.user && PlanoraAuth.user.prefs && PlanoraAuth.user.prefs.push);
+        openSheet("Reminders", "ti-bell", `
+            <p class="auth-sheet-info nt-status" id="nt-status">Checking this device…</p>
             <div class="toggle-row">
-                <div>Daily reminder<small>A nudge with today's plan when you open Planora</small></div>
-                <label class="switch"><input type="checkbox" id="nt-daily"><span></span></label>
+                <div>Morning summary<small>Your tasks for the day, or a nudge to plan it if nothing's planned yet</small></div>
+                <label class="switch"><input type="checkbox" id="nt-morning"><span></span></label>
             </div>
-            <label for="nt-time">Reminder time</label>
-            <input type="time" id="nt-time">
-            <p class="auth-sheet-info" style="font-size:12px;">${supported
-                ? "Your browser will ask for permission the first time you turn this on."
-                : "This browser doesn't support notifications, so reminders will show inside Planora instead."}</p>
-            <button type="submit" class="btn-primary">Save</button>
+            <label for="nt-time">Morning summary time</label>
+            <input type="time" id="nt-time" step="900">
+            <div class="toggle-row">
+                <div>15 minutes before<small>A heads-up before each task and event that has a time</small></div>
+                <label class="switch"><input type="checkbox" id="nt-before"><span></span></label>
+            </div>
+            <p class="auth-error" id="nt-error" hidden></p>
+            <button type="submit" class="btn-primary" id="nt-save">Save</button>
+            <button type="button" class="btn-secondary" id="nt-test" hidden><i class="ti ti-send"></i>Send a test notification</button>
         `, form => {
-            form.querySelector("#nt-daily").checked = Boolean(prefs.reminders);
-            form.querySelector("#nt-time").value = prefs.reminderTime || "08:00";
+            const $f = id => form.querySelector(id);
+            $f("#nt-morning").checked = first ? true : Boolean(cur.morning);
+            $f("#nt-before").checked = first ? true : Boolean(cur.before);
+            $f("#nt-time").value = cur.morningTime || "07:30";
+            const err = $f("#nt-error"), st = $f("#nt-status"), testBtn = $f("#nt-test");
+            const say = s => {
+                const map = {
+                    on: "✅ Reminders are on for this device.",
+                    off: "Reminders are off on this device. Turn them on below and tap Save.",
+                    denied: "Notifications are blocked for Planora on this device. Allow them in your phone or browser settings, then come back here.",
+                    guest: "Sign in to get reminders on your phone and computer.",
+                    unsupported: "This browser can't show reminders. Use Chrome or Edge, or the Planora app."
+                };
+                st.textContent = map[s] || "";
+                testBtn.hidden = s !== "on";
+            };
+            if (P) P.status().then(say).catch(() => say("off")); else say("unsupported");
+            testBtn.addEventListener("click", async () => {
+                testBtn.disabled = true;
+                try { await P.test(); PlanoraAuth.toast("Test sent. It should arrive in a few seconds.", "success"); }
+                catch (e) { PlanoraAuth.toast(e.message, "error"); }
+                finally { testBtn.disabled = false; }
+            });
             form.addEventListener("submit", async () => {
-                const on = form.querySelector("#nt-daily").checked;
-                if (on && supported && Notification.permission === "default") {
-                    try { await Notification.requestPermission(); } catch {}
-                }
+                err.hidden = true;
+                const push = { morning: $f("#nt-morning").checked, before: $f("#nt-before").checked, morningTime: $f("#nt-time").value || "07:30", minutes: 15 };
+                const btn = $f("#nt-save"); btn.disabled = true;
                 try {
-                    await PlanoraAuth.updateProfile({ prefs: { reminders: on, reminderTime: form.querySelector("#nt-time").value || "08:00" } });
+                    if (push.morning || push.before) { if (!P) throw new Error("This browser can't show reminders."); await P.enable(); }
+                    else if (P) await P.disable();
+                    await PlanoraAuth.updateProfile({ prefs: { push } });
+                    if (P) await P.sync(true);
                     closeSheet();
-                    PlanoraAuth.toast(on ? "Daily reminder is on." : "Daily reminder is off.", "success");
-                } catch (e) { PlanoraAuth.toast(e.message, "error"); }
+                    PlanoraAuth.toast(push.morning || push.before ? "Reminders are on." : "Reminders are off.", "success");
+                } catch (e) {
+                    err.textContent = e.message; err.hidden = false;
+                    if (P) P.status().then(say).catch(() => {});
+                } finally { btn.disabled = false; }
             });
         });
     }
@@ -716,7 +746,13 @@
 
     function maybeRemind() {
         const user = PlanoraAuth.user;
-        if (!user || !user.prefs || !user.prefs.reminders) return;
+        if (!user || !user.prefs) return;
+        const push = user.prefs.push;
+        if (push) {
+            // real reminders on this device: nothing to do here
+            if (!push.morning || ("Notification" in window && Notification.permission === "granted")) return;
+            user.prefs.reminderTime = push.morningTime;
+        } else if (!user.prefs.reminders) return;
         const now = new Date();
         const today = dateKey(now);
         const [h, m] = (user.prefs.reminderTime || "08:00").split(":").map(Number);

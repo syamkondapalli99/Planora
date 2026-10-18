@@ -653,6 +653,8 @@
         // show events in Today's schedule from the first paint
         try { if (typeof window.showTasksForDate === "function") window.showTasksForDate((typeof selectedDate !== "undefined" && selectedDate) || C().today()); } catch (e) { console.error(e); }
         wireFirstDay();
+        // opened from the "Let's plan your day" reminder
+        try { if (new URLSearchParams(location.search).get("ask") === "1") { history.replaceState(null, "", location.pathname); setTimeout(openAsk, 300); } } catch {}
 
         document.addEventListener("click", e => {
             // only real Start buttons (task boxes also carry data-start = their start time)

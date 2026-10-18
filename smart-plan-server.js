@@ -348,7 +348,12 @@ function cleanTitle(text, removals) {
     t = t.replace(/\b(by|before|due|on|at|for|until|till|this|next|every|in|around|from|within)\s*$/i, " ");
     t = t.replace(/\s+(by|before|due|on|at|for|until|till|in|within)\s+(?=[,.]|$)/gi, " ");
     t = t.replace(/\s{2,}/g, " ").trim().replace(/^[,.\-–:]+|[,.\-–:]+$/g, "").trim();
-    t = t.replace(FILLER, "").trim();
+    for (let k = 0; k < 3; k++) {
+        t = t.replace(/^(on|this|next|by|at|in|and|also|then|plus)\s+/i, "").replace(FILLER, "").trim();
+        t = t.replace(/\s+(and|also|then|plus|in|in the|on|at|for|the|to)$/i, "").trim();
+    }
+    // "need to do college work" → "college work" (but "do laundry" stays a short task)
+    if (/\b(need|have|want|got|gotta|going)\s+to\s+do\s/i.test(text)) t = t.replace(/^do\s+(?=\S+\s+\S+)/i, "").trim();
     t = t.replace(/\b(by|before|due|on|at|for|until|till|this|next|every|in|the)$/i, "").trim();
     t = t.replace(/^(to|a|the)\s+/i, "").trim();
     if (!t) return "";
@@ -386,7 +391,8 @@ function normaliseMessage(message) {
         // 8.30 → 8:30 when it's a time (next to a dash, "to", am/pm, a bracket or the end of a part)
         .replace(/(?<![$€£¥\d.,])\b(\d{1,2})\.([0-5]\d)(?![\d%])(?=\s*(?:-|–|—|to\b|till\b|until\b|am\b|pm\b|\)|,|;|$|\s+(?!(?:dollars?|bucks|sgd|usd|percent|kg|km|hours?|hrs?|mins?|minutes?)\b)[a-z]))/gi, (m, h, mm) => Number(h) <= 23 ? `${h}:${mm}` : m)
         .replace(/(-|–|—|\bto\s|\bat\s|\bfrom\s)\s*(\d{1,2})\.([0-5]\d)\b/gi, (m, pre, h, mm) => Number(h) <= 23 ? `${pre}${h}:${mm}` : m)
-        .replace(/\s*\+\s*/g, " + ");
+        .replace(/\s*\+\s*/g, " + ")
+        .replace(/\bhte\b/gi, "the").replace(/\bteh\b/gi, "the");
 }
 
 // "tmr wake up, 9-10 read, 11-12 email": every item without its own day gets the day said before it
@@ -457,6 +463,55 @@ function pickLabel(title, L, hint) {
         if (fit) return fit.id;
     }
     return null;
+}
+
+/* ---------------------------------------------------------
+   Keep the AI to the user's words (18 Oct 2026)
+   "on Tuesday college work in the afternoon and evening Planora publicising"
+   → both on Tuesday; college work in the afternoon; publicising in the evening.
+   The AI's plan is checked against what the message literally says (day,
+   part of the day, exact time) and corrected where it drifted.
+   --------------------------------------------------------- */
+const DAY_PARTS = [
+    [/\b(early morning|first thing)\b/i, 6 * 60, 9 * 60],
+    [/\b(morning|am)\b/i, 7 * 60, 12 * 60],
+    [/\b(lunch|lunchtime|noon|midday)\b/i, 11 * 60 + 30, 14 * 60],
+    [/\b(afternoon)\b/i, 12 * 60, 17 * 60],
+    [/\b(after work|after school)\b/i, 16 * 60 + 30, 20 * 60],
+    [/\b(evening)\b/i, 17 * 60, 21 * 60],
+    [/\b(tonight|night)\b/i, 19 * 60, 23 * 60]
+];
+function anchorToMessage(tasks, message, today) {
+    const items = carryDates(splitItems(normaliseMessage(message)), today).map(raw => {
+        const when = findDate(raw, today);
+        const range = findRange(raw);
+        const time = range ? { start: range.start, exact: true } : findTime(raw);
+        const part = DAY_PARTS.find(([re]) => re.test(raw));
+        return { words: new Set(labelWords(raw)), when, time, part };
+    }).filter(it => it.when || it.time);
+    if (!items.length) return tasks;
+    const dayWords = /\b(today|tonight|this (morning|afternoon|evening))\b/i.test(message);
+    return tasks.map(t => {
+        if (!t || typeof t !== "object" || t.goalRef) return t;
+        const tw = labelWords(t.title);
+        let best = null, score = 0;
+        items.forEach(it => { const n = tw.filter(w => it.words.has(w)).length; if (n > score) { score = n; best = it; } });
+        if (!best && items.length === 1) best = items[0];
+        if (!best) return t;
+        const out = { ...t };
+        if (best.when && !best.when.deadline && best.when.date && out.date !== best.when.date) out.date = best.when.date;
+        if (best.when && best.when.deadline && best.when.date && !out.deadline) out.deadline = best.when.date;
+        if (!best.when && !dayWords && out.date === today && items.some(it => it.when && !it.when.deadline) && items.every(it => !it.when || it.when.date === items.find(x => x.when).when.date)) {
+            out.date = items.find(x => x.when).when.date;            // one day for the whole message
+        }
+        if (best.time && best.time.exact) { out.start = best.time.start; out.flexible = false; }
+        else if (best.part) {
+            const s = toMin(out.start), [, lo, hi] = best.part, len = Math.max(15, Number(out.duration) || 45);
+            if (s === null || s < lo || s + Math.min(len, hi - lo) > hi) out.start = best.time ? best.time.start : toClock(lo);
+            out.window = [lo, hi];
+        }
+        return out;
+    });
 }
 
 function preferredStartFromPrefs(prefs) {
@@ -732,9 +787,22 @@ function schedule(items, { today, now, existing }) {
         } else {
             const defaultPref = pref !== null ? pref : duration >= 90 ? 9 * 60 : null;
             const requested = date;
+            // "in the afternoon", "evening": stay inside that part of the day if there's room
+            if (Array.isArray(t.window) && t.window.length === 2) {
+                const [lo, hi] = t.window.map(Number);
+                const top = Math.min(hi, DAY_END), first = Math.max(roundUp(lo), earliest(date));
+                const from = pref !== null && pref >= first && pref < top ? roundUp(pref) : first;
+                for (let s0 = from; placed === null && s0 + duration <= top; s0 += STEP) if (fits(date, s0, duration)) placed = s0;
+                for (let s0 = first; placed === null && s0 < from; s0 += STEP) if (fits(date, s0, duration)) placed = s0;
+                if (placed === null && earliest(date) < hi) {
+                    // full: the free time closest to it, still on that day
+                    placed = findNear(date, pref !== null ? pref : lo, duration);
+                    if (placed !== null) note = note || "That part of the day is full — placed at the nearest free time.";
+                }
+            }
             const hasDeadline = t.deadline && isDate(t.deadline);
             const lastDay = hasDeadline ? t.deadline : addDays(date, 6);
-            for (let k = 0; daysBetween(date, lastDay) - k >= 0 && k < 14; k++) {
+            for (let k = 0; placed === null && daysBetween(date, lastDay) - k >= 0 && k < 14; k++) {
                 const d = addDays(date, k);
                 const s = findSlot(d, defaultPref, duration);
                 if (s !== null) { placed = s; date = d; break; }
@@ -1340,6 +1408,7 @@ Respond with ONLY valid JSON:
   "tasks": [ { "title": "…", "date": "YYYY-MM-DD", "start": "HH:MM", "duration": 60, "goalRef": "g1 or null", "flexible": true, "deadline": "YYYY-MM-DD or null", "category": "label id or null" } ],
   "updates": [ { "id": "existing task id", "date": "YYYY-MM-DD", "start": "HH:MM", "duration": 60, "remove": false } ]
 }
+Follow the user's words exactly: every task must be on the day they said and in the part of the day they said. Upcoming days: ${Array.from({ length: 8 }, (_, k) => `${WEEKDAYS[dayOfWeek(addDays(today, k))]} ${addDays(today, k)}${k === 0 ? " (today)" : k === 1 ? " (tomorrow)" : ""}`).join(", ")}. A weekday name means the NEXT one in this list. Parts of the day: morning 07:00-12:00, afternoon 12:00-17:00, evening 17:00-21:00, tonight/night 19:00-23:00. Never move a task to another day or part of the day unless the user asked. Make one task per thing they mentioned (don't merge or drop any).
 "flexible": false ONLY when the user gave an exact time or a time range (then use exactly that start and length). A day word at the start ("tmr", "Monday") applies to every item after it unless an item names its own day. Keep the user's wording for titles (e.g. "Read research R-008"), without the times. At most 25 tasks.`;
 
     const messages = [{ role: "system", content: system }];
@@ -1769,6 +1838,7 @@ function install(app, requireAuth) {
                 const userGaveTime = Boolean(findTime(message)) || /\b\d{1,2}(:\d{2})?\s*(-|–|to)\s*\d{1,2}(:\d{2})?\s*(am|pm)?\b/i.test(message);
                 understood.tasks.forEach(t => { if (t && typeof t === "object") t.flexible = !(userGaveTime && t.flexible === false); });
             }
+            if (source === "openai") understood.tasks = anchorToMessage(understood.tasks, message, today);
             const tasks = schedule(understood.tasks.slice(0, 30), { today, now, existing });
             const updates = resolveUpdates(understood.updates, ctx, today, now, existing);
             let reply = understood.reply || summarise(tasks, goals, today);
@@ -1784,4 +1854,4 @@ function install(app, requireAuth) {
     });
 }
 
-module.exports = { install, sanitiseGoals, sanitiseContext, friendly, extractEvents, eventFromText, findRange, localPlan, schedule, classify, localAnswer, localEdit, planDay, parseTask, whatNowAnswer, planWeek, limitedTime, behindOn, moveUnfinished, breakDown, goalStatus, sanitiseLabels, pickLabel, sanitiseRoutine, expandRoutine };
+module.exports = { install, sanitiseGoals, sanitiseContext, friendly, extractEvents, eventFromText, findRange, localPlan, schedule, classify, localAnswer, localEdit, planDay, parseTask, whatNowAnswer, planWeek, limitedTime, behindOn, moveUnfinished, breakDown, goalStatus, sanitiseLabels, pickLabel, sanitiseRoutine, expandRoutine, anchorToMessage };

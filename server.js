@@ -19,6 +19,7 @@ auth.install(app);
 require("./smart-plan-server").install(app, auth.requireAuth);
 require("./gcal-server").install(app, auth.requireAuth, auth.config);   // Google Calendar (read-only)
 require("./doc-plan-server").install(app, auth.requireAuth);            // Ask Planora: plan from an attached document
+require("./push-server").install(app, auth.requireAuth, auth.config);                 // Reminders (push notifications)
 
 app.use(express.json());
 

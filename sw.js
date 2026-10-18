@@ -12,7 +12,7 @@
    - Account and AI requests (/api, /auth) are never cached.
    ========================================================= */
 
-const VERSION = "planora-2026-10-18-task-cards";
+const VERSION = "planora-2026-10-18-pw-eye";
 const SHELL = [
     "/offline.html",
     "/style.css", "/extras.css", "/devices.css", "/desktop.css", "/fonts/figtree-latin-wght-normal.woff2", "/fonts/bricolage-grotesque-latin-wght-normal.woff2",
@@ -102,5 +102,35 @@ self.addEventListener("fetch", event => {
             return res;
         }).catch(() => null);
         return hit || (await refresh) || Response.error();
+    })());
+});
+
+/* ---------------- Reminders (push notifications) ---------------- */
+self.addEventListener("push", event => {
+    let d = {};
+    try { d = event.data ? event.data.json() : {}; } catch { d = { title: "Planora", body: event.data ? event.data.text() : "" }; }
+    const title = d.title || "Planora";
+    event.waitUntil(self.registration.showNotification(title, {
+        body: d.body || "",
+        icon: "/icons/icon-192.png",
+        badge: "/icons/favicon-32.png",
+        tag: d.tag || undefined,
+        renotify: Boolean(d.tag),
+        data: { url: d.url || "/home.html" }
+    }));
+});
+
+self.addEventListener("notificationclick", event => {
+    event.notification.close();
+    const target = new URL((event.notification.data && event.notification.data.url) || "/home.html", self.location.origin).href;
+    event.waitUntil((async () => {
+        const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        for (const w of wins) {
+            if (new URL(w.url).origin === self.location.origin) {
+                try { await w.focus(); } catch {}
+                try { return await w.navigate(target); } catch { return; }
+            }
+        }
+        return self.clients.openWindow(target);
     })());
 });
