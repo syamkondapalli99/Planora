@@ -1892,15 +1892,53 @@
             icon: "ti-plus",
             body: `
                 <p class="pl-hint">${esc(dayLabel(date))}${defaults.start ? " · " + esc(time12(defaults.start)) : ""}</p>
+                <form class="ai-quick" novalidate>
+                    <i class="ti ti-sparkles" aria-hidden="true"></i>
+                    <label class="sr-only" for="ai-quick-in">Plan with AI</label>
+                    <input type="text" id="ai-quick-in" name="ai" autocomplete="off" enterkeyhint="send" placeholder="Plan with AI, e.g. gym at 6pm and read for an hour">
+                    <button type="submit" class="ai-quick-go" aria-label="Plan with AI"><i class="ti ti-send" aria-hidden="true"></i></button>
+                </form>
+                <p class="create-or"><span>or add it yourself</span></p>
                 <div class="create-choice">
                     <button type="button" class="create-opt is-task" data-c="task"><i class="ti ti-checkbox" aria-hidden="true"></i><span><strong>Task</strong><small>Something to get done</small></span></button>
                     <button type="button" class="create-opt is-event" data-c="event"><i class="ti ti-calendar-event" aria-hidden="true"></i><span><strong>Event</strong><small>Something happening at a time</small></span></button>
                 </div>`,
             onReady(panel) {
+                const aiForm = panel.querySelector(".ai-quick");
+                aiForm.onsubmit = e => {
+                    e.preventDefault();
+                    const text = aiForm.querySelector("input").value.trim();
+                    if (!text) { aiForm.querySelector("input").focus(); return; }
+                    closeSheet();
+                    planWithAI(text, { date, start: defaults.start });
+                };
                 panel.querySelector("[data-c=task]").onclick = () => openQuickAddSheet({ date, start: defaults.start || "", duration: defaults.duration || 30 });
                 panel.querySelector("[data-c=event]").onclick = () => openEventForm({ date, start: defaults.start, end: defaults.end });
             }
         });
+    }
+
+    /* "Plan with AI" from anywhere (Calendar's Add, …): the same Ask Planora, in a sheet.
+       The day you were looking at is added when you didn't say one ("gym at 6" on Fri → Friday). */
+    function planWithAI(text, { date, start } = {}) {
+        let msg = String(text || "").trim();
+        if (!msg) return;
+        const saidDay = /\b(today|tonight|tomorrow|tmrw?|tmr|yesterday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)(day)?\b|\b\d{1,2}(st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}\b|\bnext week\b|\bweekend\b/i.test(msg);
+        if (date && date !== today() && !saidDay) msg += " on " + new Date(date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+        if (window.PlanoraHomeAsk && window.PlanoraAsk) { PlanoraHomeAsk.open(); PlanoraAsk.send(msg); return; }
+        if (window.PlanoraSmartPlanner) {
+            openSheet({
+                title: "Plan with AI",
+                icon: "ti-sparkles",
+                body: `<div class="sheet-ask" data-smart-planner data-placeholder="Plan with AI"></div>`,
+                onReady(panel) {
+                    const sp = PlanoraSmartPlanner.mount(panel.querySelector("[data-smart-planner]"));
+                    if (sp) sp.send(msg);
+                }
+            });
+            return;
+        }
+        location.href = "home.html?ask=1&q=" + encodeURIComponent(msg);
     }
 
     /*
@@ -2818,7 +2856,7 @@
         // colours
         openLabelsManager, voiceSupported, attachMic, taskColor, eventColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
         // utils
-        labelContext, routine, routineBusy, askDeleteTask, askDeleteEvent,
+        labelContext, routine, routineBusy, askDeleteTask, askDeleteEvent, planWithAI,
         today, addDays, nowMin, nowClock, toMin, toClock, time12, durLabel, dayLabel, shortDate, esc, uid, taskDuration, loadJSON, saveJSON,
         migrate
     };

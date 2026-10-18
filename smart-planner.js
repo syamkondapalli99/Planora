@@ -395,6 +395,9 @@
         });
     }
 
+    // other pages (Calendar's "Plan with AI") can open an Ask box in a sheet
+    window.PlanoraSmartPlanner = { mount: el => { if (!el) return null; if (!el._smartPlanner) el._smartPlanner = SmartPlanner(el); return el._smartPlanner; } };
+
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
     else init();
 

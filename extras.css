@@ -2552,3 +2552,13 @@ html.web-mode .today-actions > button, html.web-mode .tb-recs > button { flex: 0
 .quick-tools .quick-tool[data-tab="daily"].active { box-shadow: inset 0 0 0 2px #2F7FD6; }
 .quick-tools .quick-tool[data-tab="breakdown"].active { box-shadow: inset 0 0 0 2px #5145CD; }
 .quick-tools .quick-tool[data-tab="study"].active { box-shadow: inset 0 0 0 2px #1F8A66; }
+/* Create sheet: "Plan with AI" box (18 Oct 2026) */
+.ai-quick { display: flex; align-items: center; gap: 6px; margin: 4px 0 6px; padding: 6px 6px 6px 12px; border-radius: 16px;
+  background: linear-gradient(140deg, #F4F1FF 0%, #EAE5FF 100%); border: 1px solid #DDD6FF; }
+.ai-quick > i { color: #5145CD; font-size: 19px; flex: 0 0 auto; }
+.ai-quick input { flex: 1; min-width: 0; border: 1px solid #E6E1FF !important; background: #fff !important; border-radius: 12px !important; height: 44px; padding: 0 12px !important; font: inherit; font-size: 15px; margin: 0 !important; }
+.ai-quick-go { flex: 0 0 44px; height: 44px; border: 0; border-radius: 12px; background: #6C5CE7; color: #fff; font-size: 18px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.create-or { display: flex; align-items: center; gap: 10px; margin: 8px 0 6px; color: #8A85A3; font-size: 12.5px; }
+.create-or::before, .create-or::after { content: ""; flex: 1; height: 1px; background: #E6E2FA; }
+.sheet-ask { min-height: 360px; max-height: 70vh; display: flex; flex-direction: column; }
+.sheet-ask > .sp-root { flex: 1; min-height: 0; }
