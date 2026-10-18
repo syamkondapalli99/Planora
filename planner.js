@@ -550,7 +550,9 @@ function ruleBasedSubtasks(text) {
     return category.build(text);
 }
 
-function generateBreakdown() {
+// Type a task to break it down, or type a change ("remove step 4", "add a step for
+// flashcards", "the topics are …") to change the newest breakdown.
+async function generateBreakdown() {
 
     const input = document.getElementById("tb-input");
     const text = input.value.trim();
@@ -560,22 +562,81 @@ function generateBreakdown() {
         return;
     }
 
-    const subtaskTexts = ruleBasedSubtasks(text);
+    const groups = getTBGroups();
+    const current = groups[0] || null;
+    const btn = document.getElementById("tb-go");
+    const note = document.getElementById("tb-note");
+    if (btn) { btn.disabled = true; btn.classList.add("is-busy"); }
 
+    let result = null;
+    try {
+        const ctrl = window.AbortController ? new AbortController() : null;
+        const timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 20000) : null;
+        const response = await fetch("/api/breakdown", {
+            method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                text: text, today: todayISO(),
+                current: current ? { title: current.title, steps: current.subtasks.map(function (st) { return { id: st.id, text: st.text, done: st.done }; }) } : null
+            }),
+            signal: ctrl ? ctrl.signal : undefined
+        });
+        if (timer) clearTimeout(timer);
+        const data = await response.json().catch(function () { return {}; });
+        if (response.ok) result = data;
+        else if (response.status === 422) { showTBNote(data.error || "I couldn't tell what to change.", true); return; }
+    } catch (error) { result = null; }
+    finally { if (btn) { btn.disabled = false; btn.classList.remove("is-busy"); } }
+
+    if (result && result.mode === "edit" && current) {
+        // keep what's already ticked or in your plan
+        const byId = {};
+        current.subtasks.forEach(function (st) { byId[st.id] = st; });
+        current.subtasks = result.steps.map(function (st) {
+            const old = st.id && byId[st.id];
+            return old ? Object.assign({}, old, { text: st.text }) : { id: uid(), text: st.text, done: false };
+        });
+        if (result.title) current.title = result.title;
+        current.updatedAt = Date.now();
+        setTBGroups(groups);
+        input.value = "";
+        renderTBList();
+        showTBNote(result.reply || "Updated your steps.");
+        flashTBGroup(current.id);
+        return;
+    }
+
+    const steps = result && result.mode === "new" && Array.isArray(result.steps) ? result.steps.map(function (st) { return st.text; }) : ruleBasedSubtasks(text);
     const group = {
         id: uid(),
-        title: text,
-        subtasks: subtaskTexts.map(function (s) {
+        title: (result && result.mode === "new" && result.title) || text,
+        subtasks: steps.map(function (s) {
             return { id: uid(), text: s, done: false };
         })
     };
 
-    const groups = getTBGroups();
     groups.unshift(group);
     setTBGroups(groups);
 
     input.value = "";
     renderTBList();
+    showTBNote("Here are your steps. To change them, just type what you want, like \"remove step 4\" or \"add a step for flashcards\".");
+    flashTBGroup(group.id);
+}
+
+function showTBNote(text, isError) {
+    const note = document.getElementById("tb-note");
+    if (!note) return;
+    note.textContent = text;
+    note.hidden = !text;
+    note.classList.toggle("is-error", Boolean(isError));
+}
+
+function flashTBGroup(id) {
+    const card = document.querySelector('[data-tb-group="' + id + '"]');
+    if (!card) return;
+    card.classList.remove("tb-flash");
+    void card.offsetWidth;
+    card.classList.add("tb-flash");
 }
 
 function deleteTBGroup(groupId) {
@@ -679,6 +740,11 @@ function renderTBList() {
 
     const groups = getTBGroups();
 
+    const tbInput = document.getElementById("tb-input");
+    if (tbInput) tbInput.placeholder = groups.length
+        ? "Describe a new task, or type a change: \"remove step 4\", \"add a step for flashcards\", \"the topics are …\""
+        : "e.g. Write my history essay on the Cold War";
+
     if (groups.length === 0) {
         el.innerHTML = "";
         return;
@@ -713,7 +779,7 @@ function renderTBList() {
         }).join("");
 
         return `
-            <div class="card">
+            <div class="card" data-tb-group="${g.id}">
                 <div class="tb-group-header">
                     <h3>${escapeHTML(g.title)}</h3>
                     <button class="icon-btn-sm danger" onclick="deleteTBGroup('${g.id}')" title="Delete"><i class="ti ti-trash"></i></button>
@@ -1117,3 +1183,10 @@ async function studyAddToPlan() {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Review &amp; add to my plan'; }
     }
 }
+// Enter sends (Shift+Enter for a new line)
+document.addEventListener("keydown", function (e) {
+    if (e.target && e.target.id === "tb-input" && e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        generateBreakdown();
+    }
+});

@@ -514,6 +514,51 @@ function anchorToMessage(tasks, message, today) {
     });
 }
 
+/* ---------------------------------------------------------
+   Break down a task, and change a breakdown in words (18 Oct 2026)
+   "I have a chem exam with 5 topics on 23 Oct" → steps
+   then "the topics are moles, bonding, acids, organic, rates", "remove step 4",
+   "add a step for flashcards", "make it 3 steps" → the same list, changed.
+   --------------------------------------------------------- */
+const BD_EDIT = /^\s*(please\s+)?(add|also add|include|remove|delete|drop|take out|get rid of|rename|change|replace|swap|move|put|make (it|them|this)|split|merge|combine|reorder|instead|only|just|fewer|more|less|shorter|longer|don'?t|do not|skip|the topics are|topics are|topics:|use|mark|step\s*\d+)\b/i;
+function bdClean(t) { return String(t || "").replace(/[\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 90); }
+function bdLocalEdit(message, steps) {
+    const m = String(message || "").trim();
+    let out = steps.map(s => ({ ...s }));
+    const idxOf = n => Math.max(0, Math.min(out.length - 1, Number(n) - 1));
+    const byText = q => { q = q.toLowerCase().replace(/^(the\s+)?(step\s+)?/, "").replace(/\s+step$/, "").trim(); return out.findIndex(s => s.text.toLowerCase().includes(q)); };
+    let r;
+    if ((r = /^(?:please\s+)?(?:rename|change)\s+(?:step\s+)?(\d+)\s+to\s+(.+)$/i.exec(m))) { out[idxOf(r[1])].text = bdClean(r[2]); return { steps: out, reply: `Renamed step ${r[1]}.` }; }
+    if ((r = /^(?:please\s+)?(?:remove|delete|drop|take out|get rid of|skip)\s+(?:steps?\s+)?(\d+)(?:\s*(?:and|,|&)\s*(\d+))?\b/i.exec(m))) {
+        const kill = [r[1], r[2]].filter(Boolean).map(idxOf);
+        out = out.filter((s, i) => !kill.includes(i)); return { steps: out, reply: `Removed ${kill.length === 1 ? "that step" : "those steps"}.` };
+    }
+    if ((r = /^(?:please\s+)?(?:remove|delete|drop|take out|get rid of|skip)\s+(?:the\s+)?(.+)$/i.exec(m))) {
+        const i = byText(r[1]); if (i >= 0) { const t = out[i].text; out.splice(i, 1); return { steps: out, reply: `Removed "${t}".` }; }
+    }
+    if ((r = /^(?:please\s+)?(?:make (?:it|them|this)|only|just|keep)\s+(\d+)\s+steps?\b/i.exec(m))) {
+        const n = Math.max(1, Math.min(12, Number(r[1])));
+        out = out.slice(0, n); return { steps: out, reply: `Kept ${n} step${n === 1 ? "" : "s"}.` };
+    }
+    if ((r = /^(?:please\s+)?(?:also\s+)?(?:add|include)\s+(?:a\s+|another\s+)?(?:step\s+)?(?:(?:for|to|about|on)\s+)?(.+?)(?:\s+(?:at the (start|beginning|end)|first|last))?$/i.exec(m))) {
+        const text = bdClean(r[1].replace(/^(a|an)\s+/i, "")); const first = /\b(start|beginning|first)\b/i.test(m.slice(r[1].length));
+        const step = { text: text.charAt(0).toUpperCase() + text.slice(1) };
+        if (first) out.unshift(step); else out.push(step);
+        return { steps: out, reply: `Added "${step.text}".` };
+    }
+    if ((r = /^(?:the\s+)?topics?\s*(?:are|:)\s*(.+)$/i.exec(m))) {
+        const topics = r[1].split(/\s*(?:,|;|\band\b|&)\s*/i).map(bdClean).filter(Boolean).slice(0, 10);
+        if (topics.length) {
+            const keep = out.filter(s => !/\b(review|revise|study)\b.*\b(key concepts|topics?)\b/i.test(s.text));
+            const at = Math.min(1, keep.length);
+            const topicSteps = topics.map(t => ({ text: `Revise ${t}` }));
+            out = keep.slice(0, at).concat(topicSteps, keep.slice(at));
+            return { steps: out, reply: `Added a step for each topic: ${topics.join(", ")}.` };
+        }
+    }
+    return null;
+}
+
 function preferredStartFromPrefs(prefs) {
     const times = (prefs && prefs.productiveTimes) || [];
     const map = { "Morning": "09:00", "Early morning": "07:30", "Late morning": "10:00", "Afternoon": "14:00", "Evening": "19:00", "Night owl": "21:00" };
@@ -1678,6 +1723,44 @@ function install(app, requireAuth) {
         res.json({ tasks: schedule(items, { today, now, existing }) });
     });
 
+    // Break down a task, or change the current breakdown in words
+    app.post("/api/breakdown", requireAuth, limiter, express.json({ limit: "40kb" }), async (req, res) => {
+        const message = String((req.body || {}).text || "").trim().slice(0, 1500);
+        if (!message) return res.status(400).json({ error: "Tell me the task, or what to change." });
+        const today = isDate(req.body.today) ? req.body.today : new Date().toLocaleDateString("en-CA");
+        const cur = req.body.current && Array.isArray(req.body.current.steps) ? {
+            title: bdClean(req.body.current.title).slice(0, 140),
+            steps: req.body.current.steps.slice(0, 20).map(st => ({ id: String(st.id || "").slice(0, 40), text: bdClean(st.text), done: Boolean(st.done) })).filter(st => st.text)
+        } : null;
+        const finish = (mode, title, steps, reply, source) => {
+            const clean = (steps || []).map(st => ({ id: st && st.id ? String(st.id).slice(0, 40) : "", text: bdClean(st && (st.text || st.title || st)) }))
+                .filter(st => st.text).slice(0, 12);
+            if (!clean.length) return res.status(422).json({ error: "I couldn't make steps from that. Try describing the task a bit more." });
+            res.json({ mode, title: bdClean(title).slice(0, 140) || (cur && cur.title) || message.slice(0, 140), steps: clean, reply: String(reply || "").slice(0, 300), source });
+        };
+        if (process.env.OPENAI_API_KEY) {
+            try {
+                const system = `You help people break a task into small, concrete steps, and you change an existing list of steps when asked.
+Today is ${today} (${WEEKDAYS[dayOfWeek(today)]}).
+CURRENT BREAKDOWN: ${cur && cur.steps.length ? JSON.stringify(cur) : "none"}
+Decide:
+- "edit": the message changes the CURRENT breakdown (add/remove/rename/reorder steps, more or less detail, the real topics or details, "make it 3 steps", corrections). Return the FULL revised list. Keep each unchanged step's "id" and exact text; new steps have no id. Do exactly what was asked and nothing else.
+- "new": the message is a different task (or there is no current breakdown). Return a fresh list.
+Steps: 3-8 short, specific actions (max 70 characters), in a sensible order, using the user's own details (e.g. "5 topics" with names → one step per topic; dates; numbers). No vague filler.
+Reply with JSON only: {"mode":"edit|new","title":"short task title in the user's words","steps":[{"id":"existing id or empty","text":"..."}],"reply":"one short sentence saying what you did"}`;
+                const ai = await callOpenAI([{ role: "system", content: system }, { role: "user", content: message }]);
+                const mode = ai.mode === "edit" && cur ? "edit" : "new";
+                if (Array.isArray(ai.steps) && ai.steps.length) return finish(mode, ai.title || (mode === "edit" && cur ? cur.title : message), ai.steps, ai.reply, "openai");
+            } catch (err) { console.error("Breakdown AI failed, using built-in:", err.message); }
+        }
+        if (cur && cur.steps.length && BD_EDIT.test(message)) {
+            const ed = bdLocalEdit(message, cur.steps);
+            if (ed) return finish("edit", cur.title, ed.steps, ed.reply, "planora");
+            return res.status(422).json({ error: "I couldn't tell what to change. Try \"remove step 4\", \"add a step for flashcards\" or \"rename step 2 to …\"." });
+        }
+        return res.json({ mode: "local-new" });     // the app makes the steps itself
+    });
+
     // Natural-language quick add: "Finish my physics assignment tomorrow for 2 hours"
     app.post("/api/parse-task", requireAuth, express.json({ limit: "20kb" }), (req, res) => {
         const text = String(req.body.text || "").trim().slice(0, 300);
@@ -1854,4 +1937,4 @@ function install(app, requireAuth) {
     });
 }
 
-module.exports = { install, sanitiseGoals, sanitiseContext, friendly, extractEvents, eventFromText, findRange, localPlan, schedule, classify, localAnswer, localEdit, planDay, parseTask, whatNowAnswer, planWeek, limitedTime, behindOn, moveUnfinished, breakDown, goalStatus, sanitiseLabels, pickLabel, sanitiseRoutine, expandRoutine, anchorToMessage };
+module.exports = { install, sanitiseGoals, sanitiseContext, friendly, extractEvents, eventFromText, findRange, localPlan, schedule, classify, localAnswer, localEdit, planDay, parseTask, whatNowAnswer, planWeek, limitedTime, behindOn, moveUnfinished, breakDown, goalStatus, sanitiseLabels, pickLabel, sanitiseRoutine, expandRoutine, anchorToMessage, bdLocalEdit };

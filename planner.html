@@ -698,9 +698,10 @@
               <label>Describe the task</label>
               <textarea id="tb-input" rows="3" placeholder="e.g. Write my history essay on the Cold War"></textarea>
             </div>
-            <button class="btn-primary" onclick="generateBreakdown()">
+            <button class="btn-primary" id="tb-go" onclick="generateBreakdown()">
               <i class="ti ti-wand"></i> Generate subtasks
             </button>
+            <p class="tb-note" id="tb-note" role="status" hidden></p>
           </div>
 
           <div id="tb-list"></div>
