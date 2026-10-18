@@ -317,6 +317,10 @@
                     <span class="ag-title">${x.kind !== "task" ? `<span class="ag-tag">${x.kind === "gevent" ? "Google" : "Event"}</span>` : ""}${core.esc(x.title)}</span>
                     <span class="ag-meta">${core.esc(meta.join(" · "))}</span>
                 </button>
+                ${x.kind === "gevent" ? "" : `<span class="ag-acts">
+                    <button type="button" class="ag-act" data-ag-edit="${x.kind}:${core.esc(x.id)}" aria-label="Edit ${core.esc(x.title)}"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+                    <button type="button" class="ag-act is-del" data-ag-del="${x.kind}:${core.esc(x.id)}" aria-label="Delete ${core.esc(x.title)}"><i class="ti ti-trash" aria-hidden="true"></i></button>
+                </span>`}
             </li>`;
         };
         return `
@@ -798,6 +802,18 @@
             if (t) { core.updateTask(t.id, { completed: !t.completed }); core.toast(t.completed ? "Marked as not done." : `Done: ${t.title} ✅`, "success"); }
             return;
         }
+        const ed = e.target.closest("[data-ag-edit]");
+        if (ed) {
+            const [k, id] = [ed.dataset.agEdit.split(":")[0], ed.dataset.agEdit.slice(ed.dataset.agEdit.indexOf(":") + 1)];
+            if (k === "task") core.openQuickAddSheet({ editId: id }); else core.openEventForm({ editId: id });
+            return;
+        }
+        const del = e.target.closest("[data-ag-del]");
+        if (del) {
+            const [k, id] = [del.dataset.agDel.split(":")[0], del.dataset.agDel.slice(del.dataset.agDel.indexOf(":") + 1)];
+            if (k === "task") core.askDeleteTask(id); else core.askDeleteEvent(id);
+            return;
+        }
         const ot = e.target.closest("[data-open-task]");
         if (ot) { core.openTaskSheet(ot.dataset.openTask); return; }
         const oe = e.target.closest("[data-open-event]");
@@ -823,7 +839,7 @@
         if (e.pointerType === "touch" || e.button !== 0) return;
         const host = e.target.closest("#cal-view");
         if (!host) return;
-        if (e.target.closest("[data-check]")) return;
+        if (e.target.closest("[data-check], [data-ag-edit], [data-ag-del]")) return;
         // Google Calendar events can't be moved here: say so if someone tries
         const rs = e.target.closest("[data-resize]");
         const el = e.target.closest("[data-drag]");

@@ -503,7 +503,16 @@ function createTaskElement(task) {
                 onclick="openEditModal(this)"
                 aria-label="Edit task">
 
-                <i class="ti ti-edit"></i>
+                <i class="ti ti-pencil"></i>
+
+            </button>
+
+            <button
+                type="button"
+                class="task-del-btn"
+                aria-label="Delete task">
+
+                <i class="ti ti-trash"></i>
 
             </button>
 
@@ -522,6 +531,13 @@ function createTaskElement(task) {
     item.querySelector(".t-title")
         .textContent =
         task.title || "";
+
+    // Delete (asks first)
+    const delBtn = item.querySelector(".task-del-btn");
+    if (delBtn) delBtn.addEventListener("click", e => {
+        e.stopPropagation();
+        if (window.PlanoraCore && PlanoraCore.askDeleteTask) PlanoraCore.askDeleteTask(task.id);
+    });
 
     // Start: opens the Focus timer for this task
     const startBtn = item.querySelector(".task-start-btn");

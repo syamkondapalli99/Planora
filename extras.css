@@ -2436,3 +2436,66 @@ html.web-mode .today-bar:not([hidden]) { margin: 0 0 18px !important; padding: 1
 html.web-mode .tb-compose .fd-type { font-size: 15px; }
 html.web-mode .today-actions { width: auto; }
 html.web-mode .today-actions > button, html.web-mode .tb-recs > button { flex: 0 0 auto !important; padding: 0 16px !important; }
+/* =========================================================
+   Today's schedule tasks look like the calendar's day list (18 Oct 2026)
+   [○ check]  Title / time / label  [✎] [🗑]
+   ========================================================= */
+#task-list .task-item, #completed-list .task-item {
+  --cc: var(--task-c, var(--c, #6C5CE7));
+  display: flex; align-items: center !important; justify-content: flex-start !important; gap: 4px !important;
+  min-height: 60px; padding: 4px 6px 4px 4px !important; margin-bottom: 8px !important;
+  background: #fff; border: 1px solid #E3DEFA !important; border-left: 4px solid var(--cc) !important; border-radius: 14px !important;
+  box-shadow: none !important;
+}
+#task-list .task-item.event-item { background: linear-gradient(90deg, var(--s, #EEEDFE) 0%, #fff 75%) !important; }
+#task-list .task-item > .task-actions, #completed-list .task-item > .task-actions { display: contents !important; }
+#task-list .task-item > div:first-child, #completed-list .task-item > div:first-child { order: 1; flex: 1; min-width: 0; padding: 6px 4px; }
+#task-list .task-item .t-title, #completed-list .task-item .t-title { font-size: 15.5px !important; font-weight: 600 !important; color: #1E1A4D !important; line-height: 1.3; margin: 0 0 2px !important; }
+#task-list .task-item .t-time, #completed-list .task-item .t-time { font-size: 13px !important; color: #66617F !important; margin: 0 !important; }
+#task-list .task-item .t-cat, #task-list .task-item .t-goal, #completed-list .task-item .t-cat, #completed-list .task-item .t-goal { font-size: 12.5px !important; margin: 2px 0 0 !important; }
+#completed-list .task-item .t-title, #task-list .task-item.completed .t-title { text-decoration: line-through; color: #9C98B3 !important; font-weight: 500 !important; }
+
+/* round check on the left, in the task's colour */
+#task-list .task-item .task-check-btn, #completed-list .task-item .task-check-btn {
+  order: 0; flex: 0 0 44px; width: 44px !important; height: 44px !important; padding: 0 !important; margin: 0 !important;
+  border: 0 !important; background: none !important; box-shadow: none !important; position: relative; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+#task-list .task-item .task-check-btn::before, #completed-list .task-item .task-check-btn::before {
+  content: ""; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--cc); box-sizing: border-box; background: #fff;
+}
+#task-list .task-item .task-check-btn i, #completed-list .task-item .task-check-btn i {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; color: transparent !important;
+}
+#task-list .task-item .task-check-btn:hover::before { background: var(--s, #EFEDFF); }
+#completed-list .task-item .task-check-btn::before, #task-list .task-item.completed .task-check-btn::before { background: var(--cc); }
+#completed-list .task-item .task-check-btn i, #task-list .task-item.completed .task-check-btn i { color: #fff !important; }
+
+/* events: calendar icon on the left */
+#task-list .task-item .ev-lead { order: 0; flex: 0 0 44px; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; color: var(--cc); }
+
+/* edit + delete on the right, quiet */
+#task-list .task-item .task-edit-btn, #task-list .task-item .task-del-btn,
+#completed-list .task-item .task-edit-btn, #completed-list .task-item .task-del-btn {
+  order: 2; flex: 0 0 36px; width: 36px !important; height: 36px !important; padding: 0 !important; margin: 0 !important;
+  border: 0 !important; border-radius: 10px !important; background: none !important; box-shadow: none !important;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+#task-list .task-item .task-del-btn, #completed-list .task-item .task-del-btn { order: 3; }
+#task-list .task-item .task-edit-btn i, #task-list .task-item .task-del-btn i,
+#completed-list .task-item .task-edit-btn i, #completed-list .task-item .task-del-btn i { font-size: 18px !important; color: #8A85A3 !important; }
+#task-list .task-item .task-edit-btn:hover, #completed-list .task-item .task-edit-btn:hover { background: #EFEDFF !important; }
+#task-list .task-item .task-del-btn:hover, #completed-list .task-item .task-del-btn:hover { background: #FDECEC !important; }
+#task-list .task-item .task-del-btn:hover i, #completed-list .task-item .task-del-btn:hover i { color: #C53030 !important; }
+/* Start lives in the task's sheet now (tap the task) */
+#task-list .task-item .task-start-btn, #completed-list .task-item .task-start-btn { display: none !important; }
+
+/* calendar day list: the same edit + delete */
+.ag-acts { display: inline-flex; gap: 0; flex: 0 0 auto; }
+.ag-act { width: 36px; height: 36px; border: 0; border-radius: 10px; background: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.ag-act i { font-size: 18px; color: #8A85A3; }
+.ag-act:hover { background: #EFEDFF; }
+.ag-act.is-del:hover { background: #FDECEC; }
+.ag-act.is-del:hover i { color: #C53030; }
+
+#task-list .task-item[style*="display: none"], #completed-list .task-item[style*="display: none"] { display: none !important; }

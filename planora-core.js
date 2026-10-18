@@ -1787,18 +1787,7 @@
                     const b = e.target.closest("[data-a]");
                     if (!b) return;
                     if (b.dataset.a === "edit") openEventForm({ editId: ev.id });
-                    if (b.dataset.a === "delete") {
-                        let scope = "one";
-                        if (s) { scope = await askScope(ev, "Delete"); if (!scope) return; }
-                        else {
-                            const ok = await confirmDialog({ title: "Delete this event?", message: `"${ev.title}" will be removed from your calendar.`, confirmText: "Delete", danger: true });
-                            if (!ok) return;
-                        }
-                        const before = getEvents(), beforeSeries = getSeries();
-                        deleteEventScoped(ev, scope);
-                        closeSheet();
-                        toastUndo("Event deleted.", () => { saveEvents(before); saveSeries(beforeSeries); notifyChange(); });
-                    }
+                    if (b.dataset.a === "delete") askDeleteEvent(ev.id);
                 };
             }
         });
@@ -2125,26 +2114,51 @@
                     if (a === "done") { closeSheet(); updateTask(task.id, { completed: !task.completed }); toast(task.completed ? "Marked as not done." : "Done. ✅", "success"); }
                     if (a === "move") openRescheduleSheet(task.id);
                     if (a === "edit") openQuickAddSheet({ editId: task.id });
-                    if (a === "delete") {
-                        if (s) {
-                            const choice = await chooseDialog({
-                                title: "Delete repeating task",
-                                message: `"${task.title}" repeats (${repeatLabel(s.repeat, s.startDate).toLowerCase()}).`,
-                                options: [["one", "Only this one"], ["future", "This and all future ones"]],
-                                danger: true
-                            });
-                            if (!choice) return;
-                            deleteOccurrence(task, choice === "future");
-                        } else {
-                            const ok = await confirmDialog({ title: "Delete this task?", message: `"${task.title}" will be deleted.`, confirmText: "Delete", danger: true });
-                            if (!ok) return;
-                            removeTask(task.id);
-                        }
-                        toast("Task deleted.");
-                    }
+                    if (a === "delete") askDeleteTask(task.id);
                 };
             }
         });
+    }
+
+    // Delete a task (asks first; repeating tasks: this one or all future ones)
+    async function askDeleteTask(id) {
+        const task = getTasks().find(t => String(t.id) === String(id));
+        if (!task) return false;
+        const s = seriesFor(task);
+        if (s) {
+            const choice = await chooseDialog({
+                title: "Delete repeating task",
+                message: `"${task.title}" repeats (${repeatLabel(s.repeat, s.startDate).toLowerCase()}).`,
+                options: [["one", "Only this one"], ["future", "This and all future ones"]],
+                danger: true
+            });
+            if (!choice) return false;
+            deleteOccurrence(task, choice === "future");
+        } else {
+            const ok = await confirmDialog({ title: "Delete this task?", message: `"${task.title}" will be deleted.`, confirmText: "Delete", danger: true });
+            if (!ok) return false;
+            removeTask(task.id);
+        }
+        closeSheet();
+        toast("Task deleted.");
+        return true;
+    }
+    // Delete an event (asks first; repeating events: this one or the series), with Undo
+    async function askDeleteEvent(id) {
+        const ev = getEvent(id);
+        if (!ev) return false;
+        const s = eventSeriesFor(ev);
+        let scope = "one";
+        if (s) { scope = await askScope(ev, "Delete"); if (!scope) return false; }
+        else {
+            const ok = await confirmDialog({ title: "Delete this event?", message: `"${ev.title}" will be removed from your calendar.`, confirmText: "Delete", danger: true });
+            if (!ok) return false;
+        }
+        const before = getEvents(), beforeSeries = getSeries();
+        deleteEventScoped(ev, scope);
+        closeSheet();
+        toastUndo("Event deleted.", () => { saveEvents(before); saveSeries(beforeSeries); notifyChange(); });
+        return true;
     }
 
     function chooseDialog({ title, message, options, danger }) {
@@ -2804,7 +2818,7 @@
         // colours
         openLabelsManager, voiceSupported, attachMic, taskColor, eventColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
         // utils
-        labelContext, routine, routineBusy,
+        labelContext, routine, routineBusy, askDeleteTask, askDeleteEvent,
         today, addDays, nowMin, nowClock, toMin, toClock, time12, durLabel, dayLabel, shortDate, esc, uid, taskDuration, loadJSON, saveJSON,
         migrate
     };

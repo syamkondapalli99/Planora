@@ -492,13 +492,16 @@
                     <p class="t-title"><span class="kind-tag"><i class="ti ti-calendar-event" aria-hidden="true"></i>Event</span>${core.esc(ev.title)}${ev.seriesId ? ' <i class="ti ti-repeat t-repeat" aria-label="Repeats"></i>' : ""}</p>
                     <p class="t-time">${core.esc(core.time12(ev.start))} - ${core.esc(core.time12(ev.end))}${ev.location ? " · " + core.esc(ev.location) : ""}</p>
                 </div>
+                <span class="ev-lead" aria-hidden="true"><i class="ti ti-calendar-event"></i></span>
                 <div class="task-actions">
-                    <button type="button" class="task-edit-btn event-edit-btn" aria-label="Edit event"><i class="ti ti-edit"></i></button>
+                    <button type="button" class="task-edit-btn event-edit-btn" aria-label="Edit event"><i class="ti ti-pencil"></i></button>
+                    <button type="button" class="task-del-btn event-del-btn" aria-label="Delete event"><i class="ti ti-trash"></i></button>
                 </div>`;
             const open = () => core.openEventSheet(ev.id);
             item.querySelector(".task-open").addEventListener("click", open);
             item.querySelector(".task-open").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
             item.querySelector(".event-edit-btn").addEventListener("click", () => core.openEventForm({ editId: ev.id }));
+            item.querySelector(".event-del-btn").addEventListener("click", e => { e.stopPropagation(); core.askDeleteEvent(ev.id); });
             list.appendChild(item);
         });
         // one timeline: events and tasks in time order (no time last)
