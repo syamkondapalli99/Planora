@@ -2516,3 +2516,39 @@ html.web-mode .today-actions > button, html.web-mode .tb-recs > button { flex: 0
 .tb-note.is-error { color: #9B2C2C; background: #FDECEC; border-color: #F8D0D0; }
 @keyframes tbFlash { 0% { box-shadow: 0 0 0 0 rgba(108, 92, 231, .45); } 100% { box-shadow: 0 0 0 14px rgba(108, 92, 231, 0); } }
 .tb-flash { animation: tbFlash .9s ease-out 1; }
+/* =========================================================
+   Planora page colours (18 Oct 2026) — match Home
+   Ask Planora = lavender (like "Let's plan your day")
+   Your goals  = blue (like Today's schedule)
+   Quick tools = one colour each
+   ========================================================= */
+.sp-planner-card {
+  background: linear-gradient(140deg, #F4F1FF 0%, #EAE5FF 100%) !important;
+  border: 1px solid #DDD6FF !important; box-shadow: 0 2px 8px rgba(81, 69, 205, .06) !important;
+}
+.sp-planner-card .sp-head h2, .sp-planner-card .sp-title { color: #3A2FA0 !important; }
+.sp-planner-card .sp-compose, .sp-planner-card .sp-input-wrap { background: #fff; border-color: #E6E1FF !important; }
+
+#goals.pl-section {
+  background: linear-gradient(140deg, #F1F7FE 0%, #E7F1FD 100%);
+  border: 1px solid #D5E6FA; border-top: 3px solid #4A90E2; border-radius: 20px;
+  padding: 16px 16px 12px; margin-bottom: 18px;
+}
+#goals .pl-section-head .card-title::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #4A90E2; margin-right: 8px; vertical-align: 2px; }
+#goals .pl-head-btn { color: #2F6FBF !important; }
+#goals .gt-empty, #goals .pl-empty { background: rgba(255,255,255,.75); border-color: #C9DDF6 !important; }
+
+.quick-tools .quick-tool { border: 0 !important; }
+.quick-tools .quick-tool[data-tab="daily"]     { background: #EAF2FC !important; }
+.quick-tools .quick-tool[data-tab="daily"] i   { color: #2F7FD6 !important; }
+.quick-tools .quick-tool[data-tab="breakdown"] { background: #EFEDFF !important; }
+.quick-tools .quick-tool[data-tab="breakdown"] i { color: #5145CD !important; }
+.quick-tools .quick-tool[data-tab="study"]     { background: #E8F6F0 !important; }
+.quick-tools .quick-tool[data-tab="study"] i   { color: #1F8A66 !important; }
+.quick-tools .quick-tool:not([data-tab])       { background: #FFF2E8 !important; }
+.quick-tools .quick-tool:not([data-tab]) i     { color: #E06A1F !important; }
+.quick-tools .quick-tool:hover { filter: brightness(.97); }
+.quick-tools .quick-tool.active, .quick-tools .quick-tool[aria-selected="true"] { box-shadow: inset 0 0 0 2px currentColor; }
+.quick-tools .quick-tool[data-tab="daily"].active { box-shadow: inset 0 0 0 2px #2F7FD6; }
+.quick-tools .quick-tool[data-tab="breakdown"].active { box-shadow: inset 0 0 0 2px #5145CD; }
+.quick-tools .quick-tool[data-tab="study"].active { box-shadow: inset 0 0 0 2px #1F8A66; }
