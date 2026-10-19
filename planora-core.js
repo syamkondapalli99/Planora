@@ -1427,8 +1427,8 @@
     function quickAdd() {
         // On the Calendar, "+" lets you choose a Task or an Event
         if (window.PlanoraCalendar) { PlanoraCalendar.create(); return; }
-        // Everywhere else: one quick-add (natural language + repeats + priority)
-        openQuickAddSheet(window.PlanoraCalendarDate ? { date: window.PlanoraCalendarDate } : {});
+        // Everywhere else: the same Create window — Plan with AI, or add a Task / Event yourself
+        openCreateSheet({ date: window.PlanoraCalendarDate || today() });
     }
 
 

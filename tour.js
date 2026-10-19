@@ -42,7 +42,7 @@
         { target: inAsk('[data-fd="mic"]'), title: "Or just speak", text: "Tap the mic and say what you need to do. Planora plans it for you." },
         { target: inAsk('[data-fd="attach"]'), title: "Plan from a document", text: "Attach a syllabus, timetable, PDF or photo. Planora reads the dates and plans study or prep sessions before each one." },
         { target: ["#schedule-card"], title: "Today's schedule", text: "Everything planned for the day. Tick tasks off, or use the pencil and bin to edit or delete." },
-        { target: [".bottom-nav .nav-add", ".rail-add", ".fab"], title: "Add a task yourself", text: "Prefer to do it by hand? Tap + to add a task or event with a date, time and colour." },
+        { target: [".bottom-nav .nav-add", ".rail-add", ".fab"], title: "Add something new", text: "Tap + to plan with AI, or add a task or event yourself with a date, time and colour." },
         { target: ['.bottom-nav [data-nav="planora"]', '.side-rail [data-nav="planora"]'], title: "Goals and breakdowns", text: "Set goals, build a revision plan, or break a new skill into small steps." },
         { target: ['.bottom-nav [data-nav="calendar"]', '.side-rail [data-nav="calendar"]'], title: "Your calendar", text: "See your week or month, and connect Google Calendar." },
         { target: ['.bottom-nav [data-nav="profile"]', '.side-rail .rail-user', '.side-rail [data-nav="profile"]'], title: "Make it yours", text: "In Profile, add your work or college hours so Planora never plans on top of them, and turn on reminders." },
