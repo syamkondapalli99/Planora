@@ -8,7 +8,7 @@
    (with "Reply" going straight back to the person who wrote).
 
    Settings (Render → Environment), never in the web page:
-     FEEDBACK_WEBHOOK_URL – the Apps Script web app URL (…/exec)
+     FEEDBACK_WEBHOOK_URL – the Apps Script web app URL (…/exec; Workspace accounts get …/a/macros/<domain>/s/…/exec)
      FEEDBACK_SECRET      – any long random text; the same text goes in the Apps Script
    The Apps Script to paste is in setup/feedback-apps-script.gs
    ========================================================= */
@@ -40,7 +40,7 @@ function install(app, requireAuth) {
 
     app.post("/api/feedback", express.json({ limit: "16kb" }), optionalAuth, perVisitor, perDay, async (req, res) => {
         const url = env("FEEDBACK_WEBHOOK_URL"), secret = env("FEEDBACK_SECRET");
-        if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url) || secret.length < 16) {
+        if (!/^https:\/\/script\.google\.com\/(a\/macros\/[a-z0-9.-]+\/|macros\/)s\/[\w-]+\/exec$/i.test(url) || secret.length < 16) {
             return res.status(503).json({ error: "Feedback isn't switched on yet. Please email info@jkssofttech.com." });
         }
         const b = req.body || {};
