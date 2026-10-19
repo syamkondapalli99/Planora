@@ -546,6 +546,7 @@
 
     function openHelp() {
         openSheet("Help and support", "ti-help-circle", `
+            <a class="btn-primary" style="text-decoration:none;margin-bottom:6px;" href="home.html?tour=1"><i class="ti ti-route"></i>Take the tour</a>
             <p class="auth-sheet-info"><strong>Plan with AI</strong><br>On Home, tell "Ask Planora" what's on your plate (e.g. "3 client calls, gym 3x, finish the report by Friday"). Review the plan and save it to your calendar.</p>
             <p class="auth-sheet-info"><strong>Study plans</strong><br>AI Planner → Study Planner builds a revision timetable up to your exam date.</p>
             <p class="auth-sheet-info"><strong>Streaks</strong><br>Complete at least one task a day to grow your streak.</p>
