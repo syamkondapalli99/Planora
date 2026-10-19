@@ -2604,3 +2604,17 @@ html.web-mode .today-actions > button, html.web-mode .tb-recs > button { flex: 0
 .tour-root.is-center .tour-card { padding: 22px 22px 18px; text-align: left; }
 .tour-root.is-center .tour-title { font-size: 21px; }
 @media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } .tour-card.tour-in { animation: none; } }
+
+/* ---------- Send feedback (Help and support) ---------- */
+.auth-sheet textarea.fb-message {
+  width: 100%; box-sizing: border-box; padding: 13px 14px; border-radius: 14px; border: 0.5px solid var(--purple-100);
+  background: #fff; font: inherit; font-size: 14px; line-height: 1.5; color: var(--gray-900); resize: vertical; min-height: 120px; outline: none;
+}
+.auth-sheet textarea.fb-message:focus { border-color: var(--purple-400); box-shadow: 0 0 0 3px var(--purple-50); }
+.auth-sheet textarea.fb-message::placeholder { color: var(--gray-400); }
+.fb-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.auth-sheet .auth-error a { color: inherit; font-weight: 600; }
+.fb-done { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 8px 4px 2px; }
+.fb-done-icon { width: 56px; height: 56px; border-radius: 50%; background: #E3F5EC; color: #1D9E75; display: flex; align-items: center; justify-content: center; font-size: 30px; }
+.fb-done h3 { margin: 4px 0 0; font-size: 18px; }
+.fb-done .btn-primary { margin-top: 6px; }

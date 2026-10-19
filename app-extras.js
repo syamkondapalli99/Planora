@@ -551,8 +551,65 @@
             <p class="auth-sheet-info"><strong>Study plans</strong><br>AI Planner → Study Planner builds a revision timetable up to your exam date.</p>
             <p class="auth-sheet-info"><strong>Streaks</strong><br>Complete at least one task a day to grow your streak.</p>
             <p class="auth-sheet-info"><strong>Your data</strong><br>Everything saves to your account automatically. Sign in on another browser to pick up where you left off.</p>
-            <a class="btn-secondary" style="text-decoration:none;" href="mailto:?subject=Planora%20feedback"><i class="ti ti-mail"></i>Send feedback</a>
-        `);
+            <button type="button" class="btn-secondary" id="help-feedback"><i class="ti ti-mail"></i>Send feedback</button>
+        `, form => {
+            form.querySelector("#help-feedback").addEventListener("click", openFeedback);
+        });
+    }
+
+    // Send feedback: name, email and enquiry → Planora's server → info@jkssofttech.com
+    function openFeedback() {
+        const user = PlanoraAuth.user || {};
+        openSheet("Send feedback", "ti-mail", `
+            <p class="auth-sheet-info">Questions, ideas or something not working? Tell us and we'll reply by email.</p>
+            <label for="fb-name">Name</label>
+            <input type="text" id="fb-name" autocomplete="name" maxlength="80" required>
+            <label for="fb-email">Email</label>
+            <input type="email" id="fb-email" autocomplete="email" maxlength="254" required>
+            <label for="fb-message">Your enquiry</label>
+            <textarea id="fb-message" class="fb-message" rows="5" maxlength="4000" placeholder="How can we help?" required></textarea>
+            <div class="fb-hp" aria-hidden="true"><label for="fb-website">Leave this empty</label><input type="text" id="fb-website" tabindex="-1" autocomplete="off"></div>
+            <p class="auth-error" id="fb-error" role="alert" hidden></p>
+            <button type="submit" class="btn-primary" id="fb-send">Send</button>
+        `, form => {
+            const $f = id => form.querySelector("#" + id);
+            $f("fb-name").value = user.guest ? "" : (user.name || "");
+            $f("fb-email").value = user.email || "";
+            setTimeout(() => ($f("fb-name").value ? $f("fb-message") : $f("fb-name")).focus(), 30);
+            form.addEventListener("submit", async () => {
+                const err = $f("fb-error"), btn = $f("fb-send");
+                const name = $f("fb-name").value.trim(), email = $f("fb-email").value.trim(), message = $f("fb-message").value.trim();
+                const fail = (text, el) => { err.textContent = text; err.hidden = false; if (el) el.focus(); };
+                err.hidden = true;
+                if (!name) return fail("Please enter your name.", $f("fb-name"));
+                if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return fail("Please enter a valid email address so we can reply.", $f("fb-email"));
+                if (message.length < 5) return fail("Please write a little more about your enquiry.", $f("fb-message"));
+                btn.disabled = true; btn.textContent = "Sending…";
+                try {
+                    const res = await fetch("/api/feedback", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name, email, message, website: $f("fb-website").value, page: location.pathname, app: document.documentElement.classList.contains("app-mode") ? "app" : "web" })
+                    });
+                    let body = {}; try { body = await res.json(); } catch {}
+                    if (!res.ok || !body.ok) throw new Error(body.error || "Your message couldn't be sent right now.");
+                    form.innerHTML = `
+                        <div class="fb-done">
+                            <span class="fb-done-icon"><i class="ti ti-circle-check" aria-hidden="true"></i></span>
+                            <h3>Thanks, ${escapeHtml(name.split(" ")[0])}!</h3>
+                            <p class="auth-sheet-info">We've received your message and will reply to <strong>${escapeHtml(email)}</strong>.</p>
+                            <button type="button" class="btn-primary" id="fb-close">Done</button>
+                        </div>`;
+                    form.querySelector("#fb-close").addEventListener("click", closeSheet);
+                    form.querySelector("#fb-close").focus();
+                } catch (e) {
+                    const offline = e instanceof TypeError || !navigator.onLine;
+                    fail(offline ? "You seem to be offline. Please check your connection and try again." : e.message);
+                    if (!/info@jkssofttech\.com/.test(err.textContent)) err.insertAdjacentHTML("beforeend", ` You can also email <a href="mailto:info@jkssofttech.com?subject=Planora%20feedback">info@jkssofttech.com</a>.`);
+                    btn.disabled = false; btn.textContent = "Send";
+                }
+            });
+        });
     }
 
     function wireSettings() {
