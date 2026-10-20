@@ -528,6 +528,7 @@
     function closeAsk() {
         const pop = $("ask-pop");
         if (!pop || pop.hidden) return;
+        if (window.PlanoraAsk && window.PlanoraAsk.stopVoice) window.PlanoraAsk.stopVoice();   // closing Ask Planora ends a voice chat
         pop.hidden = true;
         document.body.classList.remove("ask-open", "sp-reviewing");
         const btn = $("open-ask");

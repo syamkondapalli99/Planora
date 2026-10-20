@@ -475,7 +475,7 @@
     /* Add a mic button for `input`. Options:
          onFinal(text)  called when you stop speaking (e.g. send to Ask Planora)
          place(btn)     where to put the button (default: right after the input) */
-    function attachMic(input, { onFinal, place, label = "Speak instead of typing" } = {}) {
+    function attachMic(input, { onFinal, onStart, onEmpty, quiet, place, label = "Speak instead of typing" } = {}) {
         if (!input || input.dataset.mic) return null;
         input.dataset.mic = "1";
         const btn = document.createElement("button");
@@ -535,6 +535,7 @@
                     "audio-capture": "No microphone found.",
                     "network": "Voice typing needs an internet connection."
                 }[e.error];
+                if (e.error === "no-speech" && quiet && quiet()) return;          // voice chat: silence just ends the turn
                 if (msg && e.error !== "aborted") toast(msg, e.error === "no-speech" ? undefined : "error");
             };
             rec.onend = () => {
@@ -544,9 +545,10 @@
                 if (said) {
                     setText([base, said].filter(Boolean).join(" "));
                     input.focus();
-                    if (onFinal) onFinal(input.value.trim());
-                }
+                    if (onFinal) onFinal(input.value.trim(), said);
+                } else if (onEmpty) onEmpty({ byUser: stoppedByUser });
             };
+            if (onStart) { try { onStart(); } catch {} }
             try {
                 rec.start();
                 activeVoice = stop;

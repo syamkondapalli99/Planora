@@ -2618,3 +2618,30 @@ html.web-mode .today-actions > button, html.web-mode .tb-recs > button { flex: 0
 .fb-done-icon { width: 56px; height: 56px; border-radius: 50%; background: #E3F5EC; color: #1D9E75; display: flex; align-items: center; justify-content: center; font-size: 30px; }
 .fb-done h3 { margin: 4px 0 0; font-size: 18px; }
 .fb-done .btn-primary { margin-top: 6px; }
+
+/* ---------- Voice chat: spoken replies (smart-planner.js) ---------- */
+.sp-head-tools { display: inline-flex; align-items: center; gap: 6px; }
+.sp-voice-toggle {
+  display: inline-flex; align-items: center; gap: 5px; border: none; background: var(--purple-50); color: var(--purple-600);
+  font: inherit; font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; cursor: pointer;
+}
+.sp-voice-toggle[hidden] { display: none; }
+.sp-voice-toggle[aria-pressed="false"] { background: #F1F0F5; color: var(--gray-600); }
+.sp-voice-toggle i { font-size: 15px; }
+.sp-bubble .sp-stop-voice { display: none; }
+.sp-bubble.is-speaking { box-shadow: 0 0 0 2px rgba(108, 92, 231, .35); }
+.sp-bubble.is-speaking .sp-stop-voice {
+  display: flex; width: max-content; align-items: center; gap: 4px; margin: 8px 0 0; border: none; background: #fff; color: var(--purple-600);
+  font: inherit; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+}
+.sp-bubble.is-speaking::before {
+  content: ""; display: inline-block; width: 14px; height: 10px; margin-right: 6px; vertical-align: -1px;
+  background: linear-gradient(var(--purple-600), var(--purple-600)) 0 50%/2px 40% no-repeat,
+              linear-gradient(var(--purple-600), var(--purple-600)) 4px 50%/2px 100% no-repeat,
+              linear-gradient(var(--purple-600), var(--purple-600)) 8px 50%/2px 60% no-repeat,
+              linear-gradient(var(--purple-600), var(--purple-600)) 12px 50%/2px 80% no-repeat;
+  animation: spEq .9s ease-in-out infinite alternate;
+}
+@keyframes spEq { from { opacity: .45; transform: scaleY(.7); } to { opacity: 1; transform: scaleY(1); } }
+.sp-root.sp-convo .sp-input.is-listening { box-shadow: 0 0 0 3px var(--purple-50); }
+@media (prefers-reduced-motion: reduce) { .sp-bubble.is-speaking::before { animation: none; } }

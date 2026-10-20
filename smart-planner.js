@@ -24,19 +24,76 @@
 
     const INTRO = "Tell me what you need to get done. I'll find the time, work out how long it takes and show you the plan before anything changes.";
 
+    /* ---------- 🔊 Planora's spoken replies (the phone's / browser's own voice; nothing is uploaded) ---------- */
+    const Voice = (() => {
+        const synth = window.speechSynthesis;
+        const ok = Boolean(synth && window.SpeechSynthesisUtterance);
+        const KEY = "planora_voice_replies";
+        let voice = null, primed = false, current = null;
+        const lang = () => (document.documentElement.lang && document.documentElement.lang.length > 2 ? document.documentElement.lang : (navigator.language || "en-US"));
+        function pick() {
+            if (!ok) return null;
+            const all = synth.getVoices() || [];
+            if (!all.length) return null;
+            const want = lang().toLowerCase(), base = want.slice(0, 2);
+            const same = all.filter(v => (v.lang || "").toLowerCase().replace("_", "-") === want);
+            const family = all.filter(v => (v.lang || "").toLowerCase().startsWith(base));
+            const nice = /natural|neural|premium|enhanced|google|samantha|karen|daniel|serena|aria|jenny|sonia|libby|moira/i;
+            return same.find(v => nice.test(v.name)) || same.find(v => v.localService) || same[0]
+                || family.find(v => nice.test(v.name)) || family[0] || null;
+        }
+        if (ok) { voice = pick(); synth.addEventListener && synth.addEventListener("voiceschanged", () => { voice = pick(); }); }
+        const plain = t => String(t || "")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/\*\*(.+?)\*\*/g, "$1")
+            .replace(/[→←↔]/g, " to ")
+            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, "")
+            .replace(/\s+/g, " ").trim();
+        return {
+            supported: ok,
+            enabled() { if (!ok) return false; try { return localStorage.getItem(KEY) !== "off"; } catch { return true; } },
+            setEnabled(on) { try { localStorage.setItem(KEY, on ? "on" : "off"); } catch {} if (!on) this.stop(); },
+            // a silent utterance inside the tap that starts the mic, so phones allow speaking later
+            prime() { if (!ok || primed) return; primed = true; try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; synth.speak(u); } catch {} },
+            speaking() { return ok && Boolean(current); },
+            speak(text, { onend } = {}) {
+                if (!ok) { if (onend) onend(); return; }
+                const say = plain(text);
+                this.stop();
+                if (!say) { if (onend) onend(); return; }
+                const u = new SpeechSynthesisUtterance(say);
+                if (!voice) voice = pick();
+                if (voice) u.voice = voice;
+                u.lang = (voice && voice.lang) || lang();
+                u.rate = 1.03; u.pitch = 1;
+                let done = false;
+                const finish = () => { if (done) return; done = true; if (current === u) current = null; if (onend) onend(); };
+                u.onend = finish; u.onerror = finish;
+                current = u;
+                try { synth.speak(u); } catch { finish(); }
+            },
+            stop() { if (!ok) return; const had = current; current = null; try { synth.cancel(); } catch {} if (had && had.onend) had.onend = null; }
+        };
+    })();
+    window.PlanoraVoice = Voice;
+    window.addEventListener("pagehide", () => Voice.stop());
+
     function esc(t) { return PlanoraCore.esc(t); }
     function rich(t) { return esc(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"); }
 
     function SmartPlanner(root) {
         const placeholder = root.dataset.placeholder || "Ask AI to plan your day";
         const examples = root.dataset.examples ? root.dataset.examples.split("|") : EXAMPLES;
-        const state = { history: [], plan: null, review: null, busy: false, recent: [], lastMessage: "", attachGoal: null, file: null };
+        const state = { history: [], plan: null, review: null, busy: false, recent: [], lastMessage: "", attachGoal: null, file: null, convo: false };
 
         root.classList.add("sp-root");
         root.innerHTML = `
             <div class="sp-head">
                 <div class="sp-title"><i class="ti ti-sparkles" aria-hidden="true"></i><span>${esc(root.dataset.title || "Ask Planora")}</span></div>
-                <button type="button" class="sp-clear" hidden><i class="ti ti-refresh" aria-hidden="true"></i> New</button>
+                <span class="sp-head-tools">
+                    <button type="button" class="sp-voice-toggle" hidden aria-pressed="true" title="Spoken replies when you talk to Planora"><i class="ti ti-volume" aria-hidden="true"></i><span class="sp-vt-label">Voice on</span></button>
+                    <button type="button" class="sp-clear" hidden><i class="ti ti-refresh" aria-hidden="true"></i> New</button>
+                </span>
             </div>
             <form class="sp-input-row">
                 <label class="sr-only" for="sp-input-${uidSuffix}">${esc(placeholder)}</label>
@@ -83,7 +140,8 @@
                 heading,
                 onDiscard: () => {
                     closeReview();
-                    bubble("No problem. Nothing was changed.", "ai");
+                    const b = bubble("No problem. Nothing was changed.", "ai");
+                    if (state.convo) talk(b, "No problem, nothing was changed. Anything else?");
                 },
                 onApprove: (result) => {
                     closeReview();
@@ -94,6 +152,7 @@
                     bubble(`${esc(PlanoraCore.summariseResult(result))} ✅<div class="sp-after">${links.join("")}</div>`, "ai");
                     input.placeholder = "Anything else?";
                     PlanoraCore.toast(PlanoraCore.summariseResult(result), "success");
+                    if (state.convo) talk(log.lastElementChild, `Done! ${PlanoraCore.summariseResult(result)} Anything else?`);
                 }
             });
             reviewEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -166,6 +225,11 @@
                 if (data.suggestion) reply.appendChild(suggestionCard(data.suggestion));
                 if ((data.actions || []).length) reply.appendChild(actionRow(data.actions, opts));
                 log.scrollTop = log.scrollHeight;
+                if (state.convo) {
+                    const words = (data.reply || (hasPlan ? "Here's what I suggest." : "I'm not sure how to help with that yet."))
+                        + (hasPlan ? " It's in the preview. Say add it to save it, or tell me what to change." : "");
+                    talk(reply, words);
+                }
 
                 if (hasPlan) {
                     const plan = {
@@ -187,6 +251,7 @@
                 thinking.remove();
                 const el = bubble(`Planora couldn't do that right now. Your existing tasks are safe. <button type="button" class="sp-retry">Try again</button>`, "ai", "error");
                 el.querySelector(".sp-retry").onclick = () => { el.remove(); send(message, opts); };
+                if (state.convo) { state.convo = false; talk(el, "Sorry, I couldn't do that right now. Please try again in a moment.", { listen: false }); }
             } finally {
                 setBusy(false);
                 if (window.innerWidth > 700) input.focus();
@@ -366,22 +431,113 @@
             });
         }
 
-        root.querySelector(".sp-input-row").addEventListener("submit", e => { e.preventDefault(); send(); });
-        // 🎤 speak instead of typing: when you stop talking it's sent (you still review the plan before anything changes)
-        if (PlanoraCore.attachMic) PlanoraCore.attachMic(input, {
+        root.querySelector(".sp-input-row").addEventListener("submit", e => { e.preventDefault(); if (state.convo) endConvo(); send(); });
+        /* ---------- 🎤 voice chat ----------
+           Talk to Planora → the reply shows as text AND is read aloud → the mic opens again for your answer
+           ("add it", "move it to 7pm", "that's all"). Typing, tapping stop, or silence ends the voice chat.
+           Nothing is ever added without the preview being confirmed (by tap or by saying "add it"). */
+        const voiceToggle = $(".sp-voice-toggle");
+        let micBtn = null;
+        const visible = () => root.offsetParent !== null && !document.hidden;
+        function syncVoiceToggle() {
+            if (!voiceToggle) return;
+            const on = Voice.enabled();
+            voiceToggle.hidden = !Voice.supported || !(state.convo || root.classList.contains("sp-voice-used"));
+            voiceToggle.setAttribute("aria-pressed", String(on));
+            voiceToggle.setAttribute("aria-label", on ? "Spoken replies are on. Turn off" : "Spoken replies are off. Turn on");
+            voiceToggle.querySelector("i").className = "ti " + (on ? "ti-volume" : "ti-volume-off");
+            voiceToggle.querySelector(".sp-vt-label").textContent = on ? "Voice on" : "Voice off";
+        }
+        if (voiceToggle) voiceToggle.addEventListener("click", () => {
+            Voice.setEnabled(!Voice.enabled());
+            root.querySelectorAll(".sp-bubble.is-speaking").forEach(b => b.classList.remove("is-speaking"));
+            syncVoiceToggle();
+        });
+        function endConvo() {
+            state.convo = false;
+            Voice.stop();
+            root.classList.remove("sp-convo");
+            root.querySelectorAll(".sp-bubble.is-speaking").forEach(b => b.classList.remove("is-speaking"));
+        }
+        // read a reply aloud, then (still in voice chat) listen for the answer
+        function talk(bubbleEl, text, { listen = true } = {}) {
+            if (!Voice.enabled()) { if (listen && state.convo) listenAgain(); return; }
+            if (bubbleEl) {
+                bubbleEl.classList.add("is-speaking");
+                if (!bubbleEl.querySelector(".sp-stop-voice")) {
+                    const b = document.createElement("button");
+                    b.type = "button"; b.className = "sp-stop-voice";
+                    b.innerHTML = '<i class="ti ti-player-stop-filled" aria-hidden="true"></i> Stop';
+                    b.setAttribute("aria-label", "Stop speaking");
+                    b.onclick = () => endConvo();
+                    bubbleEl.appendChild(b);
+                }
+            }
+            Voice.speak(text, {
+                onend: () => {
+                    if (bubbleEl) bubbleEl.classList.remove("is-speaking");
+                    if (listen && state.convo) listenAgain();
+                }
+            });
+        }
+        function listenAgain() {
+            if (!state.convo || state.busy || !micBtn || !visible()) { if (!visible()) endConvo(); return; }
+            setTimeout(() => { if (state.convo && !micBtn.classList.contains("listening") && visible()) micBtn.click(); }, 250);
+        }
+        const SAY_YES = /^(yes|yeah|yep|yup|ok(ay)?|sure|add( it| them| that| those)?|save( it| them)?|confirm|do it|go ahead|sounds good|looks good|perfect|great|that'?s (good|fine|perfect))[\s.!]*(please|thanks|thank you)?[\s.!]*$/i;
+        const SAY_NO = /^(no|nope|cancel|discard|never ?mind|scrap (it|that)|don'?t (add|save) (it|them))[\s.!]*$/i;
+        const SAY_BYE = /^(stop|that'?s (all|it)|nothing( else)?|no thanks?( you)?|thanks?( you)?|bye|goodbye|i'?m done|done)[\s.!]*$/i;
+        function handleSpoken(text) {
+            const t = text.trim();
+            if (state.review && SAY_YES.test(t)) {
+                const b = reviewEl.querySelector('[data-act="approve"]:not([disabled])');
+                if (b) { bubble(esc(t), "me"); input.value = ""; autoGrow(); b.click(); return; }
+            }
+            if (state.review && SAY_NO.test(t)) {
+                const b = reviewEl.querySelector('[data-act="discard"]');
+                if (b) { bubble(esc(t), "me"); input.value = ""; autoGrow(); b.click(); return; }
+            }
+            if (SAY_BYE.test(t) && log.children.length) {
+                bubble(esc(t), "me");
+                input.value = ""; autoGrow();
+                const b = bubble("Okay! I'm here whenever you need me.", "ai");
+                talk(b, "Okay! I'm here whenever you need me.", { listen: false });
+                state.convo = false; root.classList.remove("sp-convo");
+                return;
+            }
+            send();
+        }
+        if (PlanoraCore.attachMic) micBtn = PlanoraCore.attachMic(input, {
             label: "Speak to Planora",
             place: btn => sendBtn.before(btn),
-            onFinal: text => { if (text && !state.busy) send(); }
+            quiet: () => state.convo,
+            onStart: () => {
+                Voice.stop();                                   // never talk over the person
+                Voice.prime();
+                root.querySelectorAll(".sp-bubble.is-speaking").forEach(b => b.classList.remove("is-speaking"));
+            },
+            onFinal: text => {
+                if (!text || state.busy) return;
+                state.convo = Voice.supported;
+                root.classList.add("sp-voice-used");
+                root.classList.toggle("sp-convo", state.convo);
+                syncVoiceToggle();
+                handleSpoken(text);
+            },
+            onEmpty: () => { if (state.convo) endConvo(); }   // silence or tapping stop ends the voice chat
         });
-        input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+        // typing means you've switched to the keyboard
+        input.addEventListener("keydown", e => { if (state.convo && e.key.length === 1) endConvo(); });
+        document.addEventListener("visibilitychange", () => { if (document.hidden) endConvo(); });
+        input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (state.convo) endConvo(); send(); } });
         input.addEventListener("input", autoGrow);
         syncSend();
         input.addEventListener("focus", () => document.body.classList.add("sp-typing"));
         input.addEventListener("blur", () => document.body.classList.remove("sp-typing"));
         exampleRow.querySelectorAll(".sp-example").forEach(b => b.addEventListener("click", () => send(b.textContent)));
-        clearBtn.addEventListener("click", reset);
+        clearBtn.addEventListener("click", () => { endConvo(); reset(); });
 
-        return { send, reset, showPlan, planForGoal, fill: (t) => { input.value = t; autoGrow(); input.focus(); } };
+        return { send, reset, showPlan, planForGoal, stopVoice: endConvo, fill: (t) => { input.value = t; autoGrow(); input.focus(); } };
     }
 
     let uidSuffix = 1;
