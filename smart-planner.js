@@ -24,55 +24,94 @@
 
     const INTRO = "Tell me what you need to get done. I'll find the time, work out how long it takes and show you the plan before anything changes.";
 
-    /* ---------- 🔊 Planora's spoken replies (the phone's / browser's own voice; nothing is uploaded) ---------- */
+    /* ---------- 🔊 Planora's spoken replies ----------
+       Off by default (Voice on/off at the top of Ask Planora, remembered on this device).
+       1st choice: Planora's own voice (warm, upbeat, female) made on Planora's server.
+       Backup: the best female voice built into the phone / browser. */
     const Voice = (() => {
         const synth = window.speechSynthesis;
-        const ok = Boolean(synth && window.SpeechSynthesisUtterance);
+        const hasSynth = Boolean(synth && window.SpeechSynthesisUtterance);
         const KEY = "planora_voice_replies";
-        let voice = null, primed = false, current = null;
+        const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+        let audio = null, voice = null, primed = false, busy = null, serverOffUntil = 0;
         const lang = () => (document.documentElement.lang && document.documentElement.lang.length > 2 ? document.documentElement.lang : (navigator.language || "en-US"));
+        const FEMALE = /female|samantha|karen|moira|tessa|serena|ava|allison|susan|victoria|zira|aria|jenny|sonia|libby|natasha|hazel|catherine|joanna|salli|kendra|kimberly|ivy|emma|amy|google us english|google uk english female/i;
+        const MALE = /\bmale\b|daniel|alex\b|fred|arthur|oliver|george|guy|ryan|david|mark|james|thomas|aaron|rishi/i;
         function pick() {
-            if (!ok) return null;
+            if (!hasSynth) return null;
             const all = synth.getVoices() || [];
             if (!all.length) return null;
-            const want = lang().toLowerCase(), base = want.slice(0, 2);
-            const same = all.filter(v => (v.lang || "").toLowerCase().replace("_", "-") === want);
-            const family = all.filter(v => (v.lang || "").toLowerCase().startsWith(base));
-            const nice = /natural|neural|premium|enhanced|google|samantha|karen|daniel|serena|aria|jenny|sonia|libby|moira/i;
-            return same.find(v => nice.test(v.name)) || same.find(v => v.localService) || same[0]
-                || family.find(v => nice.test(v.name)) || family[0] || null;
+            const base = lang().toLowerCase().slice(0, 2);
+            const mine = all.filter(v => (v.lang || "").toLowerCase().startsWith(base));
+            const pool = mine.length ? mine : all;
+            const nice = v => /natural|neural|premium|enhanced|google/i.test(v.name);
+            const fem = pool.filter(v => FEMALE.test(v.name) && !MALE.test(v.name.replace(/female/i, "")));
+            return fem.find(nice) || fem[0] || pool.find(v => !MALE.test(v.name) && nice(v)) || pool.find(v => !MALE.test(v.name)) || pool[0];
         }
-        if (ok) { voice = pick(); synth.addEventListener && synth.addEventListener("voiceschanged", () => { voice = pick(); }); }
+        if (hasSynth) { voice = pick(); synth.addEventListener && synth.addEventListener("voiceschanged", () => { voice = pick(); }); }
         const plain = t => String(t || "")
             .replace(/<[^>]+>/g, " ")
             .replace(/\*\*(.+?)\*\*/g, "$1")
             .replace(/[→←↔]/g, " to ")
             .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, "")
             .replace(/\s+/g, " ").trim();
+        function deviceSpeak(say, finish) {
+            if (!hasSynth) { finish(); return; }
+            const u = new SpeechSynthesisUtterance(say);
+            if (!voice) voice = pick();
+            if (voice) u.voice = voice;
+            u.lang = (voice && voice.lang) || lang();
+            u.rate = 1.06; u.pitch = 1.12;          // a little brighter and livelier
+            u.onend = finish; u.onerror = finish;
+            busy.utter = u;
+            try { synth.speak(u); } catch { finish(); }
+        }
         return {
-            supported: ok,
-            enabled() { if (!ok) return false; try { return localStorage.getItem(KEY) !== "off"; } catch { return true; } },
+            supported: hasSynth || typeof Audio !== "undefined",
+            enabled() { try { return localStorage.getItem(KEY) === "on"; } catch { return false; } },
             setEnabled(on) { try { localStorage.setItem(KEY, on ? "on" : "off"); } catch {} if (!on) this.stop(); },
-            // a silent utterance inside the tap that starts the mic, so phones allow speaking later
-            prime() { if (!ok || primed) return; primed = true; try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; synth.speak(u); } catch {} },
-            speaking() { return ok && Boolean(current); },
-            speak(text, { onend } = {}) {
-                if (!ok) { if (onend) onend(); return; }
-                const say = plain(text);
-                this.stop();
-                if (!say) { if (onend) onend(); return; }
-                const u = new SpeechSynthesisUtterance(say);
-                if (!voice) voice = pick();
-                if (voice) u.voice = voice;
-                u.lang = (voice && voice.lang) || lang();
-                u.rate = 1.03; u.pitch = 1;
-                let done = false;
-                const finish = () => { if (done) return; done = true; if (current === u) current = null; if (onend) onend(); };
-                u.onend = finish; u.onerror = finish;
-                current = u;
-                try { synth.speak(u); } catch { finish(); }
+            // inside the tap that starts the mic: unlock sound so phones let Planora speak a moment later
+            prime() {
+                if (primed) return; primed = true;
+                try { audio = audio || new Audio(); audio.src = SILENT; const p = audio.play(); if (p && p.catch) p.catch(() => {}); } catch {}
+                if (hasSynth) { try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; synth.speak(u); } catch {} }
             },
-            stop() { if (!ok) return; const had = current; current = null; try { synth.cancel(); } catch {} if (had && had.onend) had.onend = null; }
+            speaking() { return Boolean(busy); },
+            async speak(text, { onend } = {}) {
+                this.stop();
+                const say = plain(text);
+                if (!say) { if (onend) onend(); return; }
+                const me = busy = { ctrl: null, utter: null };
+                let done = false;
+                const finish = () => { if (done) return; done = true; if (busy === me) busy = null; if (onend) onend(); };
+                me.finish = finish;
+                if (Date.now() > serverOffUntil) {
+                    try {
+                        me.ctrl = new AbortController();
+                        const t = setTimeout(() => me.ctrl.abort(), 12000);
+                        const r = await fetch("/api/speak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: say }), signal: me.ctrl.signal });
+                        clearTimeout(t);
+                        if (busy !== me) return;                                  // stopped while loading
+                        if (!r.ok) { serverOffUntil = Date.now() + (r.status === 429 ? 10 * 60e3 : r.status === 503 ? 60 * 60e3 : 60e3); throw new Error("voice " + r.status); }
+                        const url = URL.createObjectURL(await r.blob());
+                        if (busy !== me) { URL.revokeObjectURL(url); return; }
+                        audio = audio || new Audio();
+                        audio.onended = audio.onerror = () => { URL.revokeObjectURL(url); finish(); };
+                        audio.src = url;
+                        await audio.play();
+                        return;
+                    } catch (e) {
+                        if (busy !== me) return;                                  // stopped on purpose
+                    }
+                }
+                deviceSpeak(say, finish);                                          // backup: the device's own voice
+            },
+            stop() {
+                const b = busy; busy = null;
+                if (b && b.ctrl) { try { b.ctrl.abort(); } catch {} }
+                if (audio) { try { audio.onended = audio.onerror = null; audio.pause(); } catch {} }
+                if (hasSynth) { try { if (b && b.utter) b.utter.onend = b.utter.onerror = null; synth.cancel(); } catch {} }
+            }
         };
     })();
     window.PlanoraVoice = Voice;
@@ -442,16 +481,20 @@
         function syncVoiceToggle() {
             if (!voiceToggle) return;
             const on = Voice.enabled();
-            voiceToggle.hidden = !Voice.supported || !(state.convo || root.classList.contains("sp-voice-used"));
+            voiceToggle.hidden = !Voice.supported;
             voiceToggle.setAttribute("aria-pressed", String(on));
             voiceToggle.setAttribute("aria-label", on ? "Spoken replies are on. Turn off" : "Spoken replies are off. Turn on");
             voiceToggle.querySelector("i").className = "ti " + (on ? "ti-volume" : "ti-volume-off");
             voiceToggle.querySelector(".sp-vt-label").textContent = on ? "Voice on" : "Voice off";
         }
         if (voiceToggle) voiceToggle.addEventListener("click", () => {
-            Voice.setEnabled(!Voice.enabled());
+            const on = !Voice.enabled();
+            Voice.setEnabled(on);
             root.querySelectorAll(".sp-bubble.is-speaking").forEach(b => b.classList.remove("is-speaking"));
             syncVoiceToggle();
+            if (on) { Voice.prime(); Voice.speak("Hi! Voice is on. Tap the mic and tell me what you need to do."); }
+            else endConvo();
+            PlanoraCore.toast(on ? "Voice replies on: tap the mic and talk to Planora." : "Voice replies off.");
         });
         function endConvo() {
             state.convo = false;
@@ -461,7 +504,7 @@
         }
         // read a reply aloud, then (still in voice chat) listen for the answer
         function talk(bubbleEl, text, { listen = true } = {}) {
-            if (!Voice.enabled()) { if (listen && state.convo) listenAgain(); return; }
+            if (!Voice.enabled()) { endConvo(); return; }
             if (bubbleEl) {
                 bubbleEl.classList.add("is-speaking");
                 if (!bubbleEl.querySelector(".sp-stop-voice")) {
@@ -518,7 +561,7 @@
             },
             onFinal: text => {
                 if (!text || state.busy) return;
-                state.convo = Voice.supported;
+                state.convo = Voice.supported && Voice.enabled();
                 root.classList.add("sp-voice-used");
                 root.classList.toggle("sp-convo", state.convo);
                 syncVoiceToggle();
@@ -526,6 +569,7 @@
             },
             onEmpty: () => { if (state.convo) endConvo(); }   // silence or tapping stop ends the voice chat
         });
+        syncVoiceToggle();
         // typing means you've switched to the keyboard
         input.addEventListener("keydown", e => { if (state.convo && e.key.length === 1) endConvo(); });
         document.addEventListener("visibilitychange", () => { if (document.hidden) endConvo(); });
