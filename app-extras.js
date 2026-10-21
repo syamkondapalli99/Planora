@@ -511,17 +511,31 @@
             <p class="auth-sheet-info">Your tasks, journal, goals and plans are saved to your Planora account so they're there on any browser you sign in on. Only you can see them.</p>
             <button type="button" class="btn-secondary" id="pv-export"><i class="ti ti-download"></i>Download my data</button>
             <div class="sheet-divider"></div>
+            <p class="auth-sheet-info"><strong>Ask Planora chat history</strong><br>Planora remembers your recent chat (the last 20 messages and a short summary) so it can follow up, like "I haven't finished module 2". Only you can see it.</p>
+            <button type="button" class="btn-secondary" id="pv-chat"><i class="ti ti-message-x"></i>Clear chat history</button>
+            <div class="sheet-divider"></div>
             <p class="auth-sheet-info"><strong>Delete account</strong><br>This permanently deletes your account and everything in it. This can't be undone.</p>
             <input type="text" id="pv-confirm" placeholder='Type DELETE to confirm'>
             <p class="auth-error" id="pv-error" hidden></p>
             <button type="button" class="btn-danger" id="pv-delete">Delete my account</button>
         `, form => {
-            form.querySelector("#pv-export").addEventListener("click", () => {
+            form.querySelector("#pv-chat").addEventListener("click", async () => {
+                const ok = await PlanoraCore.confirm({ title: "Clear chat history?", message: "Planora will forget your Ask Planora conversation. Your tasks and plans stay as they are.", confirmText: "Clear", danger: true }).catch(() => window.confirm("Clear chat history?"));
+                if (!ok) return;
+                try {
+                    const r = await fetch("/api/coach/history", { method: "DELETE" });
+                    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Planora couldn't clear the chat right now.");
+                    if (window.PlanoraAsk && PlanoraAsk.reset) PlanoraAsk.reset();
+                    PlanoraAuth.toast("Chat history cleared.", "success");
+                } catch (e) { PlanoraAuth.toast(e.message, "error"); }
+            });
+            form.querySelector("#pv-export").addEventListener("click", async () => {
                 const user = PlanoraAuth.user || {};
                 const data = {};
                 Object.entries(PlanoraAuth.exportData()).forEach(([k, v]) => {
                     try { data[k] = JSON.parse(v); } catch { data[k] = v; }
                 });
+                try { const r = await fetch("/api/coach/history"); if (r.ok) data.ask_planora_chat = await r.json(); } catch {}
                 const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), account: { name: user.name, email: user.email }, data }, null, 2)], { type: "application/json" });
                 const a = document.createElement("a");
                 a.href = URL.createObjectURL(blob);
@@ -658,6 +672,13 @@
         const [h, m] = String(hhmm).split(":").map(Number);
         return `${h % 12 || 12}${m ? ":" + String(m).padStart(2, "0") : ""} ${h < 12 ? "AM" : "PM"}`;
     }
+    const TRAVEL = [0, 15, 30, 45, 60, 90, 120, 150, 180];
+    const minsText = m => m < 60 ? `${m} min` : `${m / 60 % 1 ? (m / 60).toFixed(1).replace(/\.0$/, "") : m / 60}h`;
+    function travelText(r) {
+        const b = Number(r.travelBefore) || 0, a = Number(r.travelAfter) || 0;
+        if (!b && !a) return "";
+        return b === a ? ` · ${minsText(b)} travel each way` : ` · travel ${b ? minsText(b) + " before" : ""}${b && a ? ", " : ""}${a ? minsText(a) + " after" : ""}`;
+    }
     function busyIcon(name) {
         const n = String(name).toLowerCase();
         return /college|uni|school|class|lecture|study/.test(n) ? "ti-school" : /meeting|call/.test(n) ? "ti-users" : /commute|travel|drive/.test(n) ? "ti-bus" : /gym|sport|training/.test(n) ? "ti-barbell" : "ti-briefcase";
@@ -669,7 +690,7 @@
         box.innerHTML = list.length ? list.map((r, i) => `
             <button type="button" class="busy-row" data-busy="${i}" aria-label="Edit ${escapeHtml(r.name)}">
                 <i class="ti ${busyIcon(r.name)} busy-ico" aria-hidden="true"></i>
-                <span class="busy-text"><strong>${escapeHtml(r.name)}</strong><small>${escapeHtml(daysText(r.days))} · ${time12(r.start)} – ${time12(r.end)}</small></span>
+                <span class="busy-text"><strong>${escapeHtml(r.name)}</strong><small>${escapeHtml(daysText(r.days))} · ${time12(r.start)} – ${time12(r.end)}${travelText(r)}</small></span>
                 <i class="ti ti-pencil busy-edit" aria-hidden="true"></i>
             </button>`).join("")
             : `<p class="busy-empty">Nothing added yet. For example: Work, Mon–Fri, 9 AM – 6 PM.</p>`;
@@ -696,6 +717,11 @@
                 <div><label for="bz-start">From</label><input type="time" id="bz-start" step="900"></div>
                 <div><label for="bz-end">To</label><input type="time" id="bz-end" step="900"></div>
             </div>
+            <div class="busy-times">
+                <div><label for="bz-tb">Travel before</label><select id="bz-tb">${TRAVEL.map(m => `<option value="${m}">${m ? minsText(m) : "None"}</option>`).join("")}</select></div>
+                <div><label for="bz-ta">Travel after</label><select id="bz-ta">${TRAVEL.map(m => `<option value="${m}">${m ? minsText(m) : "None"}</option>`).join("")}</select></div>
+            </div>
+            <p class="busy-hint">Planora keeps travel time free too, and may suggest phone-friendly things for it.</p>
             <p class="auth-error" id="bz-error" hidden></p>
             <button type="submit" class="btn-primary">${editing ? "Save" : "Add"}</button>
             ${editing ? `<button type="button" class="btn-secondary busy-del" id="bz-del"><i class="ti ti-trash"></i>Remove</button>` : ""}
@@ -705,6 +731,9 @@
             name.value = cur.name;
             form.querySelector("#bz-start").value = cur.start;
             form.querySelector("#bz-end").value = cur.end;
+            const nearest = v => TRAVEL.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a, 0);
+            form.querySelector("#bz-tb").value = String(nearest(Number(cur.travelBefore) || 0));
+            form.querySelector("#bz-ta").value = String(nearest(Number(cur.travelAfter) || 0));
             const paint = () => {
                 form.querySelectorAll("[data-day]").forEach(b => { const on = days.has(Number(b.dataset.day)); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
                 form.querySelectorAll("[data-kind]").forEach(b => b.classList.toggle("on", b.dataset.kind.toLowerCase() === name.value.trim().toLowerCase()));
@@ -722,7 +751,8 @@
                 if (!days.size) return show("Pick at least one day.");
                 if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) return show("Choose a start and end time.");
                 if (start === end) return show("The end time must be different from the start time.");
-                const item = { id: cur.id || "b-" + Math.random().toString(36).slice(2, 9), name: name.value.trim().slice(0, 40), days: [...days].sort((a, b) => a - b), start, end };
+                const item = { id: cur.id || "b-" + Math.random().toString(36).slice(2, 9), name: name.value.trim().slice(0, 40), days: [...days].sort((a, b) => a - b), start, end,
+                    travelBefore: Number(form.querySelector("#bz-tb").value) || 0, travelAfter: Number(form.querySelector("#bz-ta").value) || 0 };
                 const next = busyList();
                 if (editing) next[index] = item; else next.push(item);
                 if (next.length > 12) return show("You can add up to 12 busy times.");
@@ -738,8 +768,139 @@
         });
     }
 
+    /* ---------------- My week: wake / sleep, weekly targets ---------------- */
+    function myWeek() {
+        const u = window.PlanoraAuth && PlanoraAuth.user;
+        const w = u && u.prefs && u.prefs.week && typeof u.prefs.week === "object" ? u.prefs.week : {};
+        return { wake: w.wake || "", sleep: w.sleep || "", weekStart: w.weekStart === 0 ? 0 : 1, targets: Array.isArray(w.targets) ? w.targets.slice() : [] };
+    }
+    async function saveWeek(week) {
+        await PlanoraAuth.updateProfile({ prefs: { week } });
+        renderWeek();
+        document.dispatchEvent(new CustomEvent("planora:data-changed"));
+    }
+    function labelsList() { return window.PlanoraCore && PlanoraCore.customCategories ? PlanoraCore.customCategories() : []; }
+    function weekProgress(t, weekStart) {
+        const C = window.PlanoraCore;
+        if (!C || !t.labelId) return null;
+        const todayStr = C.today();
+        const back = (new Date(todayStr + "T00:00:00").getDay() - weekStart + 7) % 7;
+        const from = C.addDays(todayStr, -back), to = C.addDays(from, 6);
+        const done = C.getTasks().filter(x => x.completed && x.category === t.labelId && x.date >= from && x.date <= to);
+        return t.unit === "sessions" ? done.length : Math.round(done.reduce((n, x) => n + (C.taskDuration(x) || 30), 0) / 6) / 10;
+    }
+    function renderWeek() {
+        const box = $("week-box");
+        if (!box) return;
+        const w = myWeek(), labels = labelsList();
+        const lab = id => labels.find(l => l.id === id);
+        const dayText = w.wake || w.sleep ? `${w.wake ? time12(w.wake) : "—"} – ${w.sleep ? time12(w.sleep) : "—"}` : "Not set";
+        box.innerHTML = `
+            <button type="button" class="busy-row" id="wk-day"><i class="ti ti-sun-moon busy-ico" aria-hidden="true"></i>
+                <span class="busy-text"><strong>Wake up and sleep</strong><small>${escapeHtml(dayText)} · week starts ${w.weekStart === 0 ? "Sunday" : "Monday"}</small></span>
+                <i class="ti ti-pencil busy-edit" aria-hidden="true"></i></button>
+            <p class="week-sub">Weekly targets</p>
+            ${w.targets.length ? w.targets.map((t, i) => {
+                const l = lab(t.labelId), done = weekProgress(t, w.weekStart), goal = Number(t.min) || Number(t.max) || 0;
+                const pct = done === null || !goal ? 0 : Math.min(100, Math.round(done / goal * 100));
+                const range = `${t.min && t.max && t.max !== t.min ? `${t.min}–${t.max}` : (t.min || t.max)} ${t.unit === "sessions" ? "sessions" : "h"} a week`;
+                return `<button type="button" class="busy-row week-target" data-target="${i}" aria-label="Edit ${escapeHtml(t.name)}">
+                    <span class="wt-dot" style="background:${l ? l.color : "#B9B3D9"}" aria-hidden="true"></span>
+                    <span class="busy-text"><strong>${escapeHtml(t.name)}</strong><small>${escapeHtml(range)}${done === null ? " · link a label to track it" : ` · ${done} done this week`}</small>
+                        ${done === null ? "" : `<span class="wt-bar" aria-hidden="true"><span style="width:${pct}%;background:${l ? l.color : "var(--purple-400)"}"></span></span>`}</span>
+                    <i class="ti ti-pencil busy-edit" aria-hidden="true"></i></button>`;
+            }).join("") : `<p class="busy-empty">No targets yet. For example: College 8–10h a week, Workouts 3 sessions.</p>`}
+            <button type="button" class="btn-secondary busy-add" id="wk-add"><i class="ti ti-plus" aria-hidden="true"></i>Add weekly target</button>`;
+        $("wk-day").addEventListener("click", openDaySheet);
+        $("wk-add").addEventListener("click", () => openTargetSheet(-1));
+        box.querySelectorAll("[data-target]").forEach(b => b.addEventListener("click", () => openTargetSheet(Number(b.dataset.target))));
+    }
+    function openDaySheet() {
+        const w = myWeek();
+        openSheet("Wake up and sleep", "ti-sun-moon", `
+            <p class="auth-sheet-info">Planora only plans between these times.</p>
+            <div class="busy-times">
+                <div><label for="wk-wake">Wake up</label><input type="time" id="wk-wake" step="900"></div>
+                <div><label for="wk-sleep">Sleep</label><input type="time" id="wk-sleep" step="900"></div>
+            </div>
+            <label for="wk-start">Week starts on</label>
+            <select id="wk-start"><option value="1">Monday</option><option value="0">Sunday</option></select>
+            <p class="auth-error" id="wk-err" hidden></p>
+            <button type="submit" class="btn-primary">Save</button>
+            ${w.wake || w.sleep ? `<button type="button" class="btn-secondary" id="wk-clear">Clear times</button>` : ""}
+        `, form => {
+            form.querySelector("#wk-wake").value = w.wake || "08:00";
+            form.querySelector("#wk-sleep").value = w.sleep || "23:00";
+            form.querySelector("#wk-start").value = String(w.weekStart);
+            form.addEventListener("submit", async () => {
+                const wake = form.querySelector("#wk-wake").value, sleep = form.querySelector("#wk-sleep").value;
+                const err = form.querySelector("#wk-err");
+                if (!/^\d{2}:\d{2}$/.test(wake) || !/^\d{2}:\d{2}$/.test(sleep)) { err.textContent = "Choose both times."; err.hidden = false; return; }
+                if (wake === sleep) { err.textContent = "Wake-up and sleep times must be different."; err.hidden = false; return; }
+                try { await saveWeek({ ...w, wake, sleep, weekStart: Number(form.querySelector("#wk-start").value) }); closeSheet(); PlanoraAuth.toast("Saved. Planora will plan between these times.", "success"); }
+                catch (e) { err.textContent = e.message; err.hidden = false; }
+            });
+            const c = form.querySelector("#wk-clear");
+            if (c) c.addEventListener("click", async () => { try { await saveWeek({ ...w, wake: "", sleep: "" }); closeSheet(); } catch (e) { PlanoraAuth.toast(e.message, "error"); } });
+        });
+    }
+    function openTargetSheet(index) {
+        const w = myWeek(), labels = labelsList();
+        const editing = index >= 0 && w.targets[index];
+        const cur = editing ? { ...w.targets[index] } : { name: "", labelId: "", unit: "hours", min: "", max: "" };
+        openSheet(editing ? "Edit weekly target" : "Add weekly target", "ti-target-arrow", `
+            <label for="wt-name">Area</label>
+            <input type="text" id="wt-name" maxlength="40" placeholder="e.g. College, Research, Business, Workouts">
+            <label for="wt-label">Label (counts finished tasks with this label)</label>
+            <select id="wt-label"><option value="">No label</option>${labels.map(l => `<option value="${escapeHtml(l.id)}">${escapeHtml(l.label)}</option>`).join("")}</select>
+            ${labels.length ? "" : `<p class="busy-hint">You have no labels yet. <button type="button" class="link-btn" id="wt-labels">Create labels</button></p>`}
+            <label>Measure in</label>
+            <div class="seg" role="tablist"><button type="button" role="tab" data-u="hours">Hours</button><button type="button" role="tab" data-u="sessions">Sessions</button></div>
+            <div class="busy-times">
+                <div><label for="wt-min">At least</label><input type="number" id="wt-min" min="0" max="100" step="0.5" inputmode="decimal"></div>
+                <div><label for="wt-max">Up to (optional)</label><input type="number" id="wt-max" min="0" max="100" step="0.5" inputmode="decimal"></div>
+            </div>
+            <p class="auth-error" id="wt-err" hidden></p>
+            <button type="submit" class="btn-primary">${editing ? "Save" : "Add"}</button>
+            ${editing ? `<button type="button" class="btn-secondary busy-del" id="wt-del"><i class="ti ti-trash"></i>Remove</button>` : ""}
+        `, form => {
+            const name = form.querySelector("#wt-name"), sel = form.querySelector("#wt-label");
+            let unit = cur.unit === "sessions" ? "sessions" : "hours";
+            name.value = cur.name; sel.value = cur.labelId || "";
+            form.querySelector("#wt-min").value = cur.min || ""; form.querySelector("#wt-max").value = cur.max || "";
+            const paint = () => form.querySelectorAll("[data-u]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.u === unit)));
+            form.querySelectorAll("[data-u]").forEach(b => b.addEventListener("click", () => { unit = b.dataset.u; paint(); }));
+            paint();
+            // pick the label with the same name automatically
+            name.addEventListener("input", () => { if (sel.value) return; const m = labels.find(l => l.label.toLowerCase() === name.value.trim().toLowerCase()); if (m) sel.value = m.id; });
+            const lb = form.querySelector("#wt-labels");
+            if (lb) lb.addEventListener("click", () => { closeSheet(); window.PlanoraCore && PlanoraCore.openLabelsManager(); });
+            form.addEventListener("submit", async () => {
+                const err = form.querySelector("#wt-err");
+                const show = m => { err.textContent = m; err.hidden = false; };
+                const min = Number(form.querySelector("#wt-min").value) || 0, max = Number(form.querySelector("#wt-max").value) || 0;
+                if (!name.value.trim()) return show("Name the area, like College or Workouts.");
+                if (!min && !max) return show("Add how many hours or sessions a week.");
+                if (max && min > max) return show("\"Up to\" should be more than \"At least\".");
+                const item = { id: cur.id || "t-" + Math.random().toString(36).slice(2, 9), name: name.value.trim().slice(0, 40), labelId: sel.value, unit, min: min || max, max: max || 0 };
+                const targets = myWeek().targets;
+                if (editing) targets[index] = item; else targets.push(item);
+                if (targets.length > 12) return show("You can add up to 12 targets.");
+                try { await saveWeek({ ...myWeek(), targets }); closeSheet(); PlanoraAuth.toast(editing ? "Saved." : `Added. Planora will keep an eye on ${item.name} each week.`, "success"); }
+                catch (e) { show(e.message); }
+            });
+            const del = form.querySelector("#wt-del");
+            if (del) del.addEventListener("click", async () => {
+                const targets = myWeek().targets; targets.splice(index, 1);
+                try { await saveWeek({ ...myWeek(), targets }); closeSheet(); PlanoraAuth.toast("Removed.", "success"); }
+                catch (e) { PlanoraAuth.toast(e.message, "error"); }
+            });
+        });
+    }
+
     function renderProfile() {
         renderBusy();
+        renderWeek();
         renderProfileHeader();
         renderWeekChart();
         renderRealHeatmap();

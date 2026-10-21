@@ -20,6 +20,7 @@ require("./smart-plan-server").install(app, auth.requireAuth);
 require("./gcal-server").install(app, auth.requireAuth, auth.config);   // Google Calendar (read-only)
 require("./doc-plan-server").install(app, auth.requireAuth);            // Ask Planora: plan from an attached document
 require("./push-server").install(app, auth.requireAuth, auth.config);                 // Reminders (push notifications)
+require("./coach-server").install(app, auth.requireAuth, auth.config);                // Ask Planora coach: chat memory (history / clear)
 require("./voice-server").install(app, auth.requireAuth);                            // Ask Planora: spoken replies (OpenAI text-to-speech)
 require("./feedback-server").install(app, auth.requireAuth);                         // Help and support → Send feedback (emails info@jkssofttech.com)
 

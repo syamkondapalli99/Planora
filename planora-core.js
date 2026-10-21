@@ -894,7 +894,8 @@
         const u = window.PlanoraAuth && PlanoraAuth.user;
         const list = u && u.prefs && Array.isArray(u.prefs.routine) ? u.prefs.routine : [];
         return list.filter(r => r && toMin(r.start) !== null && toMin(r.end) !== null && Array.isArray(r.days) && r.days.length)
-            .map(r => ({ id: String(r.id || ""), name: String(r.name || "Busy").slice(0, 40), days: r.days.map(Number), start: r.start, end: r.end }));
+            .map(r => ({ id: String(r.id || ""), name: String(r.name || "Busy").slice(0, 40), days: r.days.map(Number), start: r.start, end: r.end,
+                travelBefore: Math.max(0, Number(r.travelBefore) || 0), travelAfter: Math.max(0, Number(r.travelAfter) || 0) }));
     }
     function routineBusy(from, to) {
         const list = routine(), out = [];
@@ -934,7 +935,7 @@
             .map(x => ({
                 id: String(x.id), title: x.title, date: x.date, start: x.start || "", end: x.end || "",
                 completed: Boolean(x.completed), priority: x.priority || "", deadline: x.deadline || "", goalId: x.goalId || "",
-                duration: taskDuration(x)
+                category: x.category || "", duration: taskDuration(x)
             }));
         const goals = getGoals().slice(0, 20).map(g => ({
             id: g.id, title: g.title, date: g.date, status: g.status, progress: goalProgress(g), createdAt: g.createdAt,
@@ -946,6 +947,22 @@
             .map(x => ({ id: String(x.id), title: x.title, date: x.date, start: x.start, end: x.end, category: x.category || "" }))
             .concat(googleBusy(addDays(t, -1), to).slice(0, 200).map(({ google, ...x }) => x));
         return { tasks, goals, events };
+    }
+
+    // Profile → My week (wake/sleep, weekly targets) and the last 7 days' journal mood (never the entry text)
+    function weekPrefs() {
+        const u = window.PlanoraAuth && PlanoraAuth.user;
+        const w = u && u.prefs && u.prefs.week && typeof u.prefs.week === "object" ? u.prefs.week : {};
+        return { wake: w.wake || "", sleep: w.sleep || "", weekStart: w.weekStart === 0 ? 0 : 1, targets: Array.isArray(w.targets) ? w.targets : [] };
+    }
+    function coachExtras() {
+        const from = addDays(today(), -7);
+        const moods = (loadJSON("planora_journals", []) || [])
+            .filter(j => j && j.date >= from && j.date < today() && j.mood)
+            .map(j => ({ date: j.date, mood: String(j.mood) }));
+        let tz = "";
+        try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch {}
+        return { week: weekPrefs(), moods, tz };
     }
 
     // The user's labels, and how they've used them, so Ask Planora can label new tasks the same way
@@ -1119,7 +1136,7 @@
         let changed = 0, removed = 0;
         (plan.updates || []).filter(u => u.include !== false).forEach(u => {
             if (u.remove) { removeTask(u.id); removed++; return; }
-            if (updateTask(u.id, { date: u.date, start: u.start, end: u.end, duration: u.duration })) changed++;
+            if (updateTask(u.id, { date: u.date, start: u.start, end: u.end, duration: u.duration, ...(u.rename && u.title ? { title: u.title } : {}) })) changed++;
         });
 
         const result = { tasks: added.length, events: createdEvents, goals: createdGoals, updates: changed, removed, taskIds: added.map(t => t.id), eventIds: addedEvents.map(e => e.id), goalIds: Object.values(goalIds) };
@@ -1185,8 +1202,9 @@
             const meta = kind === "update" && item.remove
                 ? `<strong>Will be removed</strong> · ${esc(shortDate(item.date))}${item.start ? " " + esc(time12(item.start)) : ""}`
                 : kind === "update"
-                ? `<span class="sp-from">${esc(shortDate(item.from && item.from.date))}${item.from && item.from.start ? " " + esc(time12(item.from.start)) : ""}</span> → <strong>${esc(dayLabel(item.date))} ${esc(time12(item.start))}</strong> · ${durLabel(item.duration)}`
-                : `${esc(time12(item.start))} – ${esc(time12(item.end))}${item.type === "event" ? "" : " · " + durLabel(item.duration)}`;
+                ? `<span class="sp-from">${esc(shortDate(item.from && item.from.date))}${item.from && item.from.start ? " " + esc(time12(item.from.start)) : ""}</span> → <strong>${esc(dayLabel(item.date))}${item.start ? " " + esc(time12(item.start)) : " · anytime"}</strong> · ${durLabel(item.duration)}`
+                : item.start ? `${esc(time12(item.start))} – ${esc(time12(item.end))}${item.type === "event" ? "" : " · " + durLabel(item.duration)}`
+                : `Anytime · ${durLabel(item.duration)}`;
             const cat = kind === "task" && !item.noCat ? categoryInfo(item.category || categoryOf(item)) : null;
             const isEvent = item.type === "event";
             // Colour of the row: the goal's colour for goal tasks, otherwise the category's
@@ -2858,7 +2876,7 @@
         // colours
         openLabelsManager, voiceSupported, attachMic, taskColor, eventColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
         // utils
-        labelContext, routine, routineBusy, askDeleteTask, askDeleteEvent, planWithAI,
+        labelContext, coachExtras, weekPrefs, routine, routineBusy, askDeleteTask, askDeleteEvent, planWithAI,
         today, addDays, nowMin, nowClock, toMin, toClock, time12, durLabel, dayLabel, shortDate, esc, uid, taskDuration, loadJSON, saveJSON,
         migrate
     };

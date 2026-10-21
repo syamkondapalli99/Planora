@@ -119,6 +119,40 @@
 
     function esc(t) { return PlanoraCore.esc(t); }
     function rich(t) { return esc(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"); }
+    // Light markdown for Ask Planora replies: tables, bullets, numbered lists, bold, paragraphs (escaped first)
+    function md(text) {
+        const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[\s(])\*([^*\s][^*]*?)\*(?=[\s).,!?:;]|$)/g, "$1<em>$2</em>");
+        const cells = l => l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
+        const lines = String(text || "").replace(/\r/g, "").split("\n");
+        const out = [];
+        for (let i = 0; i < lines.length;) {
+            const l = lines[i];
+            if (/^\s*\|.*\|\s*$/.test(l) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
+                const head = cells(l); i += 2;
+                const rows = [];
+                while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) { rows.push(cells(lines[i])); i++; }
+                out.push(`<div class="sp-table-wrap"><table class="sp-table"><thead><tr>${head.map(h => `<th>${inline(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${head.map((_, k) => `<td>${inline(r[k] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
+                continue;
+            }
+            if (/^\s*([-*•])\s+/.test(l)) {
+                const items = [];
+                while (i < lines.length && /^\s*([-*•])\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*([-*•])\s+/, "")); i++; }
+                out.push(`<ul>${items.map(x => `<li>${inline(x)}</li>`).join("")}</ul>`);
+                continue;
+            }
+            if (/^\s*\d+[.)]\s+/.test(l)) {
+                const items = [];
+                while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*\d+[.)]\s+/, "")); i++; }
+                out.push(`<ol>${items.map(x => `<li>${inline(x)}</li>`).join("")}</ol>`);
+                continue;
+            }
+            if (!l.trim()) { i++; continue; }
+            const para = [];
+            while (i < lines.length && lines[i].trim() && !/^\s*\|/.test(lines[i]) && !/^\s*([-*•]|\d+[.)])\s+/.test(lines[i])) { para.push(inline(lines[i].replace(/^#+\s*/, ""))); i++; }
+            out.push(`<p>${para.join("<br>")}</p>`);
+        }
+        return out.join("");
+    }
 
     function SmartPlanner(root) {
         const placeholder = root.dataset.placeholder || "Ask AI to plan your day";
@@ -131,7 +165,7 @@
                 <div class="sp-title"><i class="ti ti-sparkles" aria-hidden="true"></i><span>${esc(root.dataset.title || "Ask Planora")}</span></div>
                 <span class="sp-head-tools">
                     <button type="button" class="sp-voice-toggle" hidden aria-pressed="true" title="Spoken replies when you talk to Planora"><i class="ti ti-volume" aria-hidden="true"></i><span class="sp-vt-label">Voice on</span></button>
-                    <button type="button" class="sp-clear" hidden><i class="ti ti-refresh" aria-hidden="true"></i> New</button>
+                    <button type="button" class="sp-clear" hidden title="Start a new chat (Planora forgets this conversation)"><i class="ti ti-message-plus" aria-hidden="true"></i> New chat</button>
                 </span>
             </div>
             <form class="sp-input-row">
@@ -244,7 +278,8 @@
                         draft: draftForServer(),
                         recent: state.recent,
                         ...(PlanoraCore.labelContext ? PlanoraCore.labelContext() : {}), routine: PlanoraCore.routine ? PlanoraCore.routine() : [],
-                        attachGoal: opts.attachGoal || null
+                        attachGoal: opts.attachGoal || null,
+                        ...(PlanoraCore.coachExtras ? PlanoraCore.coachExtras() : {})
                     })
                 });
                 const data = await response.json().catch(() => ({}));
@@ -260,13 +295,14 @@
                 state.history.push({ role: "user", text: message }, { role: "assistant", text: data.reply || "" });
 
                 const hasPlan = (data.tasks || []).length || (data.goals || []).length || (data.updates || []).length || (data.events || []).length;
-                const reply = bubble(rich(data.reply || (hasPlan ? "Here's what I suggest." : "I'm not sure how to help with that yet.")), "ai");
+                const reply = bubble(md(data.reply || (hasPlan ? "Here's what I suggest." : "I'm not sure how to help with that yet.")), "ai", "sp-md");
                 if (data.suggestion) reply.appendChild(suggestionCard(data.suggestion));
                 if ((data.actions || []).length) reply.appendChild(actionRow(data.actions, opts));
                 log.scrollTop = log.scrollHeight;
                 if (state.convo) {
-                    const words = (data.reply || (hasPlan ? "Here's what I suggest." : "I'm not sure how to help with that yet."))
-                        + (hasPlan ? " It's in the preview. Say add it to save it, or tell me what to change." : "");
+                    const words = data.spoken ? data.spoken + (hasPlan && !/add it|save it|want me to/i.test(data.spoken) ? " Say add it to save it, or tell me what to change." : "")
+                        : (data.reply || (hasPlan ? "Here's what I suggest." : "I'm not sure how to help with that yet.")).replace(/^\|.*$/gm, "")
+                          + (hasPlan ? " It's in the preview. Say add it to save it, or tell me what to change." : "");
                     talk(reply, words);
                 }
 
@@ -375,7 +411,7 @@
                 if (response.status === 401) { bubble("Your session has ended. Please sign in again.", "ai", "error"); setTimeout(() => location.replace("index.html"), 1500); return; }
                 if (!response.ok) { bubble(esc(data.error || "Planora couldn't read that document right now. Please try again."), "ai", "error"); return; }
                 state.history.push({ role: "user", text: `[document: ${f.name}] ${message}` }, { role: "assistant", text: data.reply || "" });
-                bubble(rich(data.reply || ""), "ai");
+                bubble(md(data.reply || ""), "ai", "sp-md");
                 const hasPlan = (data.tasks || []).length || (data.goals || []).length || (data.events || []).length;
                 if (hasPlan) {
                     const plan = {
@@ -431,8 +467,9 @@
             return el;
         }
 
-        function reset() {
+        function reset({ forget = false } = {}) {
             closeReview();
+            if (forget) fetch("/api/coach/history", { method: "DELETE" }).catch(() => {});
             state.history = [];
             state.recent = [];
             log.innerHTML = "";
@@ -458,7 +495,7 @@
         function showPlan(plan, reply, heading) {
             exampleRow.hidden = true;
             clearBtn.hidden = false;
-            if (reply) bubble(rich(reply), "ai");
+            if (reply) bubble(md(reply), "ai", "sp-md");
             showReview(plan, heading || "Suggested plan");
             root.scrollIntoView({ behavior: "smooth", block: "start" });
         }
@@ -570,6 +607,23 @@
             onEmpty: () => { if (state.convo) endConvo(); }   // silence or tapping stop ends the voice chat
         });
         syncVoiceToggle();
+        // the conversation continues: show the last few remembered messages
+        (async () => {
+            if (root.dataset.history === "off") return;
+            try {
+                const r = await fetch("/api/coach/history");
+                if (!r.ok) return;
+                const h = await r.json();
+                const msgs = (h.messages || []).slice(-6);
+                if (!msgs.length || log.children.length) return;
+                exampleRow.hidden = true; clearBtn.hidden = false;
+                const mark = document.createElement("p"); mark.className = "sp-earlier"; mark.textContent = "Earlier";
+                log.hidden = false; log.appendChild(mark);
+                msgs.forEach(m => bubble(m.role === "assistant" ? md(m.text) : esc(m.text), m.role === "assistant" ? "ai" : "me", m.role === "assistant" ? "sp-md is-old" : "is-old"));
+                state.history = msgs.map(m => ({ role: m.role === "assistant" ? "assistant" : "user", text: String(m.text || "").slice(0, 800) }));
+                log.scrollTop = log.scrollHeight;
+            } catch {}
+        })();
         // typing means you've switched to the keyboard
         input.addEventListener("keydown", e => { if (state.convo && e.key.length === 1) endConvo(); });
         document.addEventListener("visibilitychange", () => { if (document.hidden) endConvo(); });
@@ -579,7 +633,7 @@
         input.addEventListener("focus", () => document.body.classList.add("sp-typing"));
         input.addEventListener("blur", () => document.body.classList.remove("sp-typing"));
         exampleRow.querySelectorAll(".sp-example").forEach(b => b.addEventListener("click", () => send(b.textContent)));
-        clearBtn.addEventListener("click", () => { endConvo(); reset(); });
+        clearBtn.addEventListener("click", () => { endConvo(); reset({ forget: true }); PlanoraCore.toast("New chat started. Planora has forgotten the earlier conversation."); });
 
         return { send, reset, showPlan, planForGoal, stopVoice: endConvo, fill: (t) => { input.value = t; autoGrow(); input.focus(); } };
     }

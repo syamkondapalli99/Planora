@@ -37,6 +37,7 @@ const rateLimit = require("express-rate-limit");
 
 const DAY_START = 7 * 60;        // earliest time to schedule (7:00 AM)
 const DAY_END = 22 * 60 + 30;    // latest end time (10:30 PM)
+const DAY_START_DEFAULT = DAY_START, DAY_END_DEFAULT = DAY_END;
 const BUFFER = 10;               // minutes between tasks
 const STEP = 15;                 // time grid
 
@@ -758,7 +759,9 @@ function refineDraft(message, draft, today) {
    Scheduler: pick real times, avoid clashes
    --------------------------------------------------------- */
 
-function schedule(items, { today, now, existing }) {
+function schedule(items, { today, now, existing, dayStart, dayEnd }) {
+    const DAY_START = Number.isFinite(dayStart) ? dayStart : DAY_START_DEFAULT;   // wake-up time, if set
+    const DAY_END = Number.isFinite(dayEnd) ? dayEnd : DAY_END_DEFAULT;             // sleep time, if set
     const busy = {}; // date -> [[start,end]]
     const addBusy = (date, s, e, routine) => { (busy[date] = busy[date] || []).push([s, e, Boolean(routine)]); };
 
@@ -1521,7 +1524,9 @@ function sanitiseRoutine(list) {
     return (Array.isArray(list) ? list : []).slice(0, 12).filter(r => r && hhmm(r.start) && hhmm(r.end) && r.start !== r.end).map(r => ({
         name: String(r.name || "Busy").replace(/[\r\n]/g, " ").trim().slice(0, 40) || "Busy",
         days: [...new Set((Array.isArray(r.days) ? r.days : []).map(Number).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort(),
-        start: r.start, end: r.end
+        start: r.start, end: r.end,
+        travelBefore: Math.max(0, Math.min(240, Math.round(Number(r.travelBefore) || 0))),
+        travelAfter: Math.max(0, Math.min(240, Math.round(Number(r.travelAfter) || 0)))
     })).filter(r => r.days.length);
 }
 function expandRoutine(routine, today, days = 120) {
@@ -1529,7 +1534,14 @@ function expandRoutine(routine, today, days = 120) {
     for (let i = 0; i <= days && out.length < 1500; i++) {
         const date = addDays(today, i), dow = dayOfWeek(date);
         routine.forEach(r => {
-            if (r.end > r.start) { if (r.days.includes(dow)) out.push({ date, start: r.start, end: r.end, title: r.name, routine: true }); }
+            if (r.end > r.start) {
+                if (r.days.includes(dow)) {
+                    out.push({ date, start: r.start, end: r.end, title: r.name, routine: true });
+                    // travel to and from it is busy too (phone-friendly things can still be suggested in the reply)
+                    if (r.travelBefore) out.push({ date, start: toClock(Math.max(0, toMin(r.start) - r.travelBefore)), end: r.start, title: `Travel to ${r.name}`, routine: true, travel: true });
+                    if (r.travelAfter) out.push({ date, start: r.end, end: toClock(Math.min(24 * 60 - 1, toMin(r.end) + r.travelAfter)), title: `Travel from ${r.name}`, routine: true, travel: true });
+                }
+            }
             else {                                   // overnight, e.g. 22:00–06:00
                 if (r.days.includes(dow)) out.push({ date, start: r.start, end: "23:59", title: r.name, routine: true });
                 if (r.days.includes((dow + 6) % 7) && r.end > "00:00") out.push({ date, start: "00:00", end: r.end, title: r.name, routine: true });
@@ -1538,10 +1550,23 @@ function expandRoutine(routine, today, days = 120) {
     }
     return out;
 }
+// Profile → My week: nothing is planned before wake-up or after sleep time
+function sleepBlocks(week, today, days = 60) {
+    const ok = v => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(v || ""));
+    const w = week && typeof week === "object" ? week : {};
+    const out = [];
+    if (!ok(w.wake) && !ok(w.sleep)) return out;
+    for (let i = 0; i <= days; i++) {
+        const date = addDays(today, i);
+        if (ok(w.wake) && w.wake > "00:00") out.push({ date, start: "00:00", end: w.wake, title: "Asleep", routine: true });
+        if (ok(w.sleep) && w.sleep > "00:00" && (!ok(w.wake) || w.sleep > w.wake)) out.push({ date, start: w.sleep, end: "23:59", title: "Asleep", routine: true });
+    }
+    return out;
+}
 function routineText(routine) {
     if (!routine || !routine.length) return "";
     const D = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    return "The user is busy at these times every week (work, college, meetings): " + routine.map(r => `${r.name} ${r.days.map(d => D[d]).join("/")} ${r.start}-${r.end}`).join("; ")
+    return "The user is busy at these times every week (work, college, meetings): " + routine.map(r => `${r.name} ${r.days.map(d => D[d]).join("/")} ${r.start}-${r.end}${r.travelBefore || r.travelAfter ? ` (+travel ${r.travelBefore || 0}m before, ${r.travelAfter || 0}m after)` : ""}`).join("; ")
         + ". Do not put tasks in these hours unless the user names that time.";
 }
 
@@ -1571,7 +1596,7 @@ function sanitiseContext(body, today) {
             .filter(e => e && isDate(e.date) && /^\d{1,2}:\d{2}$/.test(e.start || ""))
             .map(e => ({ date: e.date, start: e.start, end: /^\d{1,2}:\d{2}$/.test(e.end || "") ? e.end : "", title: String(e.title || "").slice(0, 80) })));
     const routine = sanitiseRoutine(body.routine);
-    return { ctx: { tasks, goals, events, routine }, existing: existing.concat(expandRoutine(routine, today)) };
+    return { ctx: { tasks, goals, events, routine }, existing: existing.concat(expandRoutine(routine, today)).concat(sleepBlocks(body.week, today)) };
 }
 
 /* ---------------------------------------------------------
@@ -1693,6 +1718,9 @@ function parseTask(text, today) {
     };
 }
 
+let coachMod = null;
+const Coach = () => coachMod || (coachMod = require("./coach-server"));
+
 function install(app, requireAuth) {
 
     const limiter = rateLimit({
@@ -1790,9 +1818,19 @@ Reply with JSON only: {"mode":"edit|new","title":"short task title in the user's
             const { category, ...rest } = t;
             return id ? { ...rest, category: id } : rest;
         });
+        let coachNote = "";                           // set when the daily coach limit is reached
         const respond = (payload) => res.json({ tasks: [], goals: [], updates: [], events: [], actions: [], suggestion: null, ...payload,
-            tasks: withLabels(payload.tasks), events: withLabels(payload.events), mode });
+            tasks: withLabels(payload.tasks), events: withLabels(payload.events), mode: payload.mode === "coach" ? "coach" : mode,
+            ...(coachNote && payload.mode !== "coach" ? { reply: coachNote + (payload.reply || "") } : {}) });
 
+        /* Coach: day planning, re-planning, weekly progress and advice (needs OpenAI). Quick commands keep the path below. */
+        if (process.env.OPENAI_API_KEY && !attachGoal && !draft && Coach().wantsCoach(message, mode)) {
+            try {
+                const out = await Coach().coachTurn({ req, message, ctx, existing, today, now, body: req.body, labels: L.labels });
+                if (!out.limited) return respond({ ...out, mode: "coach" });
+                coachNote = "You've reached today's limit for full planning, so here's a quicker answer. ";
+            } catch (err) { console.error("Coach failed, using the built-in planner:", err.message); }
+        }
         try {
             /* 0. Quick, deterministic answers that use the user's real data */
             if (mode === "now") return respond({ ...whatNowAnswer(ctx, today, now), source: "planora" });
@@ -1937,4 +1975,4 @@ Reply with JSON only: {"mode":"edit|new","title":"short task title in the user's
     });
 }
 
-module.exports = { install, sanitiseGoals, sanitiseContext, friendly, extractEvents, eventFromText, findRange, localPlan, schedule, classify, localAnswer, localEdit, planDay, parseTask, whatNowAnswer, planWeek, limitedTime, behindOn, moveUnfinished, breakDown, goalStatus, sanitiseLabels, pickLabel, sanitiseRoutine, expandRoutine, anchorToMessage, bdLocalEdit };
+module.exports = { install, callOpenAI, resolveUpdates, isDate, addDays, dayOfWeek, daysBetween, toMin, toClock, clock12, friendly, durLabel, taskDur, sanitiseGoals, sanitiseContext, friendly, extractEvents, eventFromText, findRange, localPlan, schedule, classify, localAnswer, localEdit, planDay, parseTask, whatNowAnswer, planWeek, limitedTime, behindOn, moveUnfinished, breakDown, goalStatus, sanitiseLabels, pickLabel, sanitiseRoutine, expandRoutine, anchorToMessage, bdLocalEdit };
