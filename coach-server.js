@@ -85,8 +85,15 @@ function targetProgress(week, tasks, today) {
     };
 }
 
+/* ---------------- fixed blocks for one date (busy hours, travel, events, sleep) ---------------- */
+function dayBlocks(existing, date) {
+    return existing.filter(b => b.date === date && (b.kind === "event" || b.routine) && toMin(b.start) !== null)
+        .map(b => ({ start: b.start, end: b.end || b.start, title: b.title || "Busy", kind: b.kind === "event" ? "event" : b.travel ? "travel" : b.title === "Asleep" ? "sleep" : "busy" }))
+        .sort((a, b) => a.start.localeCompare(b.start));
+}
+
 /* ---------------- compact context for the model ---------------- */
-function coachContext({ ctx, week, labels, moods, today, now, tz }) {
+function coachContext({ ctx, existing, week, labels, moods, today, now, tz }) {
     const L = {};
     (labels || []).forEach(l => { L[l.id] = l.label; });
     const lines = [];
@@ -94,14 +101,14 @@ function coachContext({ ctx, week, labels, moods, today, now, tz }) {
     const { wake, sleep } = dayBounds(week);
     lines.push(`NOW: ${D3[dow]} ${today} ${now || "?"}${tz ? ` (${tz})` : ""}. When planning today, start from ${now || "now"}.`);
     lines.push(`DAY: wake ${week.wake || "not set (assume 07:00)"}, sleep ${week.sleep || "not set (assume 23:00)"}. Plan only between ${toClock(wake)} and ${toClock(sleep)}.`);
-    if (ctx.routine && ctx.routine.length) {
-        lines.push("BUSY HOURS every week (never plan over these or their travel):");
-        ctx.routine.forEach(r => lines.push(`- ${r.name}: ${r.days.map(d => D3[d]).join("/")} ${r.start}-${r.end}${r.travelBefore || r.travelAfter ? `; travel ${r.travelBefore}m before, ${r.travelAfter}m after (phone-friendly tasks only)` : ""}`));
-    } else lines.push("BUSY HOURS: none set.");
+    // Day by day: busy hours, travel and events already worked out for each date (models get weekdays wrong)
     const end7 = addDays(today, 7);
-    const ev = (ctx.events || []).filter(e => e.date >= today && e.date <= end7).slice(0, 60);
-    lines.push(ev.length ? "EVENTS (fixed, never move or plan over):" : "EVENTS: none in the next 7 days.");
-    ev.forEach(e => lines.push(`- ${e.date} ${e.start}-${e.end} ${e.title}`));
+    lines.push("DAY BY DAY — fixed times already worked out (never plan over them; a day not listed as busy is free):");
+    for (let i = 0; i <= 7; i++) {
+        const date = addDays(today, i);
+        const blocks = dayBlocks(existing || [], date).filter(b => b.kind !== "sleep");
+        lines.push(`- ${D3[dayOfWeek(date)]} ${date}${i === 0 ? " (today)" : i === 1 ? " (tomorrow)" : ""}: ${blocks.length ? blocks.map(b => `${b.start}-${b.end} ${b.title}${b.kind === "travel" ? " (phone-friendly only)" : ""}`).join("; ") : "no busy hours or events"}`);
+    }
     const tasks = (ctx.tasks || []);
     const soon = tasks.filter(t => t.date >= today && t.date <= end7).slice(0, 80);
     const overdue = tasks.filter(t => !t.completed && t.date < today && t.date >= addDays(today, -7)).slice(0, 20);
@@ -148,41 +155,48 @@ For health, diet and fitness, give general, practical guidance: consistent sleep
 
 If key information is missing, ask one short question, or make a reasonable assumption and say so. Keep replies short, warm and scannable, with tables and bullets, not long paragraphs. All task changes go into \`changes\` for the person to preview and approve.
 
-Output rules:
-- "reply": markdown for the chat. Times in 12-hour format (9:00 AM). Use a markdown table "| Time | Task |" when planning. No headings.
-- "spoken": 1–3 short sentences for reading aloud, no tables, no markdown.
-- "changes": only real changes to the person's tasks. "move"/"update"/"delete" must use an existing task id from TASKS or UNFINISHED. When re-planning, move existing tasks instead of creating duplicates. "create" only for new work the person asked for or clearly implied (e.g. "Finish Module 2" if it isn't already a task). Never create tasks for meals, breaks, sleep, travel or being out. Dates YYYY-MM-DD, times HH:MM 24-hour; leave start/end "" for an anytime task. Never change events.
-- If nothing needs to change (advice, progress, a question), return an empty "changes" list.`;
+Output format (Planora builds the final table from your answer, so fill the fields exactly):
+- "intro": the one short acknowledging line.
+- "plan_date": the YYYY-MM-DD you are planning (today or another day), or "" if you are only answering/advising.
+- "rows": the plan for that day in time order. Each row: start/end in 24-HOUR "HH:MM" (2 PM = "14:00", 7:45 PM = "19:45"), "text", "kind", "task_id", "label_id".
+  kind "task" = an existing task from TASKS/UNFINISHED (task_id required); "new_task" = new work the person asked for or clearly implied (task_id ""); "meal", "break" = meals and breaks; "out" = time the person said they're out or busy (e.g. 10:00-18:00), with phone-friendly ideas in the text; "other" = anything else that isn't a task.
+  Don't add rows for the busy hours, travel, events or sleep listed in DAY BY DAY — Planora adds those itself. No "free time" rows. Use an existing task instead of a new_task with the same name.
+- "done_if": 2–4 concrete outcomes for the day (empty if not planning).
+- "moved": existing tasks you move to ANOTHER day (task_id, date, start/end 24-hour or "" for anytime).
+- "tips": at most 2 short tips.
+- "answer": for questions, progress or advice without a day plan: a short markdown answer (bullets fine, no tables). Otherwise "".
+- "spoken": 1–3 short sentences to read aloud, no tables or markdown.
+Never change events. Every existing task you schedule must be a "task" row or in "moved" — that is how the change is shown to the person for approval.`;
 
+const ROW = {
+    type: "object", additionalProperties: false,
+    required: ["start", "end", "text", "kind", "task_id", "label_id"],
+    properties: {
+        start: { type: "string" }, end: { type: "string" }, text: { type: "string" },
+        kind: { type: "string", enum: ["task", "new_task", "meal", "break", "out", "other"] },
+        task_id: { type: "string" }, label_id: { type: "string" }
+    }
+};
 const SCHEMA = {
     name: "planora_coach",
     strict: true,
     schema: {
         type: "object",
         additionalProperties: false,
-        required: ["reply", "spoken", "changes"],
+        required: ["intro", "plan_date", "rows", "done_if", "moved", "tips", "answer", "spoken"],
         properties: {
-            reply: { type: "string" },
-            spoken: { type: "string" },
-            changes: {
+            intro: { type: "string" },
+            plan_date: { type: "string" },
+            rows: { type: "array", items: ROW },
+            done_if: { type: "array", items: { type: "string" } },
+            moved: {
                 type: "array",
-                items: {
-                    type: "object",
-                    additionalProperties: false,
-                    required: ["action", "task_id", "title", "date", "start", "end", "duration_min", "label_id", "goal_id"],
-                    properties: {
-                        action: { type: "string", enum: ["create", "move", "update", "delete"] },
-                        task_id: { type: "string" },
-                        title: { type: "string" },
-                        date: { type: "string" },
-                        start: { type: "string" },
-                        end: { type: "string" },
-                        duration_min: { type: "integer" },
-                        label_id: { type: "string" },
-                        goal_id: { type: "string" }
-                    }
-                }
-            }
+                items: { type: "object", additionalProperties: false, required: ["task_id", "date", "start", "end"],
+                    properties: { task_id: { type: "string" }, date: { type: "string" }, start: { type: "string" }, end: { type: "string" } } }
+            },
+            tips: { type: "array", items: { type: "string" } },
+            answer: { type: "string" },
+            spoken: { type: "string" }
         }
     }
 };
@@ -214,7 +228,7 @@ async function callModel(messages, { model, schema = SCHEMA, temperature = 0.4, 
 const NOT_A_TASK = /^(breakfast|lunch|dinner|brunch|snack|meal|eat|coffee|tea|break|short break|rest|relax|wind down|sleep|bed|bedtime|nap|travel|commute|journey|out\b|going out|free time|shower)\b/i;
 const norm = t => String(t || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 
-function validateChanges(raw, { ctx, existing, today, now, week, labels, message }) {
+function validateChanges(raw, { ctx, existing, today, now, week, labels, message, extraFixed = [] }) {
     const notes = [];
     const tasksById = {};
     (ctx.tasks || []).forEach(t => { tasksById[String(t.id)] = t; });
@@ -228,7 +242,7 @@ function validateChanges(raw, { ctx, existing, today, now, week, labels, message
     const seenNew = new Set();
 
     // busy = events, busy hours, travel, sleep, and other timed tasks that aren't being changed
-    const fixed = (existing || []).filter(e => e.kind === "event" || e.routine);
+    const fixed = (existing || []).filter(e => e.kind === "event" || e.routine).concat(extraFixed);
     const accepted = [];                                    // timed items already accepted in this answer
     const changingIds = new Set((raw || []).filter(c => c && c.task_id && tasksById[c.task_id]).map(c => c.task_id));
     const otherTasks = (existing || []).filter(e => !e.kind && !e.routine && e.id && !changingIds.has(String(e.id)));
@@ -242,6 +256,7 @@ function validateChanges(raw, { ctx, existing, today, now, week, labels, message
         let s = hhmm(c.start) ? toMin(c.start) : null;
         let e = hhmm(c.end) ? toMin(c.end) : null;
         if (s === null) return { date, start: "", end: "", duration: dur };           // anytime
+        [s, e] = pmFix(s, e, wake, sleep);
         if (e !== null && e > s) dur = e - s; else e = s + dur;
         const lateStart = date === today && nowMin !== null && s < nowMin - 5;
         const outside = s < wake || e > sleep;
@@ -301,6 +316,83 @@ function validateChanges(raw, { ctx, existing, today, now, week, labels, message
         });
     }
     return { tasks: creates, updates, notes };
+}
+
+// "02:00" before wake-up that only makes sense as 2 PM (models sometimes write 12-hour times)
+function pmFix(s, e, wake, sleep) {
+    if (s !== null && s < wake && s < 12 * 60 && s + 720 >= wake && s + 720 < sleep) {
+        s += 720;
+        if (e !== null && e + 720 <= 24 * 60 && e < wake + 1) e += 720;
+    }
+    return [s, e];
+}
+
+/* ---------------- turn the model's day plan into checked changes + the reply ---------------- */
+const fmt12 = hm => { const m = toMin(hm); if (m === null) return ""; const h = Math.floor(m / 60) % 24, mi = m % 60; return `${h % 12 || 12}:${String(mi).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
+const span = (a, b) => b && b !== a ? `${fmt12(a)}–${fmt12(b)}` : fmt12(a);
+const clean1 = t => String(t || "").replace(/[\r\n|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 140);
+function composePlan(ai, { ctx, existing, today, now, week, labels, message }) {
+    const { wake, sleep } = dayBounds(week);
+    const day = isDate(ai.plan_date) && daysBetween(today, ai.plan_date) >= 0 && daysBetween(today, ai.plan_date) <= 14 ? ai.plan_date : "";
+    const rows = (Array.isArray(ai.rows) ? ai.rows : []).slice(0, 30);
+    const times = r => { let s = hhmm(r.start) ? toMin(r.start) : null, e = hhmm(r.end) ? toMin(r.end) : null; [s, e] = pmFix(s, e, wake, sleep); return { s, e }; };
+    // time the person is out/busy counts as busy for this plan
+    const outBlocks = day ? rows.filter(r => r.kind === "out").map(r => ({ ...times(r), r })).filter(x => x.s !== null && x.e !== null && x.e > x.s)
+        .map(x => ({ date: day, start: toClock(x.s), end: toClock(x.e), title: clean1(x.r.text) || "Out", kind: "event", out: true })) : [];
+    const changes = [];
+    if (day) rows.forEach(r => {
+        const t = times(r);
+        const st = t.s === null ? "" : toClock(t.s), en = t.e === null ? "" : toClock(t.e);
+        if (r.kind === "task" && r.task_id) changes.push({ action: "move", task_id: r.task_id, title: "", date: day, start: st, end: en, duration_min: 0, label_id: "", goal_id: "" });
+        else if (r.kind === "new_task" && clean1(r.text)) changes.push({ action: "create", task_id: "", title: clean1(r.text), date: day, start: st, end: en, duration_min: 0, label_id: r.label_id || "", goal_id: "" });
+    });
+    (Array.isArray(ai.moved) ? ai.moved : []).slice(0, 15).forEach(m => {
+        if (m && m.task_id && isDate(m.date)) changes.push({ action: "move", task_id: m.task_id, title: "", date: m.date, start: hhmm(m.start) ? m.start : "", end: hhmm(m.end) ? m.end : "", duration_min: 0, label_id: "", goal_id: "" });
+    });
+    const checked = validateChanges(changes, { ctx, existing, today, now, week, labels, message, extraFixed: outBlocks });
+
+    // the table: checked tasks + the model's meals/breaks/out rows + Planora's own busy/travel/event rows
+    const parts = [];
+    if (String(ai.intro || "").trim()) parts.push(clean1(ai.intro).slice(0, 300));
+    if (day) {
+        const nowMin = day === today ? toMin(now) : null;
+        const table = [];
+        checked.updates.filter(u => !u.remove && u.date === day).forEach(u => table.push({ s: u.start, e: u.end, text: u.title }));
+        checked.tasks.filter(t => t.date === day).forEach(t => table.push({ s: t.start, e: t.end, text: t.title }));
+        // the day's other unfinished tasks stay in the table where they already are
+        const changedIds = new Set(checked.updates.map(u => String(u.id)));
+        (ctx.tasks || []).filter(t => t.date === day && !t.completed && !changedIds.has(String(t.id)))
+            .forEach(t => table.push({ s: t.start || "", e: t.end || "", text: t.title }));
+        // busy hours, travel and sleep come from Planora's own data, never from the model
+        const routineNames = new Set((ctx.routine || []).map(r => r.name.toLowerCase()));
+        const notDisplay = r => routineNames.has(clean1(r.text).toLowerCase()) || /\b(class(es)?|lecture|college|work shift|travel|commute|journey|sleep|bed ?time|go to bed|wake up|free time|prepare for bed)\b/i.test(r.text || "");
+        rows.filter(r => ["meal", "break", "out", "other"].includes(r.kind) && (r.kind === "out" || !notDisplay(r))).forEach(r => {
+            const t = times(r);
+            if (t.s === null || !clean1(r.text)) return;
+            table.push({ s: toClock(t.s), e: t.e === null ? "" : toClock(t.e), text: clean1(r.text) });
+        });
+        dayBlocks(existing || [], day).forEach(b => {
+            if (b.kind === "sleep") return;
+            table.push({ s: b.start, e: b.end, text: b.kind === "travel" ? `${b.title} (phone-friendly tasks)` : b.title });
+        });
+        if (week.sleep) table.push({ s: week.sleep === "00:00" ? "23:59" : week.sleep, e: "", text: "Sleep", sleep: true });
+        const timed = table.filter(r => r.s && (nowMin === null || toMin(r.e || r.s) > nowMin - 1 || r.sleep))
+            .sort((a, b) => (a.sleep ? 1 : 0) - (b.sleep ? 1 : 0) || a.s.localeCompare(b.s));
+        const anytime = table.filter(r => !r.s);
+        if (timed.length || anytime.length) {
+            parts.push(["| Time | Task |", "|---|---|"].concat(timed.map(r => `| ${r.sleep ? (week.sleep === "00:00" ? "12:00 AM" : fmt12(r.s)) : span(r.s, r.e)} | ${r.text} |`))
+                .concat(anytime.map(r => `| Anytime | ${r.text} |`)).join("\n"));
+        }
+        const done = (Array.isArray(ai.done_if) ? ai.done_if : []).map(clean1).filter(Boolean).slice(0, 4);
+        if (done.length) parts.push(`**Done ${day === today ? "today" : "that day"} if:** ${done.join(", ")}.`.replace(/\.\.$/, "."));
+    }
+    const movedOut = checked.updates.filter(u => !u.remove && (!day || u.date !== day));
+    if (movedOut.length) parts.push(`**Moved:** ${movedOut.map(u => `${u.title} → ${friendly(u.date, today)}${u.start ? " " + fmt12(u.start) : ""}`).join(", ")}.`);
+    if (String(ai.answer || "").trim()) parts.push(String(ai.answer).trim().slice(0, 2500));
+    if (checked.notes.length) parts.push(checked.notes.map(n => "- " + n).join("\n"));
+    const tips = (Array.isArray(ai.tips) ? ai.tips : []).map(clean1).filter(Boolean).slice(0, 2);
+    if (tips.length) parts.push(tips.map(t => "- Tip: " + t.replace(/^tip:\s*/i, "")).join("\n"));
+    return { reply: parts.join("\n\n") || "Here's what I suggest.", tasks: checked.tasks, updates: checked.updates };
 }
 
 /* ---------------- conversation memory ---------------- */
@@ -367,7 +459,7 @@ function countUse(uid, today) { const u = usage.get(uid) || { date: today, n: 0 
 const REPLAN = /\b(going out|i'?m out|i'?ll be out|out (from|between|all day|today|tonight|until|till)|away (from|today|tomorrow|until|till)|busy (from|between|until|till)|haven'?t (finished|done|started)|didn'?t (finish|get to|manage)|not (finished|done) (yet|with)|fell behind|running (late|behind)|woke up late|overslept|feeling (sick|ill|unwell|tired|exhausted)|i'?m (sick|ill|tired|exhausted|burnt out|overwhelmed)|rest of (the|my) day|re-?plan|reschedule my (day|week|evening)|what should i (do|focus on|work on)|how am i doing|am i on track|on track (this|for the) week)\b/i;
 const ADVICE = /^(please\s+)?(help me (focus|study better|stay on track|build|improve|get better|be more)|how (do|can|should) i\b|any (tips|advice)\b|tips? (for|on)\b|advice (for|on)\b|give me (some )?(tips|advice)\b|i want to (build|improve|get better|be more)\b)/i;
 function wantsCoach(message, mode) {
-    if (["plan_day", "plan_week", "behind", "limited", "move_unfinished", "now", "question"].includes(mode)) return true;
+    if (["plan_day", "behind", "limited", "move_unfinished", "now", "question"].includes(mode)) return true;
     if (mode === "goal_status") return true;
     if (ADVICE.test(message.trim())) return true;
     if (mode === "edit") return REPLAN.test(message) && /\b(day|today|tomorrow|week|evening)\b/i.test(message);
@@ -386,7 +478,7 @@ async function coachTurn({ req, supa = CONFIG, message, ctx, existing, today, no
     let memory = { messages: [], summary: "" };
     try { memory = await mem.load(); } catch (e) { console.error("Coach memory:", e.message); memory = { messages: (body.history || []).slice(-6).map(h => ({ role: h.role === "assistant" ? "assistant" : "user", text: String(h.text || "").slice(0, 800) })), summary: "" }; }
 
-    const context = coachContext({ ctx, week, labels, moods, today, now, tz });
+    const context = coachContext({ ctx, existing, week, labels, moods, today, now, tz });
     const messages = [{ role: "system", content: SYSTEM }, { role: "system", content: "CONTEXT\n" + context }];
     if (memory.summary) messages.push({ role: "system", content: "EARLIER IN THIS CHAT: " + memory.summary });
     memory.messages.slice(-MAX_TURNS).forEach(m => messages.push({ role: m.role === "assistant" ? "assistant" : "user", content: String(m.text || "").slice(0, 1500) }));
@@ -394,9 +486,8 @@ async function coachTurn({ req, supa = CONFIG, message, ctx, existing, today, no
 
     const ai = await callModel(messages);
     countUse(uid, today);
-    const checked = validateChanges(ai.changes, { ctx, existing, today, now, week, labels, message });
-    let reply = String(ai.reply || "").trim().slice(0, 4000) || "Here's what I suggest.";
-    if (checked.notes.length) reply += "\n\n" + checked.notes.map(n => "- " + n).join("\n");
+    const checked = composePlan(ai, { ctx, existing, today, now, week, labels, message });
+    const reply = checked.reply.slice(0, 5000);
     const spoken = String(ai.spoken || "").replace(/[*_#|`]/g, "").trim().slice(0, 400);
 
     // remember this turn
@@ -424,4 +515,4 @@ function install(app, requireAuth, supa) {
     });
 }
 
-module.exports = { install, coachTurn, wantsCoach, sanitiseWeek, dayBounds, targetProgress, coachContext, validateChanges, trimMemory, SYSTEM, SCHEMA };
+module.exports = { install, coachTurn, wantsCoach, sanitiseWeek, dayBounds, targetProgress, coachContext, validateChanges, composePlan, pmFix, dayBlocks, trimMemory, SYSTEM, SCHEMA };
