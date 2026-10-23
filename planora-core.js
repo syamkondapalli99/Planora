@@ -949,6 +949,86 @@
         return { tasks, goals, events };
     }
 
+    /* ---------------- Filter by label (Home schedule + Calendar) ----------------
+       Remembered on this device only (the key has no "planora_" prefix, so it isn't synced). */
+    const FILTER_KEY = "planora-label-filter";
+    function labelFilter() {
+        try { const v = JSON.parse(localStorage.getItem(FILTER_KEY) || "[]"); return Array.isArray(v) ? v.map(String) : []; } catch { return []; }
+    }
+    function setLabelFilter(list) {
+        try { localStorage.setItem(FILTER_KEY, JSON.stringify([...new Set((list || []).map(String))])); } catch {}
+        syncFilterButtons();
+        document.dispatchEvent(new CustomEvent("planora:filter-changed"));
+    }
+    function labelKeyOf(kind, raw) {
+        if (kind === "gevent") return "google";
+        const c = raw && raw.category;
+        if (c && customCategories().some(x => x.id === c)) return c;
+        if (kind === "task" && raw && raw.goalId) return "goal";
+        return "none";
+    }
+    function passesLabelFilter(kind, raw) {
+        const f = labelFilter();
+        return !f.length || f.includes(labelKeyOf(kind, raw));
+    }
+    function filterOptions() {
+        const opts = customCategories().map(c => ({ key: c.id, label: c.label, color: c.color }));
+        opts.push({ key: "goal", label: "Goal tasks", icon: "ti-target-arrow" }, { key: "none", label: "No label", color: "#B9B3D9" });
+        if ((window.PlanoraGCal && PlanoraGCal.connected) || labelFilter().includes("google")) opts.push({ key: "google", label: "Google Calendar", icon: "ti-brand-google" });
+        return opts;
+    }
+    function filterButtonHTML(extra = "") {
+        const n = labelFilter().length;
+        return `<button type="button" class="lf-btn ${extra}${n ? " is-on" : ""}" data-label-filter aria-haspopup="dialog" aria-pressed="${n > 0}" aria-label="${n ? `Filter by label: ${n} selected` : "Filter by label"}" title="Filter by label"><i class="ti ti-filter" aria-hidden="true"></i><span class="lf-count"${n ? "" : " hidden"}>${n || ""}</span></button>`;
+    }
+    function syncFilterButtons() {
+        const f = labelFilter();
+        document.querySelectorAll("[data-label-filter]").forEach(b => {
+            b.classList.toggle("is-on", f.length > 0);
+            b.setAttribute("aria-pressed", String(f.length > 0));
+            b.setAttribute("aria-label", f.length ? `Filter by label: ${f.length} selected` : "Filter by label");
+            const n = b.querySelector(".lf-count");
+            if (n) { n.hidden = !f.length; n.textContent = String(f.length); }
+        });
+    }
+    function openLabelFilter() {
+        let chosen = new Set(labelFilter());
+        const opts = filterOptions();
+        openSheet({
+            title: "Filter by label",
+            icon: "ti-filter",
+            body: `
+                <p class="pl-hint" id="lf-hint"></p>
+                <div class="lf-list" role="group" aria-label="Labels">
+                    ${opts.map(o => `<button type="button" class="lf-opt" data-lf="${esc(o.key)}" aria-pressed="false">
+                        ${o.icon ? `<i class="ti ${o.icon} lf-ico" aria-hidden="true"></i>` : `<span class="lf-dot" style="background:${esc(o.color || "#B9B3D9")}" aria-hidden="true"></span>`}
+                        <span class="lf-name">${esc(o.label)}</span><i class="ti ti-check lf-tick" aria-hidden="true"></i></button>`).join("")}
+                </div>
+                ${customCategories().length ? "" : `<p class="pl-hint">You haven't made any labels yet. <button type="button" class="link-btn" data-lf-labels>Create labels</button></p>`}
+                <div class="lf-actions">
+                    <button type="button" class="btn-secondary" data-lf-all>Show everything</button>
+                    <button type="button" class="btn-primary" data-lf-done>Done</button>
+                </div>`,
+            onReady(panel) {
+                const paint = () => {
+                    panel.querySelectorAll("[data-lf]").forEach(b => { const on = chosen.has(b.dataset.lf); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
+                    panel.querySelector("#lf-hint").textContent = chosen.size ? `Showing only what you've picked (${chosen.size}).` : "Showing everything. Pick labels to see only those.";
+                };
+                panel.querySelectorAll("[data-lf]").forEach(b => b.addEventListener("click", () => {
+                    const k = b.dataset.lf; chosen.has(k) ? chosen.delete(k) : chosen.add(k);
+                    paint(); setLabelFilter([...chosen]);
+                }));
+                panel.querySelector("[data-lf-all]").addEventListener("click", () => { chosen = new Set(); paint(); setLabelFilter([]); closeSheet(); });
+                panel.querySelector("[data-lf-done]").addEventListener("click", () => closeSheet());
+                const lb = panel.querySelector("[data-lf-labels]");
+                if (lb) lb.addEventListener("click", () => { closeSheet(); openLabelsManager(); });
+                paint();
+            }
+        });
+    }
+    document.addEventListener("click", e => { if (e.target.closest("[data-label-filter]")) openLabelFilter(); });
+    document.addEventListener("DOMContentLoaded", syncFilterButtons);
+
     // Profile → My week (wake/sleep, weekly targets) and the last 7 days' journal mood (never the entry text)
     function weekPrefs() {
         const u = window.PlanoraAuth && PlanoraAuth.user;
@@ -2876,7 +2956,7 @@
         // colours
         openLabelsManager, voiceSupported, attachMic, taskColor, eventColor, paintTask, decorateTaskItem, goalColor, softOf, SWATCHES, mountColorChips,
         // utils
-        labelContext, coachExtras, weekPrefs, routine, routineBusy, askDeleteTask, askDeleteEvent, planWithAI,
+        labelContext, labelFilter, setLabelFilter, passesLabelFilter, labelKeyOf, openLabelFilter, filterButtonHTML, syncFilterButtons, coachExtras, weekPrefs, routine, routineBusy, askDeleteTask, askDeleteEvent, planWithAI,
         today, addDays, nowMin, nowClock, toMin, toClock, time12, durLabel, dayLabel, shortDate, esc, uid, taskDuration, loadJSON, saveJSON,
         migrate
     };

@@ -391,12 +391,36 @@
 
     /* ---------------- schedule empty state + title ---------------- */
 
+    // Filter by label: hide the rows whose label isn't picked (button next to the calendar icon)
+    function applyLabelFilter() {
+        const core = C();
+        if (!core.passesLabelFilter) return;
+        const tasks = {}, events = {};
+        core.getTasks().forEach(t => { tasks[String(t.id)] = t; });
+        (core.getEvents ? core.getEvents() : []).forEach(e => { events[String(e.id)] = e; });
+        document.querySelectorAll("#task-list .task-item, #completed-list .task-item").forEach(el => {
+            const raw = el.dataset.eventId ? events[el.dataset.eventId] : tasks[el.dataset.taskId];
+            if (raw && !core.passesLabelFilter(el.dataset.eventId ? "event" : "task", raw)) el.style.display = "none";
+        });
+        const done = $("completed-list"), sec = $("completed-section");
+        if (done && sec && sec.style.display !== "none") {
+            const any = [...done.querySelectorAll(".task-item")].some(el => el.style.display !== "none");
+            sec.classList.toggle("lf-hidden", !any);
+        }
+        if (core.syncFilterButtons) core.syncFilterButtons();
+    }
+    document.addEventListener("planora:filter-changed", () => {
+        if (typeof window.showTasksForDate === "function") window.showTasksForDate(typeof selectedDate !== "undefined" && selectedDate ? selectedDate : C().today());
+    });
+
     function renderScheduleEmpty() {
         const core = C();
         const el = $("schedule-empty");
         if (!el || typeof selectedDate === "undefined") return;
         const day = selectedDate || core.today();
-        const visible = core.getTasks().filter(x => x.date === day).length + (core.getEvents ? core.getEvents().filter(x => x.date === day).length : 0);
+        const pass = (k, x) => !core.passesLabelFilter || core.passesLabelFilter(k, x);
+        const visible = core.getTasks().filter(x => x.date === day && pass("task", x)).length + (core.getEvents ? core.getEvents().filter(x => x.date === day && pass("event", x)).length : 0);
+        const filtered = core.labelFilter && core.labelFilter().length > 0;
         const isToday = day === core.today();
         const sum = $("sched-summary");
         if (sum) sum.hidden = !isToday || !sum.textContent;
@@ -406,7 +430,10 @@
         el.hidden = visible > 0;
         if (visible) return;
         const brandNew = !core.getTasks().length;   // the first-day card already offers help
-        el.innerHTML = brandNew
+        el.innerHTML = filtered
+            ? `<p>Nothing with the labels you picked on ${isToday ? "today's schedule" : core.esc(core.dayLabel(day))}.</p>
+               <div class="empty-actions"><button type="button" class="btn-secondary" data-label-filter>Change filter</button></div>`
+            : brandNew
             ? `<p>Nothing scheduled yet.</p>`
             : isToday
             ? `<p><strong>You have a clear day.</strong><br>Want Planora to help you plan it?</p>
@@ -562,6 +589,7 @@
             window.showTasksForDate = function () {
                 try { renderScheduleEvents(arguments[0]); } catch (e) { console.error(e); }
                 const r = orig.apply(this, arguments);
+                try { applyLabelFilter(); } catch (e) { console.error(e); }
                 renderScheduleEmpty();
                 return r;
             };

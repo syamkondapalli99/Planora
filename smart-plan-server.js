@@ -362,7 +362,11 @@ function cleanTitle(text, removals) {
 }
 
 function splitItems(message) {
-    return message
+    // "Module 2 (videos and revision)" stays one item: hide what's in brackets while splitting
+    const kept = [];
+    const masked = String(message).replace(/\([^()\n]{0,120}\)|\[[^\[\]\n]{0,120}\]/g, m => `\u0001${kept.push(m) - 1}\u0002`);
+    const unmask = str => str.replace(/\u0001(\d+)\u0002/g, (m, k) => kept[Number(k)]);
+    return masked
         .split(/\n|;|\.\s+(?=[A-Za-z])|,\s*(?:and\s+)?|\s+and then\s+|\s+then\s+|\s+also\s+|\s+plus\s+/i)
         .flatMap(part => {
             // split on " and " when both sides are real activities ("call mum at 6 and essay due Monday"),
@@ -379,7 +383,7 @@ function splitItems(message) {
             }
             return out;
         })
-        .map(s => s.trim())
+        .map(s => unmask(s).trim())
         .filter(s => s && s.replace(/[^a-z]/gi, "").length > 1);
 }
 
@@ -800,11 +804,18 @@ function schedule(items, { today, now, existing, dayStart, dayEnd }) {
         return null;
     };
 
+    // fixed times first, then fixed times that have already passed (they get moved), then flexible ones
+    const rankOf = t => {
+        if (t.flexible) return 2;
+        const p = toMin(t.start), d = Math.round(Number(t.duration) || 45);
+        const passed = p !== null && (t.date === today || !isDate(t.date)) && nowMin !== null && p < nowMin && !(t.fromUser && p + d > nowMin);
+        return passed ? 1 : 0;
+    };
     const out = [];
     // fixed-time items first so flexible ones flow around them
     const order = items
         .map((t, i) => ({ t, i }))
-        .sort((a, b) => (a.t.flexible === b.t.flexible ? 0 : a.t.flexible ? 1 : -1));
+        .sort((a, b) => rankOf(a.t) - rankOf(b.t));
 
     order.forEach(({ t, i }) => {
         let duration = Math.max(10, Math.min(8 * 60, Math.round(Number(t.duration) || 45)));
@@ -816,7 +827,7 @@ function schedule(items, { today, now, existing, dayStart, dayEnd }) {
 
         if (!t.flexible && pref !== null) {
             // user asked for a specific time: keep it (warn if it clashes or has passed)
-            if (date === today && nowMin !== null && pref < nowMin) {
+            if (date === today && nowMin !== null && pref < nowMin && !(t.fromUser && pref + duration > nowMin)) {
                 note = note || "That time has already passed today — moved to the next free slot.";
                 placed = findSlot(date, nowMin, duration);
             } else {
@@ -828,7 +839,7 @@ function schedule(items, { today, now, existing, dayStart, dayEnd }) {
                     const near = findNear(date, pref, duration);
                     if (near !== null) { placed = near; note = note || `Moved to ${clock12(toClock(near))} so it doesn't overlap with something already planned.`; }
                     else note = note || "Overlaps with something already planned — edit if needed.";
-                } else if (!fits(date, pref, duration) && pref >= DAY_START && pref + duration <= DAY_END) {
+                } else if (!fits(date, pref, duration)) {
                     if (clash) note = note || "Overlaps with something already planned — edit if needed.";
                 }
             }
@@ -874,7 +885,7 @@ function schedule(items, { today, now, existing, dayStart, dayEnd }) {
         }
 
         if (placed === null) placed = earliest(date);
-        placed = Math.min(placed, DAY_END - Math.min(duration, 60));
+        if (t.flexible || pref === null || !t.fromUser) placed = Math.min(placed, DAY_END - Math.min(duration, 60));
         addBusy(date, placed, placed + duration);
 
         out[i] = {
@@ -1621,6 +1632,8 @@ function findRange(text) {
         a1 = h1 >= 8 && h1 <= 11 ? "am" : h1 === 12 ? "pm" : h1 <= 7 ? "pm" : null;
     } else if (!a1) {
         a1 = a2 === "pm" && h1 > h2 && h1 !== 12 ? "am" : a2;
+        // "11:40–12:50pm" is 11:40 AM to 12:50 PM, not 11:40 PM
+        if (a2 === "pm" && h2 === 12 && h1 >= 6 && h1 <= 11) a1 = "am";
     } else if (!a2) {
         a2 = a1 === "am" && h2 < h1 ? "pm" : a1;
     }
@@ -1629,6 +1642,117 @@ function findRange(text) {
     let e = to24(h2, a2) * 60 + m2;
     if (e <= s) e = s + 60;
     return { start: toClock(s), end: toClock(Math.min(e, 24 * 60 - 1)), match: m[0] };
+}
+
+/* ---------------------------------------------------------
+   A plan the person wrote out themselves (23 Oct 2026)
+   "10:20–11:30am: Module 2 (videos and revision)
+    11:40–12:50pm: Module 3 …
+    7:30–8.30pm: Research revision"
+   → each line becomes one task at exactly that time, with its full name.
+   am/pm can be left out: a time is read as the earliest one that makes sense
+   (from now for the first line, then after the line before it).
+   --------------------------------------------------------- */
+const TT_TIME = String.raw`(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?`;
+const TT_RANGE = new RegExp(String.raw`(?:^|\s|\()(?:from\s+)?` + TT_TIME + String.raw`\s*(?:-|–|—|to|till|until)\s*` + TT_TIME + String.raw`(?!\d|:\d)`, "i");
+const TT_START = new RegExp(String.raw`^(?:at\s+|@\s*)?` + TT_TIME + String.raw`(?=\s*(?:[:\-–—|)]\s|\s))`, "i");
+
+function ttAmPm(a) { if (!a) return null; return a.toLowerCase().startsWith("p") ? "pm" : "am"; }
+function ttCandidates(h, m, a) {
+    if (h > 24 || m > 59) return [];
+    if (a) { if (h < 1 || h > 12) return []; return [(h % 12 + (a === "pm" ? 12 : 0)) * 60 + m]; }
+    if (h === 0 || h > 12) return h === 24 ? [] : [h * 60 + m];
+    return [(h % 12) * 60 + m, (h % 12 + 12) * 60 + m];      // 10:00 → 10 AM or 10 PM
+}
+// the earliest reading at or after `cursor` (a little slack so "10:00" at 10:05 stays 10 AM)
+// (after the line before it if possible, else after now, else the morning reading)
+function ttPick(cands, cursor, slack, base) {
+    const sorted = cands.slice().sort((a, b) => a - b);
+    return sorted.find(c => c >= cursor - slack) ?? sorted.find(c => c >= base - 60) ?? sorted[0];
+}
+
+function readTimetableLine(line) {
+    let m = line.match(TT_RANGE), kind = "range";
+    if (!m) { m = line.replace(/^\s+/, "").match(TT_START); kind = "start"; }
+    if (!m) return null;
+    const lead = kind === "range" && /^[\s(]/.test(m[0]) ? 1 : 0;
+    const match = m[0].slice(lead);
+    const out = { kind, match, h1: Number(m[1]), m1: Number(m[2] || 0), a1: ttAmPm(m[3]) };
+    if (kind === "range") { out.h2 = Number(m[4]); out.m2 = Number(m[5] || 0); out.a2 = ttAmPm(m[6]); }
+    if (ttCandidates(out.h1, out.m1, out.a1).length === 0) return null;
+    if (kind === "range" && ttCandidates(out.h2, out.m2, out.a2).length === 0) return null;
+    // "2.5 hours", "3-4 times" are not times
+    const after = line.slice(line.indexOf(match) + match.length);
+    if (/^\s*(hours?|hrs?|h\b|mins?|minutes?|times|x\b|days?|weeks?|pages?|%)/i.test(after)) return null;
+    if (kind === "start" && !out.a1 && !m[2] && !/^\s*[:\-–—|)]/.test(after)) return null;   // "3 essays" is not 3 o'clock
+    return out;
+}
+
+function ttTitle(line, match, dateMatch) {
+    let t = line;
+    const i = t.indexOf(match);
+    if (i >= 0) t = t.slice(0, i) + " " + t.slice(i + match.length);
+    if (dateMatch) { const j = t.toLowerCase().indexOf(dateMatch); if (j >= 0) t = t.slice(0, j) + " " + t.slice(j + dateMatch.length); }
+    t = t.replace(/\(\s*\)/g, " ").replace(/\s{2,}/g, " ").trim()
+        .replace(/^(?:[:\-–—|,.]|\bat\b|\bfrom\b|\bon\b)+\s*/i, "").replace(/\s*(?:[:\-–—|,]|\bat\b|\bfrom\b|\bon\b)+$/i, "").trim();
+    if (!t) return "";
+    return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+// Returns null unless the message is a written-out plan (2+ lines with times).
+function parseTimetable(message, today, now) {
+    const lines = String(message || "").split(/\n|;/).map(l => l.replace(/^\s*(?:[-•*·▪︎◦]|\d{1,2}[.)](?!\d))\s+/, "").trim())
+        .filter(l => l.replace(/[^a-z]/gi, "").length > 0 || /\d/.test(l));
+    if (lines.length < 2) return null;
+    const read = lines.map(l => ({ line: l, t: readTimetableLine(l) }));
+    const timed = read.filter(r => r.t).length;
+    if (timed < 2 || timed < Math.ceil(lines.length / 2)) return null;
+
+    const nowMin = toMin(now);
+    let date = today, cursor = null, slack = 60;
+    const startCursor = d => d === today && nowMin !== null ? nowMin : 6 * 60;
+    const tasks = [], events = [], loose = [];
+    read.forEach(({ line, t }) => {
+        const when = findDate(line, today);
+        if (when && !when.deadline && when.date !== date) { date = when.date; cursor = null; }
+        if (!t) {
+            const rest = when ? line.toLowerCase().replace(when.match, " ").replace(/[^a-z]/g, "") : line.replace(/[^a-z]/gi, "");
+            if (rest.length > 1) loose.push({ line, date });
+            return;                                    // "Tomorrow:" on its own just sets the day
+        }
+        if (cursor === null) { cursor = startCursor(date); slack = 60; }
+        const c1 = ttCandidates(t.h1, t.m1, t.a1);
+        let s, e;
+        if (t.kind === "range") {
+            const c2 = ttCandidates(t.h2, t.m2, t.a2);
+            if (!t.a1 && t.a2) {
+                // "11:40–12:50pm": the start is whichever reading gives a sensible length
+                const opts = c1.map(x => ({ x, len: c2[0] - x })).filter(o => o.len > 0 && o.len <= 12 * 60).sort((a, b) => a.len - b.len);
+                s = opts.length ? opts[0].x : ttPick(c1, cursor, slack, startCursor(date));
+                e = c2[0];
+            } else {
+                s = ttPick(c1, cursor, slack, startCursor(date));
+                const after = c2.filter(x => x > s).sort((a, b) => a - b);
+                e = after.length ? after[0] : s + 60;
+            }
+        } else {
+            s = ttPick(c1, cursor, slack, startCursor(date));
+        }
+        const title = ttTitle(line, t.match, when && when.match);
+        const dur = e !== undefined ? Math.max(5, e - s) : null;
+        const item = { title: title || "Task", date, start: toClock(s), flexible: false, fromUser: true };
+        const isEvent = Priority.kindOf(title) === "event";
+        if (isEvent) {
+            const end = Math.min(24 * 60 - 1, s + (dur || 60));
+            events.push({ type: "event", title: item.title, date, start: item.start, end: toClock(end), duration: end - s, category: Priority.guessCategory(title) });
+        } else {
+            tasks.push({ ...item, duration: dur || estimateDuration(title) });
+        }
+        cursor = s + (dur || 30);
+        slack = 15;
+    });
+    if (!tasks.length && !events.length) return null;
+    return { tasks, events, loose };
 }
 
 function eventFromText(raw, today, now) {
@@ -1823,6 +1947,31 @@ Reply with JSON only: {"mode":"edit|new","title":"short task title in the user's
             tasks: withLabels(payload.tasks), events: withLabels(payload.events), mode: payload.mode === "coach" ? "coach" : mode,
             ...(coachNote && payload.mode !== "coach" ? { reply: coachNote + (payload.reply || "") } : {}) });
 
+        /* A plan the person wrote out line by line: keep their names and times exactly */
+        if (!attachGoal && !draft) {
+            const tt = parseTimetable(message, today, now);
+            if (tt) {
+                const evBusy = tt.events.map(e => ({ date: e.date, start: e.start, end: e.end, title: e.title, kind: "event" }));
+                let tasks = schedule(tt.tasks, { today, now, existing: existing.concat(evBusy) });
+                if (tt.loose.length) {
+                    const extra = localPlan(tt.loose.map(l => l.line + (l.date !== today ? " " + l.date : "")).join("\n"), today, prefs, now);
+                    const busy = existing.concat(evBusy, tasks.map(x => ({ date: x.date, start: x.start, end: x.end })));
+                    tasks = tasks.concat(schedule(extra.tasks.slice(0, 20), { today, now, existing: busy }))
+                        .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+                }
+                const n = tasks.length, ne = tt.events.length;
+                const first = tasks.concat(tt.events.map(e => ({ ...e }))).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start))[0];
+                const days = new Set(tasks.map(x => x.date).concat(tt.events.map(e => e.date)));
+                const dayText = days.size === 1 ? friendly([...days][0], today) : `over ${days.size} days`;
+                const parts = [n ? `${n} task${n === 1 ? "" : "s"}` : "", ne ? `${ne} event${ne === 1 ? "" : "s"}` : ""].filter(Boolean).join(" and ");
+                const moved = tasks.filter(x => x.notes).length;
+                const reply = `Here's your plan as you wrote it: ${parts} ${dayText}, starting ${clock12(first.start)}.` +
+                    (moved ? ` ${moved === 1 ? "One item has" : moved + " items have"} a note, so check ${moved === 1 ? "it" : "them"}.` : "") +
+                    ` Edit anything, then tap **Add to my plan**.`;
+                return respond({ reply, tasks, goals: [], events: tt.events, source: "planora" });
+            }
+        }
+
         /* Coach: day planning, re-planning, weekly progress and advice (needs OpenAI). Quick commands keep the path below. */
         if (process.env.OPENAI_API_KEY && !attachGoal && !draft && Coach().wantsCoach(message, mode)) {
             try {
@@ -1975,4 +2124,4 @@ Reply with JSON only: {"mode":"edit|new","title":"short task title in the user's
     });
 }
 
-module.exports = { install, callOpenAI, resolveUpdates, isDate, addDays, dayOfWeek, daysBetween, toMin, toClock, clock12, friendly, durLabel, taskDur, sanitiseGoals, sanitiseContext, friendly, extractEvents, eventFromText, findRange, localPlan, schedule, classify, localAnswer, localEdit, planDay, parseTask, whatNowAnswer, planWeek, limitedTime, behindOn, moveUnfinished, breakDown, goalStatus, sanitiseLabels, pickLabel, sanitiseRoutine, expandRoutine, anchorToMessage, bdLocalEdit };
+module.exports = { install, parseTimetable, callOpenAI, resolveUpdates, isDate, addDays, dayOfWeek, daysBetween, toMin, toClock, clock12, friendly, durLabel, taskDur, sanitiseGoals, sanitiseContext, friendly, extractEvents, eventFromText, findRange, localPlan, schedule, classify, localAnswer, localEdit, planDay, parseTask, whatNowAnswer, planWeek, limitedTime, behindOn, moveUnfinished, breakDown, goalStatus, sanitiseLabels, pickLabel, sanitiseRoutine, expandRoutine, anchorToMessage, bdLocalEdit };

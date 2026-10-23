@@ -2675,3 +2675,32 @@ html.web-mode .today-actions > button, html.web-mode .tb-recs > button { flex: 0
 /* replies with tables need more room in the Ask pop-up */
 .ask-pop .sp-log { max-height: min(56vh, 560px); }
 @media (min-width: 900px) { .ask-pop .sp-log { max-height: min(60vh, 640px); } }
+
+/* ---------- Filter by label (Home schedule + Calendar day list) ---------- */
+.sched-tools { display: inline-flex; align-items: center; gap: 2px; }
+.lf-btn { position: relative; border: none; background: transparent; cursor: pointer; font: inherit; }
+.icon-link.lf-btn { color: var(--purple-400); font-size: 20px; }
+.ag-day.ag-filter { position: relative; }
+.lf-btn.is-on { background: var(--purple-50); color: var(--purple-600); }
+.ag-day.ag-filter.is-on { background: #EFEDFF; border-color: var(--purple-400, #8B7FE8); }
+.lf-count {
+  position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; padding: 0 4px; box-sizing: border-box;
+  border-radius: 9px; background: var(--purple-600, #5145CD); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 17px; text-align: center;
+}
+.lf-count[hidden] { display: none; }
+.lf-list { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 6px; }
+.lf-opt {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 8px 12px; border-radius: 12px;
+  border: 1px solid var(--purple-100, #D8D3FA); background: #fff; font: inherit; font-size: 14.5px; color: #1E1A4D; cursor: pointer; text-align: left;
+}
+.lf-opt.on { border-color: var(--purple-400, #8B7FE8); background: #F6F4FF; }
+.lf-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.lf-ico { font-size: 16px; color: var(--purple-600, #5145CD); width: 12px; display: inline-flex; justify-content: center; flex: none; }
+.lf-name { flex: 1; min-width: 0; }
+.lf-tick { color: var(--purple-600, #5145CD); font-size: 18px; visibility: hidden; }
+.lf-opt.on .lf-tick { visibility: visible; }
+.lf-actions { display: flex; gap: 8px; margin-top: 4px; }
+.lf-actions > * { flex: 1; }
+.completed-section.lf-hidden { display: none !important; }
+.icon-link.lf-btn { padding: 4px; border-radius: 8px; }
+.icon-link.lf-btn .lf-count { top: -7px; right: -8px; }

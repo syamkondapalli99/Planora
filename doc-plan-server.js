@@ -135,13 +135,14 @@ async function aiExtract({ kind, name, mime, b64, text, today, note }) {
     const system = `You read ONE document a student or worker uploaded and list the dated items that are written in it.
 Rules:
 - Use ONLY what is in the document. Never invent, guess or add items, dates or times that are not written there.
-- Items: exams/tests/quizzes ("exam"), assignment/project/essay/report due dates ("deadline"), and other fixed-time things like presentations, classes or meetings ("event").
-- date: YYYY-MM-DD. Today is ${today}. If the document gives no year, use the next time that date comes on or after ${addDays(today, -60)}.
-- time/end: HH:MM 24-hour only if written in the document, else null.
-- title: short and specific, using the document's own words (e.g. "Biology midterm", "Lab report 2").
+- Items: exams/tests/quizzes ("exam"), assignment/project/essay/report due dates ("deadline"), fixed-time things that happen with other people like presentations, classes, lectures, meetings or appointments ("event"), and the person's OWN planned work at a set time ("task") — e.g. a day plan, timetable or to-do list they wrote for themselves such as "10:20–11:30am: Module 2 (videos and revision)" or "7–8pm: research revision". Studying, revising, watching videos, writing, making something, practising, chores and personal to-dos are "task", not "event".
+- If the person says they want tasks (e.g. "as tasks", "make them tasks"), use "task" for everything except exams and deadlines. If they say events, use "event".
+- date: YYYY-MM-DD. Today is ${today}. If the document gives no year, use the next time that date comes on or after ${addDays(today, -60)}. A day plan with times but no date written is for today (${today}) unless the person says another day.
+- time/end: HH:MM 24-hour only if written in the document, else null. Where am/pm is missing, use the reading that fits the order of the plan (e.g. "11:40–12:50pm" is 11:40 to 12:50; "9:00–10:30" after an evening item is 21:00 to 22:30).
+- title: the document's own words. For exams, deadlines and events keep it short and specific (e.g. "Biology midterm", "Lab report 2"). For tasks keep the whole name as written, including anything in brackets (e.g. "Module 2 (videos and revision)").
 - quote: the exact short text from the document that shows this item (max 160 characters).
 - Skip items with no date. If nothing is dated, return an empty list.
-Reply with JSON only: {"about":"one short line saying what the document is","items":[{"title":"","kind":"exam|deadline|event","date":"YYYY-MM-DD","time":null,"end":null,"quote":""}]}`;
+Reply with JSON only: {"about":"one short line saying what the document is","items":[{"title":"","kind":"exam|deadline|event|task","date":"YYYY-MM-DD","time":null,"end":null,"quote":""}]}`;
     const out = leaveOut(note);
     const parts = [{ type: "text", text: `Document name: ${name}.${note ? ` The person also said: "${note.slice(0, 300)}" (use this only to choose which of the document's items they want; never to add new ones). If they ask to remove, skip or leave out something, do NOT list it.` : ""}${out.length ? ` Leave out anything that is: ${out.join(", ")}.` : ""}` }];
     if (kind === "image") parts.push({ type: "image_url", image_url: { url: `data:${mime};base64,${b64}`, detail: "high" } });
@@ -168,11 +169,24 @@ Reply with JSON only: {"about":"one short line saying what the document is","ite
 }
 
 /* ---------- make the plan from the items ---------- */
+function toMinD(hhmm) { const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || "")); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
+// "as tasks", "make them tasks", "not events" → which kind the person wants (or null)
+function wantedKind(note) {
+    const t = String(note || "").toLowerCase().replace(/\bnot\s+(an?\s+|as\s+)?(tasks?|events?)\b/g, " ");
+    const task = /\btasks?\b/.test(t), event = /\bevents?\b/.test(t);
+    return task && !event ? "task" : event && !task ? "event" : null;
+}
 function planFromItems(items, { today, now, prefs, existing }) {
     const tasks = [], goals = [], events = [];
     items.forEach((it, i) => {
         const ref = "d" + (i + 1);
         const from = `From your document: "${it.quote.slice(0, 120)}"`;
+        if (it.kind === "task") {
+            // the person's own planned work: keep their name, day and time exactly
+            const len = it.time && it.end && toMinD(it.end) > toMinD(it.time) ? toMinD(it.end) - toMinD(it.time) : null;
+            tasks.push({ title: it.title, date: it.date, start: it.time || null, duration: len || 60, flexible: !it.time, fromUser: Boolean(it.time), notes: from, deadline: null });
+            return;
+        }
         if (it.kind === "event" || ((it.kind === "exam") && it.time)) {
             const start = it.time || "09:00";
             events.push({
@@ -259,7 +273,7 @@ function install(app, requireAuth) {
         const seen = new Set(), past = [];
         const items = raw.map(it => ({
             title: String((it && it.title) || "").replace(/\s+/g, " ").trim().slice(0, 80),
-            kind: ["exam", "deadline", "event"].includes(it && it.kind) ? it.kind : "deadline",
+            kind: ["exam", "deadline", "event", "task"].includes(it && it.kind) ? it.kind : "deadline",
             date: String((it && it.date) || ""), time: clock(it && it.time) ? it.time : null, end: clock(it && it.end) ? it.end : null,
             quote: String((it && it.quote) || "").replace(/\s+/g, " ").trim().slice(0, 200)
         })).filter(it => {
@@ -270,6 +284,9 @@ function install(app, requireAuth) {
             if (it.date < today) { past.push(it); return false; }
             return true;
         }).slice(0, 15);
+        // "make them tasks" / "as events": the person decides (exams and deadlines keep their own handling)
+        const want = wantedKind(note);
+        if (want) items.forEach(it => { if (it.kind === "event" || it.kind === "task") it.kind = want; });
         // what the person said to leave out ("remove commute, lunch and dinner") never goes in the plan
         const outTerms = leaveOut(note), removed = [];
         for (let i = items.length - 1; i >= 0; i--) if (isLeftOut(items[i].title, outTerms)) removed.unshift(items.splice(i, 1)[0]);
@@ -286,10 +303,11 @@ function install(app, requireAuth) {
             });
         }
         const plan = planFromItems(items, { today, now, prefs, existing });
-        const list = items.map(it => `**${it.title}** (${it.kind === "exam" ? "exam" : it.kind === "deadline" ? "due" : "event"}, ${fmt(it.date)}${it.time ? " " + it.time : ""})`).join(", ");
+        const list = items.map(it => `**${it.title}** (${it.kind === "exam" ? "exam" : it.kind === "deadline" ? "due" : it.kind === "task" ? "task" : "event"}, ${fmt(it.date)}${it.time ? " " + SP.clock12(it.time) : ""})`).join(", ");
         const did = [];
         if (plan.goals.length) did.push("planned study sessions before each exam");
-        if (plan.tasks.some(t => !t.goalRef)) did.push("planned work sessions before each deadline");
+        if (items.some(it => it.kind === "task")) did.push("kept your tasks at the times you wrote");
+        if (items.some(it => it.kind === "deadline")) did.push("planned work sessions before each deadline");
         if (plan.events.length) did.push(`added ${plan.events.length === 1 ? "the event" : "the events"} at ${plan.events.length === 1 ? "its time" : "their times"}`);
         const didText = did.length > 1 ? did.slice(0, -1).join(", ") + " and " + did[did.length - 1] : did[0];
         const reply = `I read **${name}**${about ? ` (${about.replace(/\*/g, "")})` : ""} and found ${items.length === 1 ? "1 item" : items.length + " items"}: ${list}.${removedNote} `
@@ -307,4 +325,4 @@ function install(app, requireAuth) {
     });
 }
 
-module.exports = { install, docxText, localExtract, findDateLoose, planFromItems, leaveOut, isLeftOut };
+module.exports = { install, wantedKind, docxText, localExtract, findDateLoose, planFromItems, leaveOut, isLeftOut };

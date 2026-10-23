@@ -1142,7 +1142,10 @@
                         <section class="card schedule-card" id="schedule-card" aria-labelledby="schedule-title">
                             <div class="card-header">
                                 <h2 class="card-title" id="schedule-title">Today's schedule</h2>
-                                <a class="icon-link" href="calendar.html" aria-label="Open calendar"><i class="ti ti-calendar" aria-hidden="true"></i></a>
+                                <span class="sched-tools">
+                                    <button type="button" class="icon-link lf-btn" data-label-filter aria-haspopup="dialog" aria-label="Filter by label" title="Filter by label"><i class="ti ti-filter" aria-hidden="true"></i><span class="lf-count" hidden></span></button>
+                                    <a class="icon-link" href="calendar.html" aria-label="Open calendar"><i class="ti ti-calendar" aria-hidden="true"></i></a>
+                                </span>
                             </div>
                             <div class="week-calendar">
                                 <button type="button" class="week-arrow" onclick="changeWeek(-1)" aria-label="Previous week">

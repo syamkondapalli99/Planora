@@ -208,6 +208,7 @@
 
         function showReview(plan, heading) {
             state.plan = plan;
+            state.heading = heading;
             document.body.classList.add("sp-reviewing");
             state.review = PlanoraCore.PlanReview(reviewEl, plan, {
                 heading,
@@ -250,10 +251,58 @@
             };
         }
 
+        /* "make them tasks", "module 4 should be an event", "as tasks not events":
+           switch items in the preview between task and event, keeping their names, days and times. */
+        const KIND_STOP = new Set(["make", "change", "turn", "convert", "switch", "them", "these", "those", "this", "that", "all", "into", "like", "task", "tasks", "event", "events", "instead", "please", "should", "the", "and", "not", "are", "its", "it's", "they", "they're", "can", "you", "put", "add", "set", "mark", "save", "every", "everything", "one", "ones", "just", "only", "also", "them", "to", "as", "be", "an", "a", "of", "plan", "my", "item", "items"]);
+        function switchKind(message) {
+            if (!state.plan || !state.review || !(state.plan.tasks || []).length || /\d\s*(am|pm|min|mins|minutes|h|hr|hrs|hours?)\b|\d[:.]\d|\b(at|to|from|on|by)\s+\d|tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday/i.test(message) || message.length > 140) return false;
+            const low = message.toLowerCase();
+            if (!/\b(make|change|turn|convert|switch|set|mark|put|add|save|should|are|is|be|as|into|like|instead)\b/.test(low)) return false;
+            const cleaned = low.replace(/\bnot\s+(an?\s+|as\s+)?(tasks?|events?)\b/g, " ");
+            const toTask = /\btasks?\b/.test(cleaned), toEvent = /\bevents?\b/.test(cleaned);
+            if (toTask === toEvent) return false;
+            const want = toTask ? "task" : "event";
+            const words = low.replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(w => (w.length >= 3 || /^\d+$/.test(w)) && !KIND_STOP.has(w));
+            const items = state.plan.tasks.filter(t => !t.goalRef && !t.goalId);
+            // the items whose names match best ("module 4" → Module 4, not every module)
+            const score = t => { const tw = t.title.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/); return words.filter(w => /^\d+$/.test(w) ? tw.includes(w) : tw.some(x => x.startsWith(w) || w.startsWith(x) && x.length >= 3)).length; };
+            const best = words.length ? Math.max(0, ...items.map(score)) : 0;
+            const named = best ? items.filter(t => score(t) === best) : [];
+            if (words.length && !named.length) return false;          // talks about something else: let Planora handle it
+            const targets = (named.length ? named : items).filter(t => (t.type === "event") !== (want === "event"));
+            bubble(esc(message), "me");
+            input.value = ""; autoGrow();
+            if (!targets.length) {
+                bubble(want === "task" ? "They're already tasks." : "They're already events.", "ai");
+                return true;
+            }
+            const toMin = PlanoraCore.toMin, toClock = PlanoraCore.toClock;
+            targets.forEach(t => {
+                if (want === "task") {
+                    delete t.type;
+                    t.duration = Math.max(5, (toMin(t.end) - toMin(t.start)) || Number(t.duration) || 60);
+                    t.end = t.end || toClock(toMin(t.start) + t.duration);
+                    t.notes = t.eventNotes || (t.notes && !/^No time given/.test(t.notes) ? t.notes : "");
+                } else {
+                    t.type = "event";
+                    t.end = t.end || toClock(toMin(t.start) + (Number(t.duration) || 60));
+                    t.eventNotes = t.notes && !/^(That time|Not enough|Your day|Couldn't|Overlaps|Moved)/.test(t.notes) ? t.notes : "";
+                    t.notes = "";
+                }
+            });
+            const n = targets.length, all = n === items.length;
+            state.history.push({ role: "user", text: message }, { role: "assistant", text: `Switched ${n} item(s) to ${want}s.` });
+            const reply = bubble(`Done. ${all ? (n === 1 ? "It's" : "They're") + ` now ${n === 1 ? "a " + want : want + "s"}` : `${n === 1 ? esc(targets[0].title) + " is" : n + " items are"} now ${n === 1 ? "a " + want : want + "s"}`}, at the same times. Take a look, then tap **Add to my plan**.`.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"), "ai");
+            if (state.convo) talk(reply, `Done, ${n === 1 ? "it's" : "they're"} now ${want}s at the same times. Say add it to save it.`);
+            showReview(state.plan, state.heading || "Suggested plan");
+            return true;
+        }
+
         async function send(text, opts = {}) {
             const message = (text || input.value).trim();
             if (state.file && !text && !state.busy) return sendDoc(message);
             if (!message || state.busy) return;
+            if (!opts.attachGoal && switchKind(message)) return;
             state.lastMessage = message;
             exampleRow.hidden = true;
             clearBtn.hidden = false;

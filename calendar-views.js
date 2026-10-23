@@ -63,7 +63,8 @@
         const tasks = core.getTasks().filter(t => t.date && t.date >= from && t.date <= to).map(t => ({ kind: "task", id: String(t.id), raw: t, date: t.date, start: t.start || "", dur: core.taskDuration(t), title: t.title }));
         const events = core.getEvents().filter(e => e.date >= from && e.date <= to).map(e => ({ kind: "event", id: String(e.id), raw: e, date: e.date, start: e.start, dur: core.eventDuration(e), title: e.title }));
         const google = window.PlanoraGCal ? PlanoraGCal.itemsFor(from, to) : [];     // Google Calendar (read-only)
-        return tasks.concat(events, google);
+        const all = tasks.concat(events, google);
+        return core.passesLabelFilter ? all.filter(x => core.passesLabelFilter(x.kind, x.raw)) : all;      // Filter by label
     }
     function colorOf(it) {
         const core = C();
@@ -327,10 +328,13 @@
             <section class="ag" aria-label="${core.esc(head)}">
                 <div class="ag-head">
                     <h2 class="ag-h">${core.esc(head)}</h2>
+                    ${core.filterButtonHTML ? core.filterButtonHTML("ag-day ag-filter") : ""}
                     <button type="button" class="ag-day" data-ag-dayview aria-label="Open this day in Day view"><i class="ti ti-layout-rows" aria-hidden="true"></i></button>
                     <button type="button" class="ag-add" data-ag-add aria-label="Add a task or event on this day"><i class="ti ti-plus" aria-hidden="true"></i><span>Add</span></button>
                 </div>
                 ${list.length ? `<ul class="ag-list">${list.map(row).join("")}</ul>`
+                : core.labelFilter && core.labelFilter().length
+                ? `<div class="ag-empty"><p>Nothing with the labels you picked${d === core.today() ? " today" : " on this day"}.</p><button type="button" class="btn-secondary" data-label-filter>Change filter</button></div>`
                 : `<div class="ag-empty"><p>Nothing planned${d === core.today() ? " today" : " for this day"}.</p><button type="button" class="btn-secondary" data-ag-add>Add a task or event</button></div>`}
             </section>`;
     }
@@ -966,6 +970,7 @@
         const redraw = () => { if (!op) { refreshLegacy(); render(); } };
         document.addEventListener("planora:data-changed", redraw);
         document.addEventListener("planora:plan-added", redraw);
+        document.addEventListener("planora:filter-changed", redraw);          // Filter by label
         document.addEventListener("planora:slot-preview", e => showSlotGhost(e.detail));
         document.addEventListener("planora:sheet-closed", () => setTimeout(clearSlotGhost, 0));
         let rt = null, lastPhone = isPhone();
