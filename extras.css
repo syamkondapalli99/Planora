@@ -2704,3 +2704,6 @@ html.web-mode .today-actions > button, html.web-mode .tb-recs > button { flex: 0
 .completed-section.lf-hidden { display: none !important; }
 .icon-link.lf-btn { padding: 4px; border-radius: 8px; }
 .icon-link.lf-btn .lf-count { top: -7px; right: -8px; }
+
+/* iPhone app (31 Oct 2026): hidden sign-in buttons stay hidden */
+.oauth-btn[hidden] { display: none !important; }

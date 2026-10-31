@@ -12,11 +12,11 @@
    - Account and AI requests (/api, /auth) are never cached.
    ========================================================= */
 
-const VERSION = "planora-2026-10-23-plan-kinds";
+const VERSION = "planora-2026-10-31-ios-app";
 const SHELL = [
     "/offline.html",
     "/style.css", "/extras.css", "/devices.css", "/desktop.css", "/fonts/figtree-latin-wght-normal.woff2", "/fonts/bricolage-grotesque-latin-wght-normal.woff2",
-    "/device.js", "/pwa.js", "/planora-config.js", "/vendor/supabase.js", "/auth.js", "/planora-core.js", "/planora-priority.js",
+    "/device.js", "/native.js", "/pwa.js", "/planora-config.js", "/vendor/supabase.js", "/auth.js", "/planora-core.js", "/planora-priority.js",
     "/focus.js", "/smart-planner.js", "/script.js", "/home.js", "/app-extras.js", "/tour.js",
     "/calendar.js", "/calendar-views.js", "/gcal.js", "/planner.js", "/journal-link.js", "/ai-assistant.js", "/login.js",
     "/manifest.webmanifest",

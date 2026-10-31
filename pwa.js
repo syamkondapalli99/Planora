@@ -19,7 +19,8 @@
     let deferredPrompt = null;
 
     /* ---------- service worker ---------- */
-    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+    const nativeApp = Boolean(window.PlanoraNativeApp && PlanoraNativeApp.isNative);   // the iPhone app has its own offline screen
+    if (!nativeApp && "serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
         window.addEventListener("load", () => {
             navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(err => console.warn("Planora offline support unavailable:", err && err.message));
         });

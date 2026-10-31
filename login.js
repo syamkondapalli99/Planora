@@ -279,12 +279,61 @@
         } catch { return null; }
     }
 
+    /* In the Planora iPhone app: Sign in with Apple uses the iPhone's own sheet;
+       Google opens in Apple's secure sign-in window and comes back to the app. */
+    const NATIVE_CALLBACK = "net.planoraai.app://auth-callback";
+    const nativeApp = () => Boolean(window.PlanoraNativeApp && PlanoraNativeApp.isNative && PlanoraNativeApp.plugin);
+
+    async function nativeOauth(provider, button, label) {
+        const N = PlanoraNativeApp.plugin;
+        if (provider === "apple") {
+            const raw = randomHex(32);
+            const res = await N.appleSignIn({ nonce: await sha256Hex(raw) });
+            setBusy(button, false);
+            showChecking("Signing you in…");
+            const { error } = await sb().auth.signInWithIdToken({ provider: "apple", token: res.idToken, nonce: raw });
+            if (error) throw error;
+            // Apple only shares the name the very first time
+            const name = [res.givenName, res.familyName].filter(Boolean).join(" ").trim();
+            if (name) { try { await sb().auth.updateUser({ data: { full_name: name, name } }); } catch {} }
+            await signedIn();
+            return;
+        }
+        const { data, error } = await sb().auth.signInWithOAuth({
+            provider,
+            options: { redirectTo: NATIVE_CALLBACK, skipBrowserRedirect: true }
+        });
+        if (error) throw error;
+        const back = await N.webAuth({ url: data.url, scheme: "net.planoraai.app" });
+        const u = new URL(back.url.replace(/#/, "?"));
+        const err = u.searchParams.get("error_description") || u.searchParams.get("error");
+        if (err) throw new Error(err);
+        const code = u.searchParams.get("code");
+        if (!code) throw new Error(`${label} didn't finish signing you in. Please try again.`);
+        setBusy(button, false);
+        showChecking("Signing you in…");
+        const ex = await sb().auth.exchangeCodeForSession(code);
+        if (ex.error) throw ex.error;
+        await signedIn();
+    }
+
     async function oauth(provider) {
         if (busy || notReady()) return;
         const label = provider === "apple" ? "Apple" : "Google";
         const button = $(provider + "-btn");
         banner("");
         setBusy(button, true, `Opening ${label}…`);
+        if (nativeApp()) {
+            const backTo = mode === "signup" ? "signup" : "login";
+            try { await nativeOauth(provider, button, label); }
+            catch (error) {
+                setBusy(button, false);
+                showMain(); showMode(backTo);
+                const cancelled = error && (error.code === "cancelled" || error.message === "cancelled");
+                if (!cancelled) banner(auth().friendlyError(error, label).message, "error");
+            }
+            return;
+        }
         try {
             // Is this provider switched on in Supabase? (public settings; if they can't be read, just try)
             const enabled = await providerEnabled(provider);
@@ -506,6 +555,8 @@
 
         const a = auth();
         $("skip-btn").hidden = !a.isDev;
+        // Sign in with Apple works in the iPhone app; on the website it needs extra Apple keys (appleWebSignIn)
+        if (!nativeApp() && !(window.PLANORA_CONFIG || {}).appleWebSignIn) $("apple-btn").hidden = true;
         if (!a.configured) {
             $("auth-config-note").textContent = a.isDev
                 ? "Development: Supabase isn't connected yet (planora-config.js). Sign-in buttons are disabled until it is."
@@ -542,7 +593,7 @@
         showMain();
         if (message) banner(message, type);
         if (!a.configured) notReady();
-        setupGooglePopup();
+        if (!nativeApp()) setupGooglePopup();     // Google's pop-up doesn't work inside an app
     }
 
     document.addEventListener("keydown", e => {

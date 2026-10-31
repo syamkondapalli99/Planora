@@ -535,6 +535,12 @@
         if (act !== "unlink") confirmUnlink = false;
         if (act === "close") closePanel();
         else if (act === "retry") { paintPanel({ loading: true }); refreshStatus().then(() => paintPanel()); }
+        else if ((act === "link" || act === "sync-on" || act === "edit-on") && window.PlanoraNativeApp && PlanoraNativeApp.isNative && !(act === "sync-on" && st.status && st.status.canWrite)) {
+            // Google's linking pop-up can't open inside the iPhone app. Linking once on the website is enough:
+            // the link is saved to your Planora account, so your Google events then show in the app too.
+            showError("To link Google Calendar, open planoraai.net on a computer or in Safari, sign in, and tap Link Google Calendar there. It then shows in the app too.");
+            return;
+        }
         else if (act === "link") {
             const opt = overlay.querySelector("[data-g-opt=sync]");
             linkWithSync = Boolean(opt && opt.checked);
